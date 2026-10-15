@@ -7,12 +7,24 @@ const providers=require('./providers.cjs');
 const usage=require('./usage.cjs');
 const {Memory,redact}=require('./memory.cjs');
 const updater=require('./updater.cjs');
+const drivers=require('./drivers.cjs');
+const {Permissions}=require('./permissions.cjs');
 app.setName('VeSTA');
 app.commandLine.appendSwitch('force-renderer-accessibility');
 if(process.env.VESTA_DATA_DIR)app.setPath('userData',process.env.VESTA_DATA_DIR);
 // Up to 0.1.4 the app was Omphalos and kept everything in %APPDATA%\Omphalos: keep using that folder so chats, memories and drafts survive the rename.
 else{const legacy=path.join(app.getPath('appData'),'Omphalos');if(fs.existsSync(path.join(legacy,'omphalos.json'))&&!fs.existsSync(path.join(app.getPath('userData'),'omphalos.json')))app.setPath('userData',legacy);}
-let win,store,memory;const jobs=new Map();let integrations={};
+let win,store,memory;
+const permissions=new Permissions({
+  rules:chatId=>{const c=store.state.chats.find(x=>x.id===chatId);if(!c)return null;c.permissionRules=c.permissionRules||[];return c.permissionRules;},
+  onUpdate:(chatId,record)=>{
+    const msg=jobs.get(chatId)?.assistant;if(msg){msg.permissions=msg.permissions||[];const i=msg.permissions.findIndex(x=>x.id===record.id);if(i>=0)msg.permissions[i]={...record};else msg.permissions.push({...record});msg.permissions=msg.permissions.slice(-60);}
+    emit({type:'permission',chatId,messageId:msg?.id,permission:{...record}});
+    // Someone has to answer: draw attention when the window is in the background.
+    if(record.status==='pending'&&win&&!win.isDestroyed()&&!win.isFocused())win.flashFrame(true);
+    if(record.status==='always')store.save();
+  },
+});const jobs=new Map();let integrations={};
 const emit=event=>{if(win&&!win.isDestroyed())win.webContents.send('vesta:event',event)};
 const state=()=>({...store.state,running:[...jobs.keys()],appVersion:app.getVersion()});
 const sync=()=>emit({type:'state',state:state()});
@@ -42,9 +54,9 @@ async function inspectProject(id){
 async function send({chatId,text}) {
   const chat=store.chat(chatId);text=bounded(text,50000).trim();if(!text)throw new Error('Digite uma mensagem');if(jobs.has(chatId))throw new Error('Este chat já está respondendo');
   const exe=integrations[chat.provider]?.exe||providers.locate(chat.provider);if(!exe)throw new Error('Instale ou configure '+chat.provider+' na tela Conexões');const cwd=workdir(chat);
-  const task={child:null,cancelled:false};jobs.set(chatId,task);
+  const task={run:null,cancelled:false,assistant:null};jobs.set(chatId,task);
   const user={id:randomUUID(),role:'user',text,createdAt:Date.now()};const assistant={id:randomUUID(),role:'assistant',text:'',createdAt:Date.now(),activities:[],subagents:[],status:'running'};
-  chat.messages.push(user,assistant);if(chat.title==='Novo chat')chat.title=text.replace(/\s+/g,' ').slice(0,55);chat.updatedAt=Date.now();store.save();sync();
+  task.assistant=assistant;chat.messages.push(user,assistant);if(chat.title==='Novo chat')chat.title=text.replace(/\s+/g,' ').slice(0,55);chat.updatedAt=Date.now();store.save();sync();
   // The renderer gets a response immediately; each chat owns its subprocess and native session id.
   (async()=>{
     let context='',memoryWarning='';
@@ -68,9 +80,7 @@ async function send({chatId,text}) {
       const prompt=preamble?preamble+'\n\nMensagem do usuário:\n'+text:text;
       const spec=providers.command(chat,exe,endpoint);
       const env={...process.env,...spec.env};delete env.ELECTRON_RUN_AS_NODE;
-      if(chat.provider==='opencode')env.OPENCODE_PERMISSION=JSON.stringify(chat.mode==='read'?{edit:'deny',bash:'deny',webfetch:'allow',question:'deny'}:{edit:'allow',bash:'allow',webfetch:'allow',question:'deny'});
-      const child=spawn(spec.exe,spec.args,{cwd,env,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});task.child=child;child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
-      let buffer='',stderr='',providerError='';const parse=providers.parser(chat.provider,event=>{
+      let providerError='';const parse=providers.parser(chat.provider,event=>{
         if(event.type==='session')chat.sessionId=event.sessionId;
         if(event.type==='text'){assistant.text+=event.text;emit({type:'text',chatId,messageId:assistant.id,text:event.text});}
         if(event.type==='activity'){const a=providers.upsertActivity(assistant.activities,event);assistant.activities=assistant.activities.slice(-50);emit({type:'activity',chatId,messageId:assistant.id,activity:a});}
@@ -79,11 +89,12 @@ async function send({chatId,text}) {
         if(event.type==='cost')usage.recordCost(store.state.usage,event);
         if(event.type==='provider-error')providerError=event.message;
       });
-      const line=l=>{if(!l.trim())return;try{parse.accept(JSON.parse(l))}catch{stderr=(stderr+'\n'+l).slice(-6000)}};
-      child.stdout.on('data',b=>{buffer+=b.toString();let i;while((i=buffer.indexOf('\n'))>=0){line(buffer.slice(0,i));buffer=buffer.slice(i+1)}if(buffer.length>2000000){providers.kill(child);providerError='A resposta excedeu o limite de leitura';}});
-      child.stderr.on('data',b=>stderr=(stderr+b.toString()).slice(-6000));
-      const exit=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('close',resolve);child.stdin.on('error',()=>{});child.stdin.end(prompt);});
-      if(buffer.trim())line(buffer);assistant.text=parse.text;
+      // Permission requests (the agent's and its subagents') wait for the user's answer in the chat.
+      const run=drivers.start(chat.provider,spec,{cwd,env,prompt,parse,version:app.getVersion(),ask:request=>permissions.ask(chatId,request)});task.run=run;
+      if(task.cancelled)run.stop();
+      const {code:exit,stderr}=await run.done;
+      permissions.cancelChat(chatId,'expired');
+      assistant.text=parse.text;
       const settled=task.cancelled||exit!==0?'error':'done';
       for(const s of assistant.subagents||[]){if(s.status==='running'){s.status=settled;s.endedAt=Date.now();}for(const st of s.steps||[])if(st.status==='running')st.status=settled;}
       for(const a of assistant.activities)if(a.status==='running')a.status=settled;
@@ -117,10 +128,11 @@ const methods={
   createChat:input=>{if(input.projectId&&!project(input.projectId))throw new Error('Projeto inválido');store.addChat(input);sync();return state();},
   renameChat:({id,title})=>{store.chat(id).title=bounded(title,100).trim()||'Novo chat';store.save();sync();return state();},
   deleteChat:({id})=>{if(jobs.has(id))throw new Error('Interrompa a resposta antes de excluir');store.state.chats=store.state.chats.filter(c=>c.id!==id);store.save();sync();return state();},
-  updateChat:({id,model,mode})=>{if(jobs.has(id))throw new Error('Aguarde a resposta terminar para trocar o modelo');const c=store.chat(id);if(model!==undefined)c.model=bounded(model,120).trim();if(mode!==undefined)c.mode=mode==='read'?'read':'edit';store.save();sync();return state();},
+  updateChat:({id,model,mode})=>{if(jobs.has(id))throw new Error('Aguarde a resposta terminar para trocar o modelo');const c=store.chat(id);if(model!==undefined)c.model=bounded(model,120).trim();if(mode!==undefined)c.mode=providers.MODES.includes(mode)?mode:'edit';store.save();sync();return state();},
   send,
   usage:()=>usage.summary(store.state.usage),
-  stop:({chatId})=>{const task=jobs.get(chatId);if(task){task.cancelled=true;providers.kill(task.child);}return true;},
+  stop:({chatId})=>{const task=jobs.get(chatId);if(task){task.cancelled=true;permissions.cancelChat(chatId);task.run?.stop();}return true;},
+  answerPermission:({id,decision})=>{if(!['once','always','deny'].includes(decision))throw new Error('Resposta inválida');if(!permissions.answer(id,decision))throw new Error('Este pedido já foi respondido ou expirou');return true;},
   addProject:async()=>{const result=await dialog.showOpenDialog(win,{title:'Escolher projeto',properties:['openDirectory']});if(result.canceled)return null;const dir=fs.realpathSync(result.filePaths[0]);let p=store.state.projects.find(p=>p.path.toLowerCase()===dir.toLowerCase());if(!p){p={id:randomUUID(),name:path.basename(dir),path:dir,createdAt:Date.now()};store.state.projects.push(p);store.save();sync();}return p;},
   inspectProject:({id})=>inspectProject(id),
   saveSettings:input=>{const s=store.state.settings;if(['obsidian','aurora','paper'].includes(input.theme))s.theme=input.theme;if(['ember','violet','mint','amber','rose'].includes(input.accent))s.accent=input.accent;if(['none','ember','rain','stream'].includes(input.background))s.background=input.background;for(const key of ['memoryEnabled','capture','memoryTools'])if(typeof input[key]==='boolean')s[key]=input[key];store.save();sync();return state();},
@@ -144,6 +156,7 @@ app.whenReady().then(()=>{
   for(const chat of store.state.chats)for(const m of chat.messages)if(m.status==='running'){m.status='cancelled';m.error='A sessão foi interrompida ao fechar o aplicativo.';}store.save();
   memory=new Memory(app.isPackaged?path.join(process.resourcesPath,'ai-memory.exe'):path.join(__dirname,'../runtime/ai-memory.exe'),path.join(app.getPath('userData'),'memory'));
   win=new BrowserWindow({width:1440,height:950,minWidth:1020,minHeight:700,frame:false,icon:path.join(__dirname,'../assets/vesta.png'),backgroundColor:'#101014',show:false,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  win.on('focus',()=>win.flashFrame(false));
   win.once('ready-to-show',()=>{if(process.env.VESTA_SERVICE_TEST==='1')return;win.show();if(process.env.VESTA_NO_UPDATE!=='1')setTimeout(()=>checkForUpdate().catch(()=>{}),4000);});
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('will-navigate',(e,url)=>{if(!url.startsWith('file://')&&!url.startsWith('http://127.0.0.1:5173'))e.preventDefault();});

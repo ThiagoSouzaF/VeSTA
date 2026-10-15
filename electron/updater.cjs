@@ -57,7 +57,10 @@ async function verify(dir, expectedVersion) {
   return file;
 }
 // The installer outlives the app: silent install over the current one, then it reopens the app (--force-run).
-function launchInstaller(file) {
-  spawn(file, ['/S', '--updated', '--force-run'], {detached: true, stdio: 'ignore', windowsHide: true}).unref();
+// /D= pins the target to the folder this copy runs from (the Omphalos→VeSTA update landed in a new folder without it).
+// NSIS wants /D= last and unquoted, so the command line is passed verbatim.
+function installerArgs(installDir) { return ['/S', '--updated', '--force-run', ...(installDir ? ['/D=' + installDir] : [])]; }
+function launchInstaller(file, installDir = path.dirname(process.execPath)) {
+  spawn(file, installerArgs(installDir), {detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true}).unref();
 }
-module.exports = {REPO, SETUP, locateGh, newer, installKind, readLatestYml, check, download, verify, launchInstaller};
+module.exports = {REPO, SETUP, locateGh, newer, installKind, readLatestYml, check, download, verify, installerArgs, launchInstaller};

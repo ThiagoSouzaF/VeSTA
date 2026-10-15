@@ -3,14 +3,14 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const {command,parser,memoryTools,memoryHint,MEMORY_SERVER}=require('../electron/providers.cjs');
 const {Memory}=require('../electron/memory.cjs');
 const endpoint={url:'http://127.0.0.1:50001',mcp:'http://127.0.0.1:50001/mcp',token:'secret-token-value'};
-test('without an endpoint no provider gets memory tools',()=>{for(const provider of ['claude','codex','opencode']){const c=command({provider,mode:'edit'},'x.exe');assert.ok(!c.args.join(' ').includes(MEMORY_SERVER));assert.deepEqual(c.env,{});}});
+test('without an endpoint no provider gets memory tools',()=>{for(const provider of ['claude','codex','opencode']){const c=command({provider,mode:'edit'},'x.exe');assert.ok(!c.args.join(' ').includes(MEMORY_SERVER));assert.ok(!Object.keys(c.env).some(k=>k.startsWith('VESTA_')||k==='OPENCODE_CONFIG_CONTENT'));}});
 test('memory tools are registered per launch and the token never goes on the command line',()=>{
   const claude=command({provider:'claude',mode:'edit'},'claude.exe',endpoint);
   const config=JSON.parse(claude.args[claude.args.indexOf('--mcp-config')+1]);
   assert.equal(config.mcpServers[MEMORY_SERVER].url,endpoint.mcp);assert.equal(config.mcpServers[MEMORY_SERVER].type,'http');
   assert.ok(claude.args.includes('mcp__'+MEMORY_SERVER));
   const codex=command({provider:'codex',mode:'edit',sessionId:'s1'},'codex.exe',endpoint);
-  assert.ok(codex.args.includes('mcp_servers.'+MEMORY_SERVER+'.url="'+endpoint.mcp+'"'));assert.equal(codex.args.at(-1),'-');assert.deepEqual(codex.args.slice(0,3),['exec','resume','s1']);
+  assert.ok(codex.args.includes('mcp_servers.'+MEMORY_SERVER+'.url="'+endpoint.mcp+'"'));assert.equal(codex.args[0],'app-server');assert.equal(codex.resume,'s1');
   const opencode=command({provider:'opencode',mode:'edit'},'opencode.exe',endpoint);
   assert.equal(JSON.parse(opencode.env.OPENCODE_CONFIG_CONTENT).mcp[MEMORY_SERVER].url,endpoint.mcp);
   for(const c of [claude,codex,opencode]){assert.ok(!c.args.join(' ').includes(endpoint.token));assert.equal(c.env.VESTA_MEMORY_TOKEN,endpoint.token);}
@@ -20,7 +20,7 @@ test('memory hint names the chat scope',()=>{assert.match(memoryHint('p-1'),/pro
 test('memory tool calls show as memory activities in every provider',()=>{
   const ev=[];parser('claude',e=>ev.push(e)).accept({type:'assistant',message:{content:[{type:'tool_use',id:'t1',name:'mcp__'+MEMORY_SERVER+'__memory_query',input:{query:'auth'}}]}});
   assert.equal(ev[0].kind,'memory');assert.equal(ev[0].label,'Memória · memory_query');assert.equal(ev[0].detail,'auth');
-  const cx=[];parser('codex',e=>cx.push(e)).accept({type:'item.completed',item:{id:'i1',type:'mcp_tool_call',server:MEMORY_SERVER,tool:'memory_write_page',arguments:{path:'agentes/x.md'}}});
+  const cx=[];parser('codex',e=>cx.push(e)).accept({method:'item/completed',params:{item:{id:'i1',type:'mcpToolCall',server:MEMORY_SERVER,tool:'memory_write_page',status:'completed',arguments:{path:'agentes/x.md'}}}});
   assert.equal(cx[0].kind,'memory');assert.equal(cx[0].label,'Memória · memory_write_page');
   const oc=[];parser('opencode',e=>oc.push(e)).accept({type:'tool_use',part:{tool:MEMORY_SERVER+'_memory_query',callID:'c1',state:{status:'completed',input:{}}}});
   assert.equal(oc[0].kind,'memory');

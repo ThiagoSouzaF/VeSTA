@@ -39,7 +39,7 @@ test('claude result, opencode step_finish and codex turn.completed emit cost',()
   assert.deepEqual([c.provider,c.inputTokens,c.outputTokens,c.cacheTokens,c.costUsd],['claude',10,5,120,0.12]);
   const o=run('opencode',[{type:'step_finish',part:{tokens:{input:7,output:3,reasoning:1,cache:{read:4,write:2}},cost:0.01}}]).find(e=>e.type==='cost');
   assert.deepEqual([o.inputTokens,o.outputTokens,o.cacheTokens,o.costUsd],[7,4,6,0.01]);
-  const x=run('codex',[{type:'turn.completed',usage:{input_tokens:50,cached_input_tokens:10,output_tokens:8,reasoning_output_tokens:2}}]).find(e=>e.type==='cost');
+  const x=run('codex',[{method:'thread/started',params:{thread:{id:'t1'}}},{method:'thread/tokenUsage/updated',params:{threadId:'t1',tokenUsage:{last:{inputTokens:30,cachedInputTokens:6,outputTokens:5,reasoningOutputTokens:1}}}},{method:'thread/tokenUsage/updated',params:{threadId:'t1',tokenUsage:{last:{inputTokens:20,cachedInputTokens:4,outputTokens:3,reasoningOutputTokens:1}}}},{method:'turn/completed',params:{threadId:'t1',turn:{status:'completed'}}}]).find(e=>e.type==='cost');
   assert.deepEqual([x.inputTokens,x.outputTokens,x.cacheTokens],[50,10,10]);
 });
 test('upsert helpers merge by id and stamp times',()=>{
@@ -101,6 +101,6 @@ test('store v1 migrates every existing chat to full edit once; new chats default
 test('edit mode gives full access in every provider',()=>{
   const args=p=>command({provider:p,mode:'edit',model:'m1'},'exe').args.join(' ');
   assert.match(args('claude'),/--permission-mode bypassPermissions/);assert.match(args('claude'),/--model m1/);
-  assert.match(args('codex'),/sandbox_mode="danger-full-access"/);
+  assert.deepEqual(command({provider:'codex',mode:'edit'},'exe').thread,{approvalPolicy:'never',sandbox:'danger-full-access'});
   assert.match(command({provider:'claude',mode:'read'},'exe').args.join(' '),/--permission-mode plan/);
 });

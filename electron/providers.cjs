@@ -1,5 +1,6 @@
 const {spawn, execFile} = require('node:child_process');
 const fs = require('node:fs');
+const {plainCommand} = require('./permissions.cjs');
 const path = require('node:path');
 const os = require('node:os');
 function locate(name) {
@@ -28,12 +29,25 @@ function memoryHint(projectId){
   const project=projectId||'inbox';
   return 'Você tem acesso à memória compartilhada do VeSTA pelas ferramentas MCP do servidor "'+MEMORY_SERVER+'" (AI Memory). Nelas, sempre passe workspace "omphalos" e project "'+project+'". Use memory_query para buscar decisões e contexto de conversas anteriores quando forem relevantes, e memory_write_page para registrar decisões, fatos e lições duráveis deste projeto (caminhos como "agentes/<assunto>.md"). Não grave segredos nem trechos longos de código.';
 }
+// Chat modes: 'edit' = full access, 'ask' = the agent asks the user before acting, 'read' = consultation only.
+const MODES=['ask','edit','read'];
+const modeOf=chat=>MODES.includes(chat.mode)?chat.mode:'edit';
+// How each CLI is launched. Claude speaks stream-json both ways (its permission requests arrive on stdout and are
+// answered on stdin); Codex runs its app-server (JSON-RPC with approval requests); OpenCode runs its HTTP server.
 function command(chat,exe,endpoint) {
-  const model=chat.model?['--model',chat.model]:[];
-  const mem=memoryTools(chat.provider,endpoint);
-  if(chat.provider==='codex') return {exe,args:['exec',...(chat.sessionId?['resume',chat.sessionId]:[]),'--json','--skip-git-repo-check','-c','sandbox_mode="'+(chat.mode==='edit'?'danger-full-access':'read-only')+'"','-c','approval_policy="never"',...mem.args,...model,'-'],env:mem.env,stdin:true};
-  if(chat.provider==='claude')return {exe,args:['--print','--output-format','stream-json','--verbose','--include-partial-messages','--permission-mode',chat.mode==='edit'?'bypassPermissions':'plan','--permission-prompts','none',...mem.args,...model,...(chat.sessionId?['--resume',chat.sessionId]:[])],env:mem.env,stdin:true};
-  return {exe,args:['run','--format','json',...(chat.model?['--model',chat.model]:[]),'--agent',chat.mode==='read'?'plan':(chat.agent||'build'),...(chat.sessionId?['--session',chat.sessionId]:[])],env:mem.env,stdin:true};
+  const mode=modeOf(chat),mem=memoryTools(chat.provider,endpoint);
+  if(chat.provider==='codex'){
+    const policy=mode==='ask'?{approvalPolicy:'on-request',sandbox:'read-only'}:{approvalPolicy:'never',sandbox:mode==='edit'?'danger-full-access':'read-only'};
+    return {exe,args:['app-server',...mem.args],env:mem.env,thread:{...policy,...(chat.model?{model:chat.model}:{})},resume:chat.sessionId||null};
+  }
+  if(chat.provider==='claude'){
+    // Even with full access, Claude still asks before touching protected files (settings, .git): those go to the user too.
+    const permission=mode==='read'?['--permission-mode','plan','--permission-prompts','none']:['--permission-mode',mode==='edit'?'bypassPermissions':'default','--permission-prompt-tool','stdio'];
+    return {exe,args:['--print','--input-format','stream-json','--output-format','stream-json','--verbose','--include-partial-messages',...permission,...mem.args,...(chat.model?['--model',chat.model]:[]),...(chat.sessionId?['--resume',chat.sessionId]:[])],env:mem.env};
+  }
+  const permission=mode==='read'?{edit:'deny',bash:'deny',webfetch:'allow',question:'deny'}:mode==='ask'?{edit:'ask',bash:'ask',webfetch:'ask',external_directory:'ask',question:'deny'}:{edit:'allow',bash:'allow',webfetch:'allow',question:'deny'};
+  const slash=chat.model?chat.model.indexOf('/'):-1;
+  return {exe,args:['serve','--hostname','127.0.0.1'],env:{...mem.env,OPENCODE_PERMISSION:JSON.stringify(permission)},model:slash>0?{providerID:chat.model.slice(0,slash),modelID:chat.model.slice(slash+1)}:null,agent:mode==='read'?'plan':(chat.agent||'build'),resume:chat.sessionId||null};
 }
 const clip=(v,n)=>String(v==null?'':v).slice(0,n);
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
@@ -76,27 +90,74 @@ function rateWindows(info){
   const type=info.rateLimitType||info.rate_limit_type;if(type){const before={...out};put(String(type),info);for(const k of ['fiveHour','sevenDay'])if(before[k])out[k]=before[k];}
   return out;
 }
+// One Codex app-server item -> activity fields (label, detail, kind, status); null for items shown elsewhere.
+function codexItem(it,done){
+  const status=!done?'running':['failed','declined'].includes(it.status)?'error':'done';
+  if(it.type==='commandExecution')return {label:done?(it.status==='declined'?'Comando negado':'Comando concluído'):'Executando comando',detail:plainCommand(it.command),kind:'command',status};
+  if(it.type==='fileChange')return {label:done?(it.status==='declined'?'Alteração negada':'Arquivos atualizados'):'Alterando arquivos',detail:(it.changes||[]).map(x=>x.path).join(', '),kind:'file',status};
+  if(it.type==='mcpToolCall'){const mem=it.server===MEMORY_SERVER;return {label:mem?toolLabel(MEMORY_SERVER+'_'+it.tool):'Consultando ferramenta',detail:mem?it.arguments?.query||it.arguments?.path||'':[it.server,it.tool].filter(Boolean).join(' · '),kind:mem?'memory':'mcp',status};}
+  if(it.type==='webSearch')return {label:'Pesquisando na web',detail:it.query,kind:'web',status};
+  if(it.type==='dynamicToolCall')return {label:'Usando '+(it.tool||it.name||'ferramenta'),detail:'',kind:'tool',status};
+  return null;
+}
 function parser(provider,emit) {
-  let text='',seen=new Set(),subs=new Set(),gap=false;
+  let text='',seen=new Set(),subs=new Set(),gap=false;const subLabels=new Map();
   const append=t=>{if(!t)return; text+=t;emit({type:'text',text:t});};
   const activity=(label,detail,extra={})=>emit({type:'activity',label,detail:clip(detail,3000),kind:'tool',...extra});
   const subagent=o=>emit({type:'subagent',provider,...o});
   const cost=o=>emit({type:'cost',provider,inputTokens:num(o.inputTokens),outputTokens:num(o.outputTokens),cacheTokens:num(o.cacheTokens),costUsd:num(o.costUsd)});
   const startSub=(id,input,status,result)=>{
-    subs.add(id);
+    subs.add(id);subLabels.set(id,clip(input?.description||String(input?.prompt||'').split('\n')[0]||input?.subagent_type||'subagente',120));
     subagent({toolUseId:id,subagentType:clip(input?.subagent_type||input?.subagentType||'agent',80),label:clip(input?.description||String(input?.prompt||'').split('\n')[0],200),prompt:clip(input?.prompt,6000),status,...(result!==undefined?{result}:{})});
   };
-  return {get text(){return text}, accept(event){
+  // Codex app-server state: the chat's own thread, subagent threads -> their card, streamed message items, turn usage.
+  let mainThread=null,paragraph=false;const threadOwner=new Map(),threadLabel=new Map(),streamed=new Set(),usage={inputTokens:0,outputTokens:0,cacheTokens:0};
+  // Claude: tool_use id -> the subagent card it runs under, so a permission request can say who is asking.
+  const toolOwner=new Map(),background=new Set();
+  return {get text(){return text},
+  setMainThread(id){mainThread=id;},
+  // Claude background subagents still working: their completion starts another turn in the same process.
+  backgroundRunning(){return background.size>0;},
+  ownerOf(toolUseId){const id=toolOwner.get(toolUseId);return id?subLabels.get(id)||'subagente':null;},
+  ownerOfThread(threadId){if(!threadId||threadId===mainThread)return null;const id=threadOwner.get(threadId);return threadLabel.get(threadId)||(id&&subLabels.get(id))||'subagente';},
+  accept(event){
     if(provider==='codex') {
-      if(event.type==='thread.started')emit({type:'session',sessionId:event.thread_id});
-      const item=event.item;const done=event.type==='item.completed';
-      if(item?.type==='agent_message' && ['item.completed'].includes(event.type)) append((text?'\n\n':'')+item.text);
-      if(item?.type==='command_execution')activity(done?'Comando concluído':'Executando comando',item.command,{kind:'command',id:item.id,status:done?'done':'running'});
-      if(item?.type==='file_change')activity('Arquivos atualizados',(item.changes||[]).map(x=>x.path).join(', '),{kind:'file',id:item.id,status:'done'});
-      if(item?.type==='mcp_tool_call')activity(item.server===MEMORY_SERVER?toolLabel(MEMORY_SERVER+'_'+item.tool):'Consultando ferramenta',item.server===MEMORY_SERVER?item.arguments?.query||item.arguments?.path||'':[item.server,item.tool].filter(Boolean).join(' · '),{kind:item.server===MEMORY_SERVER?'memory':'mcp',id:item.id,status:done?'done':'running'});
-      if(item?.type==='web_search')activity('Pesquisando na web',item.query,{kind:'web',id:item.id,status:done?'done':'running'});
-      if(event.type==='turn.completed'&&event.usage)cost({inputTokens:event.usage.input_tokens,outputTokens:num(event.usage.output_tokens)+num(event.usage.reasoning_output_tokens),cacheTokens:event.usage.cached_input_tokens});
-      if(event.type==='error'||event.type==='turn.failed')emit({type:'provider-error',message:event.message||event.error?.message||'O Codex não concluiu a resposta'});
+      // JSON-RPC notifications from `codex app-server` ({method, params}).
+      const m=event.method,p=event.params||{},it=p.item,tid=p.threadId||p.thread?.id;
+      if(m==='thread/started'&&!mainThread)mainThread=p.thread?.id;
+      // A subagent's own thread names it (nickname/role), even before its spawn call reports the thread id.
+      if(m==='thread/started'&&p.thread?.parentThreadId&&p.thread.id!==mainThread)threadLabel.set(p.thread.id,clip(p.thread.agentNickname||p.thread.agentRole||String(p.thread.preview||'').split('\n')[0]||'subagente',120));
+      if(m==='thread/started'&&p.thread?.id===mainThread)emit({type:'session',sessionId:mainThread});
+      if(tid&&mainThread&&tid!==mainThread){
+        // Work inside a subagent thread becomes live steps of its card.
+        const owner=threadOwner.get(tid);if(!owner||!it||!/^item\/(started|completed)$/.test(m))return;
+        const s=codexItem(it,m==='item/completed');if(s)subagent({toolUseId:owner,step:{id:it.id,kind:s.kind,label:s.label,detail:clip(s.detail,300),status:s.status}});
+        return;
+      }
+      if(m==='item/started'&&it?.type==='agentMessage')paragraph=true;
+      if(m==='item/agentMessage/delta'){streamed.add(p.itemId);if(paragraph&&text)append('\n\n');paragraph=false;append(p.delta);}
+      if(m==='item/completed'&&it?.type==='agentMessage'&&!streamed.has(it.id)&&it.text){append((text?'\n\n':'')+it.text);paragraph=false;}
+      if((m==='item/started'||m==='item/completed')&&it){
+        const done=m==='item/completed';
+        if(it.type==='subAgentActivity'&&it.agentThreadId){
+          // Newer Codex announces each subagent by its thread and path ("/root/criar_pasta"): the card is keyed by that thread.
+          const key=it.agentThreadId,name=String(it.agentPath||'').split('/').filter(Boolean).pop()||'subagente';
+          threadOwner.set(key,key);if(!threadLabel.has(key))threadLabel.set(key,clip(name.replace(/_/g,' '),120));
+          if(it.kind==='started'&&!subs.has(key))startSub(key,{subagent_type:'agent',description:threadLabel.get(key)},'running');
+          if(it.kind==='completed'&&subs.has(key))subagent({toolUseId:key,status:'done'});
+          if(['failed','errored','interrupted'].includes(it.kind)&&subs.has(key))subagent({toolUseId:key,status:'error'});
+        } else if(it.type==='collabAgentToolCall'){
+          if(it.tool==='spawnAgent'){for(const t of it.receiverThreadIds||[])threadOwner.set(t,it.id);if(!subs.has(it.id))startSub(it.id,{subagent_type:'agent',prompt:it.prompt||'',description:String(it.prompt||'').split('\n')[0]},'running');}
+          // Any collab call carries the states of the agents it touched: finished ones close their card.
+          for(const [t,st] of Object.entries(it.agentsStates||{})){const owner=threadOwner.get(t);if(owner&&['completed','errored','shutdown','interrupted','notFound'].includes(st?.status))subagent({toolUseId:owner,status:st.status==='completed'||st.status==='shutdown'?'done':'error',...(st.message?{result:clip(st.message,4000)}:{})});}
+        } else {const s=codexItem(it,done);if(s)activity(s.label,s.detail,{kind:s.kind,id:it.id,status:s.status});}
+      }
+      if(m==='thread/tokenUsage/updated'&&tid===mainThread){const l=p.tokenUsage?.last||{};usage.inputTokens+=num(l.inputTokens);usage.outputTokens+=num(l.outputTokens)+num(l.reasoningOutputTokens);usage.cacheTokens+=num(l.cachedInputTokens);}
+      if(m==='turn/completed'&&tid===mainThread){
+        if(usage.inputTokens||usage.outputTokens)cost(usage);
+        if(p.turn?.status==='failed')emit({type:'provider-error',message:p.turn.error?.message||'O Codex não concluiu a resposta'});
+      }
+      if(m==='error'&&!p.willRetry&&(!tid||tid===mainThread))emit({type:'provider-error',message:p.error?.message||'Falha no Codex'});
     } else if(provider==='claude') {
       if(event.session_id)emit({type:'session',sessionId:event.session_id});
       // Events from inside a subagent carry parent_tool_use_id: they become live steps of its card, never main text.
@@ -105,7 +166,7 @@ function parser(provider,emit) {
         if(!subs.has(parent))return;
         const step=s=>subagent({toolUseId:parent,step:s});
         if(event.type==='assistant')for(const block of event.message?.content||[]){
-          if(block.type==='tool_use'){const i=block.input||{};step({id:block.id,kind:toolKind(block.name),label:toolLabel(block.name),detail:clip(i.command||i.file_path||i.path||i.pattern||i.url||i.query||i.description||'',300),status:'running'});}
+          if(block.type==='tool_use'){toolOwner.set(block.id,parent);const i=block.input||{};step({id:block.id,kind:toolKind(block.name),label:toolLabel(block.name),detail:clip(i.command||i.file_path||i.path||i.pattern||i.url||i.query||i.description||'',300),status:'running'});}
           if(block.type==='text'&&block.text?.trim())step({id:event.message?.id+':text',kind:'text',label:'Escrevendo',detail:clip(block.text.trim(),300),status:'done'});
         }
         if(event.type==='user'&&Array.isArray(event.message?.content))for(const block of event.message.content)if(block?.type==='tool_result')step({id:block.tool_use_id,status:block.is_error?'error':'done'});
@@ -123,14 +184,14 @@ function parser(provider,emit) {
         if(block?.type==='tool_result'&&subs.has(block.tool_use_id)){
           // A backgrounded subagent only acknowledges its launch here; task_notification closes it later.
           const body=textOf(block.content);
-          if(!block.is_error&&/^\s*Async agent launched/i.test(body))subagent({toolUseId:block.tool_use_id,background:true});
+          if(!block.is_error&&/^\s*Async agent launched/i.test(body)){background.add(block.tool_use_id);subagent({toolUseId:block.tool_use_id,background:true});}
           else subagent({toolUseId:block.tool_use_id,status:block.is_error?'error':'done',result:summarize(block.content)});
         }
       }
       if(event.type==='system'&&subs.has(event.tool_use_id)){
         const stats=event.usage?{toolUses:num(event.usage.tool_uses),tokens:num(event.usage.total_tokens),durationMs:num(event.usage.duration_ms)}:undefined;
         if(event.subtype==='task_progress')subagent({toolUseId:event.tool_use_id,stats});
-        if(event.subtype==='task_notification')subagent({toolUseId:event.tool_use_id,status:event.status==='completed'?'done':'error',result:clip(event.summary||'',4000)||undefined,stats});
+        if(event.subtype==='task_notification'){background.delete(event.tool_use_id);}if(event.subtype==='task_notification')subagent({toolUseId:event.tool_use_id,status:event.status==='completed'?'done':'error',result:clip(event.summary||'',4000)||undefined,stats});
       }
       // A second turn (after a background task) starts a new message: keep paragraphs apart.
       if(event.type==='stream_event'&&event.event?.type==='message_start'&&text)gap=true;
@@ -170,4 +231,4 @@ function upsertActivity(list,ev){
   const {type,...a}=ev;if(a.id){const i=list.findIndex(x=>x.id===a.id);if(i>=0){list[i]={...list[i],...a};return list[i];}}
   list.push(a);return a;
 }
-module.exports={locate,run,kill,command,memoryTools,memoryHint,MEMORY_SERVER,parser,upsertSubagent,upsertActivity,rateWindows,normWindow};
+module.exports={MODES,modeOf,locate,run,kill,command,memoryTools,memoryHint,MEMORY_SERVER,parser,upsertSubagent,upsertActivity,rateWindows,normWindow};

@@ -96,3 +96,37 @@
 /* Calmer in the middle, where conversations are read; the motion lives mostly at the edges. */
 .backdrop{-webkit-mask-image:radial-gradient(ellipse 60% 55% at 50% 50%,rgba(0,0,0,.35),#000 85%);mask-image:radial-gradient(ellipse 60% 55% at 50% 50%,rgba(0,0,0,.35),#000 85%)}
 .backdrop.stream{opacity:.5}
+/* Permissions: ask mode, request cards and the chat-list badge */
+.mode-options{grid-template-columns:repeat(3,1fr)}
+.mode-chip.ask{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.mode-picker{position:relative;display:inline-flex}
+.mode-menu{position:absolute;bottom:calc(100% + 8px);left:0;z-index:30;width:290px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:5px;display:flex;flex-direction:column;gap:2px}
+.mode-menu>button{display:grid;grid-template-columns:18px 1fr 14px;gap:9px;align-items:start;text-align:left;padding:9px 10px;border-radius:7px}
+.mode-menu>button:hover{background:var(--hover)}
+.mode-menu>button.chosen{background:var(--accent-bg)}
+.mode-menu>button>svg:first-child{color:var(--accent);margin-top:1px}
+.mode-menu strong{display:block;font-size:11.5px;font-weight:500}
+.mode-menu span{display:block;font-size:10px;color:var(--muted);margin-top:2px;line-height:1.35}
+.mode-menu>button>svg:last-child{color:var(--accent)}
+.permissions{display:flex;flex-direction:column;gap:8px;margin:6px 0 10px}
+.permission-card{border:1px solid color-mix(in srgb,var(--accent) 55%,var(--border));background:color-mix(in srgb,var(--accent-bg) 55%,var(--surface));border-radius:11px;padding:13px 14px;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent);animation:permission-in .25s ease-out}
+.permission-head{display:flex;gap:10px;align-items:flex-start}
+.permission-head>svg{color:var(--accent);margin-top:1px}
+.permission-head strong{display:block;font-size:12.5px;font-weight:550}
+.permission-head strong em{font-style:normal;color:var(--accent)}
+.permission-head span{display:block;font-size:11px;color:var(--muted);margin-top:3px}
+.permission-command{margin:10px 0 0;padding:9px 11px;border-radius:7px;background:var(--bg);border:1px solid var(--border-soft);font:11.5px/1.5 'Cascadia Mono',Consolas,monospace;white-space:pre-wrap;word-break:break-word;max-height:180px;overflow:auto}
+.permission-detail{margin:8px 0 0;font-size:11px;color:var(--muted);word-break:break-word}
+.permission-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.permission-actions button{display:inline-flex;align-items:center;gap:6px}
+.permission-actions small{font-size:9.5px;color:var(--faint);margin-left:4px}
+.permission-actions .deny:hover{border-color:#d97a7a;color:#e59a9a}
+.permission-line{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--muted);padding:2px 2px}
+.permission-line code{font:10.5px 'Cascadia Mono',Consolas,monospace;color:var(--text);opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
+.permission-line small{color:var(--faint)}
+.permission-line svg{color:var(--green)}
+.permission-line.denied svg,.permission-line.expired svg,.permission-line.cancelled svg{color:#d98a8a}
+.permission-dot{margin-left:auto;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;color:var(--accent);background:var(--accent-bg);animation:permission-pulse 1.6s ease-in-out infinite}
+@keyframes permission-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes permission-pulse{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 25%,transparent)}}
+@media (prefers-reduced-motion:reduce){.permission-card,.permission-dot{animation:none}}

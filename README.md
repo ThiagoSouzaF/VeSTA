@@ -16,7 +16,9 @@ O símbolo é uma chama de lareira no centro de um anel pontilhado, com fagulhas
 - Uso dos arquivos de instruções nativos: AGENTS.md, CLAUDE.md e configuração do OpenCode. O aplicativo não os substitui nem os reescreve.
 - Temas Obsidiana, Aurora e Papel; quatro cores de destaque; escolhas persistentes.
 - Markdown, atividades das ferramentas, cancelamento, renomeação, exclusão e exportação de conversas.
-- Botão no canto inferior direito para retomar o chat no terminal nativo quando uma tarefa precisar de interação ou aprovação.
+- Três modos por conversa: **Pedir permissão**, **Acesso completo** e **Consulta**. No modo Pedir permissão, quando a IA ou um dos seus subagentes precisa rodar um comando ou alterar arquivos, o pedido aparece na própria conversa com **Permitir**, **Sempre nesta conversa** (vale para o mesmo programa, como `npm …`, ou para a mesma ferramenta) e **Negar**. A lista de conversas marca as que estão esperando você, e a janela pisca se estiver em segundo plano. No Acesso completo, o Claude ainda pergunta antes de mexer em arquivos protegidos (configurações, `.git`), e esses pedidos também chegam aqui.
+- Para responder aos pedidos, o VeSTA conversa com cada programa pelo canal próprio dele: o Claude por stream-json (o mesmo protocolo do Agent SDK), o Codex pelo `codex app-server` e o OpenCode pelo `opencode serve` (HTTP só em `127.0.0.1`, com senha aleatória). Nada é gravado nas configurações globais desses programas.
+- Botão no canto inferior direito para retomar o chat no terminal nativo.
 - AI Memory 3.0.0 real, incluído no executável. O VeSTA inicia um único servidor MCP HTTP só em `127.0.0.1`, numa porta livre e com token aleatório a cada execução; o aplicativo e os agentes que ele abre usam esse mesmo servidor.
 - Agentes com acesso à memória (opção nas preferências, ligada por padrão): Claude, Codex e OpenCode recebem as ferramentas do AI Memory (`memory_query`, `memory_write_page` e as demais) apenas nas sessões abertas pelo VeSTA, via `--mcp-config`, `-c mcp_servers...` e `OPENCODE_CONFIG_CONTENT`. Cada chat é orientado a usar o workspace `omphalos` e o projeto do chat.
 - Busca no contexto do projeto; preferências pessoais compartilhadas entre todas as IAs; gravação, edição e exclusão de memórias.
@@ -58,6 +60,7 @@ npm start
 npm test
 node scripts/test-memory.cjs
 node scripts/test-providers.cjs
+npx electron scripts/test-permissions.cjs claude allow
 npx electron scripts/test-memory-agent.cjs claude
 npm run dist
 npm run installer
@@ -70,7 +73,7 @@ A versão instalada procura, ao abrir, a última Release de [ThiagoSouzaF/VeSTA]
 
 Para publicar: aumente `version` no `package.json`, faça commit e push, e rode `npm run release`. O script exige árvore limpa e o commit já no GitHub, gera o instalador e cria a Release `v<versão>`. Enquanto existirem instalações do Omphalos 0.1.x, o instalador é publicado com o nome `Omphalos-Setup-<versão>.exe` (o único que esses atualizadores aceitam) e o `latest.yml` aponta para ele; o VeSTA aceita os dois nomes. Para encerrar essa compatibilidade, mude `LEGACY_SETUP_NAME` em `scripts/release.cjs`. O `appId` continua `app.omphalos.desktop` para que a atualização substitua a instalação existente.
 
-Os testes de integração usam pastas temporárias próprias, independentes da localização do checkout. O teste dos provedores realiza duas chamadas curtas em cada conta configurada. `test-memory-agent.cjs` (argumento `claude`, `codex` ou `opencode`) faz o agente real consultar e gravar no AI Memory por MCP numa pasta temporária. `runtime/ai-memory.exe` veio da versão oficial v3.0.0, com SHA-256 verificado. Para reconstruir em outro checkout, consulte `scripts/download-memory.ps1`. Dependências, executáveis gerados, runtime baixado, credenciais, chats e memórias não entram no Git.
+Os testes de integração usam pastas temporárias próprias, independentes da localização do checkout. O teste dos provedores realiza duas chamadas curtas em cada conta configurada. `test-permissions.cjs` (`claude`, `codex` ou `opencode`, mais `allow`, `deny`, `subagent`, `always` ou `stop`) faz a IA real pedir permissão para um `mkdir` e confere o efeito de cada resposta. `test-memory-agent.cjs` (argumento `claude`, `codex` ou `opencode`) faz o agente real consultar e gravar no AI Memory por MCP numa pasta temporária. `runtime/ai-memory.exe` veio da versão oficial v3.0.0, com SHA-256 verificado. Para reconstruir em outro checkout, consulte `scripts/download-memory.ps1`. Dependências, executáveis gerados, runtime baixado, credenciais, chats e memórias não entram no Git.
 
 ## Referências
 
