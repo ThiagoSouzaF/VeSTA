@@ -8,9 +8,9 @@ const fs=require('node:fs'),path=require('node:path');
    try{
      const spec=command(chat,locate(id));const env={...process.env};delete env.ELECTRON_RUN_AS_NODE;delete env.CLAUDECODE;
      if(id==='opencode')env.OPENCODE_PERMISSION=JSON.stringify({edit:'deny',bash:'deny',question:'deny'});
-     const stdout=await run(spec.exe,spec.args,{cwd,env,timeout:120000,input:'Teste de integração. Memorize o código ORBITA7429 neste chat. Responda apenas OMPHALOS_OK. Não use ferramentas.'});
+     const stdout=await run(spec.exe,spec.args,{cwd,env,timeout:120000,input:'Teste de integração. Memorize o código ORBITA7429 neste chat. Responda apenas VESTA_OK. Não use ferramentas.'});
      const p=parser(id,e=>{if(e.type==='session')chat.sessionId=e.sessionId;if(e.type==='provider-error')throw new Error(e.message)});for(const line of stdout.split('\n'))if(line.trim())try{p.accept(JSON.parse(line))}catch{}
-     if(!p.text.includes('OMPHALOS_OK')||!chat.sessionId)throw new Error('Resposta/session inválida: '+stdout.slice(-1500));
+     if(!p.text.includes('VESTA_OK')||!chat.sessionId)throw new Error('Resposta/session inválida: '+stdout.slice(-1500));
      const resume=command(chat,locate(id));const second=await run(resume.exe,resume.args,{cwd,env,timeout:120000,input:'Qual foi o código que pedi para memorizar na mensagem anterior? Responda apenas o código, sem ferramentas.'});
      const q=parser(id,()=>{});for(const line of second.split('\n'))if(line.trim())try{q.accept(JSON.parse(line))}catch{}
      if(!q.text.includes('ORBITA7429'))throw new Error('A retomada perdeu o contexto: '+second.slice(-1000));

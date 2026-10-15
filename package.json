@@ -1,8 +1,8 @@
 {
-  "name": "omphalos",
-  "version": "0.1.4",
-  "description": "Seu centro de agentes, projetos e memória",
-  "author": "Omphalos",
+  "name": "vesta",
+  "version": "0.2.0",
+  "description": "O centro do seu lar digital: agentes, projetos e memória",
+  "author": "VeSTA",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -34,7 +34,7 @@
   },
   "build": {
     "appId": "app.omphalos.desktop",
-    "productName": "Omphalos",
+    "productName": "VeSTA",
     "directories": {
       "output": "release"
     },
@@ -42,7 +42,7 @@
       "dist/**/*",
       "electron/**/*",
       "package.json",
-      "assets/omphalos.png"
+      "assets/vesta.png"
     ],
     "extraResources": [
       {
@@ -56,8 +56,8 @@
     ],
     "win": {
       "target": "portable",
-      "artifactName": "Omphalos-${version}.exe",
-      "icon": "assets/omphalos.ico",
+      "artifactName": "VeSTA-${version}.exe",
+      "icon": "assets/vesta.ico",
       "signExecutable": false
     },
     "compression": "normal",
@@ -67,12 +67,12 @@
       "allowElevation": false,
       "createStartMenuShortcut": true,
       "createDesktopShortcut": false,
-      "shortcutName": "Omphalos",
+      "shortcutName": "VeSTA",
       "runAfterFinish": false,
       "deleteAppDataOnUninstall": false,
-      "artifactName": "Omphalos-Setup-${version}.exe",
-      "installerIcon": "assets/omphalos.ico",
-      "uninstallerIcon": "assets/omphalos.ico"
+      "artifactName": "VeSTA-Setup-${version}.exe",
+      "installerIcon": "assets/vesta.ico",
+      "uninstallerIcon": "assets/vesta.ico"
     }
   }
 }

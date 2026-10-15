@@ -13,7 +13,7 @@ test('memory tools are registered per launch and the token never goes on the com
   assert.ok(codex.args.includes('mcp_servers.'+MEMORY_SERVER+'.url="'+endpoint.mcp+'"'));assert.equal(codex.args.at(-1),'-');assert.deepEqual(codex.args.slice(0,3),['exec','resume','s1']);
   const opencode=command({provider:'opencode',mode:'edit'},'opencode.exe',endpoint);
   assert.equal(JSON.parse(opencode.env.OPENCODE_CONFIG_CONTENT).mcp[MEMORY_SERVER].url,endpoint.mcp);
-  for(const c of [claude,codex,opencode]){assert.ok(!c.args.join(' ').includes(endpoint.token));assert.equal(c.env.OMPHALOS_MEMORY_TOKEN,endpoint.token);}
+  for(const c of [claude,codex,opencode]){assert.ok(!c.args.join(' ').includes(endpoint.token));assert.equal(c.env.VESTA_MEMORY_TOKEN,endpoint.token);}
   assert.ok(!opencode.env.OPENCODE_CONFIG_CONTENT.includes(endpoint.token));
 });
 test('memory hint names the chat scope',()=>{assert.match(memoryHint('p-1'),/project "p-1"/);assert.match(memoryHint(null),/project "inbox"/);assert.match(memoryHint(null),/workspace "omphalos"/);});
@@ -40,7 +40,7 @@ test('one HTTP server is shared by the app and an outside MCP client',{skip:!fs.
     const w=await agent.callTool({name:'memory_write_page',arguments:{path:'agentes/zebra.md',body:'# Zebra\n\nDecisão: usar a palavra quimera42 como marcador.',workspace:'omphalos',project:'proj-x'}});assert.ok(!w.isError,JSON.stringify(w));
     await agent.close();
     assert.match(await m.query('quimera42','proj-x'),/zebra/i);
-    assert.equal(fs.readFileSync(path.join(dir,'omphalos-server.pid'),'utf8'),String(m.server.pid));
+    assert.equal(fs.readFileSync(path.join(dir,'vesta-server.pid'),'utf8'),String(m.server.pid));
   }finally{await m.close();}
   // A server left behind by a crashed run is reaped on the next start instead of holding the data-dir lock.
   const first=new Memory(exe,dir);await first.agentEndpoint();const orphan=first.server;orphan.removeAllListeners('exit');first.server=null;first.client=null;first.endpoint=null;

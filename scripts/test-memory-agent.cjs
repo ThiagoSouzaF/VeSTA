@@ -7,7 +7,7 @@ const data=require('./test-scratch.cjs')('memory-agent'),projectDir=path.join(da
 fs.mkdirSync(projectDir,{recursive:true});
 // A project the chat belongs to, so the memory scope is a real projectId and not the inbox.
 fs.writeFileSync(path.join(data,'omphalos.json'),JSON.stringify({version:2,projects:[{id:'proj-e2e',name:'projeto-e2e',path:projectDir,createdAt:Date.now()}],chats:[],memories:[]}));
-process.env.OMPHALOS_DATA_DIR=data;process.env.OMPHALOS_SERVICE_TEST='1';
+process.env.VESTA_DATA_DIR=data;process.env.VESTA_SERVICE_TEST='1';
 delete process.env.CLAUDECODE;delete process.env.CLAUDE_CODE_ENTRYPOINT;
 const {app}=require('electron');
 const {methods,getState}=require('../electron/main.cjs');
@@ -20,7 +20,7 @@ app.whenReady().then(async()=>{
     // The prompt shares no word with the note, so the automatic pre-query cannot hand the value over: only the agent's own memory_query can.
     const s=await methods.createChat({provider,model,projectId:'proj-e2e',mode:'edit',memory:true});const chat=s.chats[0];
     const marker='confirmado-'+provider+'-'+Date.now().toString(36);
-    await methods.send({chatId:chat.id,text:'Tarefa de teste. 1) Chame a ferramenta memory_query do servidor MCP omphalos-memory buscando pela palavra formada ao juntar "lança" e "mento", para descobrir o valor guardado. 2) Chame memory_write_page gravando a página "agentes/e2e.md" com o corpo "# E2E\\n\\nMarcador: '+marker+'". 3) Responda só o valor encontrado no passo 1. Não use outras ferramentas nem leia arquivos.'});
+    await methods.send({chatId:chat.id,text:'Tarefa de teste. 1) Chame a ferramenta memory_query do servidor MCP vesta-memory buscando pela palavra formada ao juntar "lança" e "mento", para descobrir o valor guardado. 2) Chame memory_write_page gravando a página "agentes/e2e.md" com o corpo "# E2E\\n\\nMarcador: '+marker+'". 3) Responda só o valor encontrado no passo 1. Não use outras ferramentas nem leia arquivos.'});
     const deadline=Date.now()+240000;while(getState().running.length&&Date.now()<deadline)await delay(250);
     const answer=getState().chats.find(c=>c.id===chat.id).messages.at(-1);
     const memoryCalls=answer.activities.filter(a=>a.kind==='memory'&&a.label?.startsWith('Memória · ')).map(a=>a.label+' ['+a.status+'] '+(a.detail||''));

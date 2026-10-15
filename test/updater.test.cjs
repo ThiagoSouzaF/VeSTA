@@ -17,3 +17,5 @@ test('the downloaded installer must match latest.yml',async()=>{
 });
 test('dev runs never self-update',()=>{assert.equal(installKind({isPackaged:false}),'dev');});
 test('every Electron main-process file parses',()=>{const {spawnSync}=require('node:child_process');const dir=path.join(__dirname,'../electron');for(const f of fs.readdirSync(dir).filter(f=>f.endsWith('.cjs'))){const r=spawnSync(process.execPath,['--check',path.join(dir,f)],{encoding:'utf8'});assert.equal(r.status,0,f+': '+r.stderr);}});
+test('installers named by either product are accepted, nothing else is',()=>{const {SETUP}=require('../electron/updater.cjs');for(const n of ['VeSTA-Setup-0.2.0.exe','Omphalos-Setup-0.2.0.exe'])assert.ok(SETUP.test(n),n);for(const n of ['latest.yml','VeSTA-0.2.0.exe','../VeSTA-Setup-0.2.0.exe','evil-Setup-1.exe'])assert.ok(!SETUP.test(n),n);});
+test('the release keeps a copy readable by Omphalos 0.1.x updaters',()=>{const src=fs.readFileSync(path.join(__dirname,'../scripts/release.cjs'),'utf8');assert.match(src,/LEGACY_SETUP_NAME=true/);assert.match(src,/'Omphalos-Setup-'\+version\+'\.exe'/);});

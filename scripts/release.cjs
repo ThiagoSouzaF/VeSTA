@@ -22,5 +22,15 @@ if(meta.version!==version)fail('latest.yml é da versão '+meta.version+', mas o
 const setup=path.join(root,'release',meta.path);if(!fs.existsSync(setup))fail(meta.path+' não encontrado.');
 let previous='';try{previous=sh('git',['describe','--tags','--abbrev=0','HEAD^']);}catch{}
 const notes=sh('git',['log','--pretty=- %s',...(previous?[previous+'..HEAD']:['-1'])])||'- '+tag;
-console.log(sh(gh,['release','create',tag,setup,yml,'-R',REPO,'--target',head,'--title','Omphalos '+version,'--notes',notes]));
+// Omphalos 0.1.x updaters only accept an installer named Omphalos-Setup-*.exe. Until no such install remains, the same
+// installer (same sha512) is published under that name, with latest.yml pointing at it; newer updaters accept both names.
+const LEGACY_SETUP_NAME=true;
+let assets=[setup,yml];
+if(LEGACY_SETUP_NAME){
+  const stage=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'vesta-release-')),legacy='Omphalos-Setup-'+version+'.exe';
+  fs.copyFileSync(setup,path.join(stage,legacy));
+  fs.writeFileSync(path.join(stage,'latest.yml'),fs.readFileSync(yml,'utf8').split(meta.path).join(legacy));
+  assets=[path.join(stage,legacy),path.join(stage,'latest.yml')];
+}
+console.log(sh(gh,['release','create',tag,...assets,'-R',REPO,'--target',head,'--title','VeSTA '+version,'--notes',notes]));
 console.log('Publicado '+tag+'. As cópias instaladas vão oferecer a atualização na próxima abertura.');

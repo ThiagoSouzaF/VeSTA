@@ -18,7 +18,7 @@ class Memory {
     const config=path.join(this.dir,'config.toml');
     // FTS works offline, without downloading an embedding model or calling a cloud provider.
     if(!fs.existsSync(config))fs.writeFileSync(config,'embedding_provider = "none"\nlog_level = "warn"\n');
-    const pidFile=path.join(this.dir,'omphalos-server.pid');reapOrphan(pidFile);
+    const pidFile=path.join(this.dir,'vesta-server.pid');reapOrphan(pidFile);
     const port=await freePort(),token=randomBytes(24).toString('hex'),url='http://127.0.0.1:'+port;
     // Loopback only, and a per-run bearer token keeps other local processes out of the store.
     const server=spawn(this.exe,['--data-dir',this.dir,'serve','--transport','http','--bind','127.0.0.1:'+port,'--workspace','omphalos','--project','inbox'],{env:{...process.env,AI_MEMORY_EMBEDDING_PROVIDER:'none',AI_MEMORY_AUTH_TOKEN:token},windowsHide:true,stdio:['ignore','pipe','pipe']});
@@ -34,7 +34,7 @@ class Memory {
     this.pending=(async()=>{
       const {mcp,token}=await this.start();
       const transport=new StreamableHTTPClientTransport(new URL(mcp),{requestInit:{headers:{Authorization:'Bearer '+token}}});
-      const client=new Client({name:'omphalos',version:'0.1.0'});
+      const client=new Client({name:'vesta',version:'0.1.0'});
       client.onclose=()=>{if(this.client===client)this.client=null};
       try {await client.connect(transport);this.client=client;this.error=null;return client;}catch(e){this.error=e.message;await transport.close().catch(()=>{});throw e;}
     })().finally(()=>{this.pending=null});
@@ -44,7 +44,7 @@ class Memory {
   async agentEndpoint() {await this.connect();return this.endpoint;}
   async call(name,args) {const client=await this.connect(); const result=await client.callTool({name,arguments:args},undefined,{timeout:20000}); const text=(result.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('\n'); if(result.isError)throw new Error(text||'Falha no AI Memory'); return text;}
   // A fresh project has no wiki yet: memory_query/memory_status fail until its first page exists.
-  async ensureProject(projectId) {try{await this.call('memory_status',scope(projectId));}catch(e){if(!/not found in workspace/.test(e.message))throw e;await this.call('memory_write_page',{path:'omphalos/space.md',body:'# Espaço de trabalho\n\nEspaço de memória criado pelo Omphalos.',...scope(projectId)});}}
+  async ensureProject(projectId) {try{await this.call('memory_status',scope(projectId));}catch(e){if(!/not found in workspace/.test(e.message))throw e;await this.call('memory_write_page',{path:'omphalos/space.md',body:'# Espaço de trabalho\n\nEspaço de memória criado pelo VeSTA.',...scope(projectId)});}}
   async query(query,projectId) {const terms=String(query).match(/[\p{L}\p{N}_-]{3,}/gu)?.slice(0,12)||[];if(!terms.length)return '';const expression=terms.map(t=>'"'+t.replace(/"/g,'')+'"').join(' OR ');const args={query:expression,...scope(projectId),limit:6};try{return await this.call('memory_query',args)}catch(e){if(!/project .+ not found in workspace/.test(e.message))throw e;await this.ensureProject(projectId);return this.call('memory_query',args);}}
   async write(note) {return this.call('memory_write_page',{path:note.path,body:'# '+note.title.replace(/\n/g,' ')+'\n\n'+redact(note.body),tier:note.kind==='session'?'episodic':'semantic',tags:['omphalos',note.kind||'note'],...(note.kind==='preference'?{scope:'profile'}:scope(note.projectId))});}
   async remove(note) {return this.call('memory_delete_page',{path:note.path,...(note.kind==='preference'?{scope:'profile'}:scope(note.projectId))});}

@@ -5,7 +5,9 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const {spawn} = require('node:child_process');
 const {run} = require('./providers.cjs');
-const REPO = process.env.OMPHALOS_UPDATE_REPO || 'ThiagoSouzaF/Omphalos';
+const REPO = process.env.VESTA_UPDATE_REPO || 'ThiagoSouzaF/VeSTA';
+// Installer asset names: Omphalos-Setup-* up to 0.1.4 (and on releases kept readable by those installs), VeSTA-Setup-* after.
+const SETUP = /^(VeSTA|Omphalos)-Setup-.+\.exe$/;
 function locateGh() {
   const names = ['gh.exe'];
   const candidates = (process.env.PATH || '').split(path.delimiter).flatMap(dir => names.map(n => path.join(dir, n)));
@@ -18,7 +20,8 @@ function newer(candidate, current) { const a = parse(candidate), b = parse(curre
 function installKind(app) {
   if (!app.isPackaged) return 'dev';
   if (process.env.PORTABLE_EXECUTABLE_FILE) return 'portable';
-  return fs.existsSync(path.join(path.dirname(process.execPath), 'Uninstall Omphalos.exe')) ? 'installed' : 'unknown';
+  // The NSIS uninstaller sits next to the exe and is named after the product.
+  try { return fs.readdirSync(path.dirname(process.execPath)).some(n => /^Uninstall .+\.exe$/i.test(n)) ? 'installed' : 'unknown'; } catch { return 'unknown'; }
 }
 // The `path:`/`sha512:` pair electron-builder writes into latest.yml for the installer.
 function readLatestYml(text) {
@@ -32,12 +35,16 @@ async function check(currentVersion, gh = locateGh()) {
   catch (e) { return {available: false, reason: /404|Not Found/i.test(e.message) ? 'Nenhuma versão publicada' : 'Não foi possível consultar o GitHub: ' + e.message.split('\n')[0]}; }
   const version = String(release.tag_name || '').replace(/^v/i, '');
   const assets = (release.assets || []).map(a => a.name);
-  const ready = assets.includes('latest.yml') && assets.some(n => /^Omphalos-Setup-.+\.exe$/.test(n));
+  const ready = assets.includes('latest.yml') && assets.some(n => SETUP.test(n));
   return {available: ready && newer(version, currentVersion), version, current: currentVersion, tag: release.tag_name, notes: String(release.body || '').slice(0, 1500), url: release.html_url, reason: ready ? '' : 'A versão publicada não tem instalador'};
 }
 // Downloads the installer and checks it against the sha512 the build recorded in latest.yml.
-async function download(info, gh = locateGh(), dir = fs.mkdtempSync(path.join(os.tmpdir(), 'omphalos-update-'))) {
-  await run(gh, ['release', 'download', info.tag, '-R', REPO, '-p', 'latest.yml', '-p', 'Omphalos-Setup-*.exe', '-D', dir, '--clobber'], {timeout: 600000});
+async function download(info, gh = locateGh(), dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-update-'))) {
+  // latest.yml names the installer asset, so the download does not depend on the product name of the build.
+  await run(gh, ['release', 'download', info.tag, '-R', REPO, '-p', 'latest.yml', '-D', dir, '--clobber'], {timeout: 60000});
+  const name = readLatestYml(fs.readFileSync(path.join(dir, 'latest.yml'), 'utf8')).path;
+  if (!name || path.basename(name) !== name || !SETUP.test(name)) throw new Error('latest.yml inválido na versão publicada');
+  await run(gh, ['release', 'download', info.tag, '-R', REPO, '-p', name, '-D', dir, '--clobber'], {timeout: 600000});
   return verify(dir, info.version);
 }
 async function verify(dir, expectedVersion) {
@@ -49,8 +56,8 @@ async function verify(dir, expectedVersion) {
   if (digest !== meta.sha512) throw new Error('O instalador baixado não confere com o latest.yml');
   return file;
 }
-// The installer outlives the app: silent install over the current one, then it reopens Omphalos (--force-run).
+// The installer outlives the app: silent install over the current one, then it reopens the app (--force-run).
 function launchInstaller(file) {
   spawn(file, ['/S', '--updated', '--force-run'], {detached: true, stdio: 'ignore', windowsHide: true}).unref();
 }
-module.exports = {REPO, locateGh, newer, installKind, readLatestYml, check, download, verify, launchInstaller};
+module.exports = {REPO, SETUP, locateGh, newer, installKind, readLatestYml, check, download, verify, launchInstaller};

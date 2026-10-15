@@ -14,7 +14,7 @@ function locate(name) {
 function run(exe,args,options={}) {return new Promise((resolve,reject)=>{ if(!exe) return reject(new Error('Programa não encontrado')); const child=spawn(exe,args,{windowsHide:true,shell:false,...options}); child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');let stdout='',stderr=''; const timer=setTimeout(()=>{kill(child);reject(new Error('O programa demorou para responder'));},options.timeout||20000); child.stdout.on('data',b=>stdout=(stdout+b).slice(-1000000)); child.stderr.on('data',b=>stderr=(stderr+b).slice(-10000)); child.on('error',e=>{clearTimeout(timer);reject(e)}); child.on('close',code=>{clearTimeout(timer); code===0?resolve(stdout):reject(new Error(stderr||stdout||'Erro '+code))}); if(child.stdin){child.stdin.on('error',()=>{});child.stdin.end(options.input||'');}});}
 function kill(child) {if(!child?.pid||child.exitCode!==null)return; if(process.platform==='win32')execFile('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true},()=>{});else child.kill('SIGTERM');}
 // The AI Memory MCP server is registered per launch (flags/env), never in ~/.claude, ~/.codex or the global OpenCode config.
-const MEMORY_SERVER='omphalos-memory',MEMORY_TOKEN_ENV='OMPHALOS_MEMORY_TOKEN';
+const MEMORY_SERVER='vesta-memory',MEMORY_TOKEN_ENV='VESTA_MEMORY_TOKEN';
 function memoryTools(provider,endpoint){
   if(!endpoint)return {args:[],env:{}};
   const env={[MEMORY_TOKEN_ENV]:endpoint.token};
@@ -26,7 +26,7 @@ function memoryTools(provider,endpoint){
 // Tells the agent which scope is its own: tool calls without workspace/project would land in the server's default (inbox).
 function memoryHint(projectId){
   const project=projectId||'inbox';
-  return 'Você tem acesso à memória compartilhada do Omphalos pelas ferramentas MCP do servidor "'+MEMORY_SERVER+'" (AI Memory). Nelas, sempre passe workspace "omphalos" e project "'+project+'". Use memory_query para buscar decisões e contexto de conversas anteriores quando forem relevantes, e memory_write_page para registrar decisões, fatos e lições duráveis deste projeto (caminhos como "agentes/<assunto>.md"). Não grave segredos nem trechos longos de código.';
+  return 'Você tem acesso à memória compartilhada do VeSTA pelas ferramentas MCP do servidor "'+MEMORY_SERVER+'" (AI Memory). Nelas, sempre passe workspace "omphalos" e project "'+project+'". Use memory_query para buscar decisões e contexto de conversas anteriores quando forem relevantes, e memory_write_page para registrar decisões, fatos e lições duráveis deste projeto (caminhos como "agentes/<assunto>.md"). Não grave segredos nem trechos longos de código.';
 }
 function command(chat,exe,endpoint) {
   const model=chat.model?['--model',chat.model]:[];
@@ -40,7 +40,7 @@ const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
 // Tool name -> visual kind of the activity card.
 function toolKind(name){
   const n=String(name||'').toLowerCase();
-  if(n.includes(MEMORY_SERVER)||n.includes('omphalos_memory'))return 'memory';
+  if(n.includes(MEMORY_SERVER)||n.includes('vesta_memory'))return 'memory';
   if(n.startsWith('mcp__')||n.startsWith('mcp_'))return 'mcp';
   if(/^(bash|shell|powershell|command|exec)/.test(n))return 'command';
   if(/^(read|write|edit|multiedit|notebookedit|patch|apply_patch|file)/.test(n))return 'file';
