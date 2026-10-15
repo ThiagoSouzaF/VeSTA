@@ -11,7 +11,8 @@
     "build": "vite build",
     "test": "node --test test/*.test.cjs",
     "dist": "npm run build && electron-builder --win portable --x64",
-    "installer": "npm run build && electron-builder --win nsis --x64"
+    "installer": "npm run build && electron-builder --win nsis --x64",
+    "release": "node scripts/release.cjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
