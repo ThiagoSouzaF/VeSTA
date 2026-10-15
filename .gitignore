@@ -1,0 +1,13 @@
+node_modules/
+dist/
+release/
+runtime/
+*.log
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+omphalos.json
+memory/
+.omphalos-tests/

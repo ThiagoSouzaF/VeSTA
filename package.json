@@ -1,0 +1,77 @@
+{
+  "name": "omphalos",
+  "version": "0.1.1",
+  "description": "Seu centro de agentes, projetos e memória",
+  "author": "Omphalos",
+  "private": true,
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "start": "electron .",
+    "build": "vite build",
+    "test": "node --test test/*.test.cjs",
+    "dist": "npm run build && electron-builder --win portable --x64",
+    "installer": "npm run build && electron-builder --win nsis --x64"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dompurify": "^3.2.0",
+    "json5": "^2.2.3",
+    "lucide-react": "^0.468.0",
+    "marked": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.4.0",
+    "electron": "^44.7.2",
+    "electron-builder": "^26.0.0",
+    "playwright": "^1.56.0",
+    "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.5",
+    "vite": "^6.3.0"
+  },
+  "build": {
+    "appId": "app.omphalos.desktop",
+    "productName": "Omphalos",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "assets/omphalos.png"
+    ],
+    "extraResources": [
+      {
+        "from": "runtime/ai-memory.exe",
+        "to": "ai-memory.exe"
+      },
+      {
+        "from": "runtime/LICENSE",
+        "to": "AI-MEMORY-LICENSE"
+      }
+    ],
+    "win": {
+      "target": "portable",
+      "artifactName": "Omphalos-${version}.exe",
+      "icon": "assets/omphalos.ico",
+      "signExecutable": false
+    },
+    "compression": "normal",
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": false,
+      "createStartMenuShortcut": true,
+      "createDesktopShortcut": false,
+      "shortcutName": "Omphalos",
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Omphalos-Setup-0.1.1.exe",
+      "installerIcon": "assets/omphalos.ico",
+      "uninstallerIcon": "assets/omphalos.ico"
+    }
+  }
+}
