@@ -15,8 +15,8 @@ function run(exe,args,options={}) {return new Promise((resolve,reject)=>{ if(!ex
 function kill(child) {if(!child?.pid||child.exitCode!==null)return; if(process.platform==='win32')execFile('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true},()=>{});else child.kill('SIGTERM');}
 function command(chat,exe) {
   const model=chat.model?['--model',chat.model]:[];
-  if(chat.provider==='codex') return {exe,args:['exec',...(chat.sessionId?['resume',chat.sessionId]:[]),'--json','--skip-git-repo-check','-c','sandbox_mode="'+(chat.mode==='edit'?'workspace-write':'read-only')+'"','-c','approval_policy="never"',...model,'-'],stdin:true};
-  if(chat.provider==='claude')return {exe,args:['--print','--output-format','stream-json','--verbose','--include-partial-messages','--permission-mode',chat.mode==='edit'?'acceptEdits':'plan','--permission-prompts','none',...model,...(chat.sessionId?['--resume',chat.sessionId]:[])],stdin:true};
+  if(chat.provider==='codex') return {exe,args:['exec',...(chat.sessionId?['resume',chat.sessionId]:[]),'--json','--skip-git-repo-check','-c','sandbox_mode="'+(chat.mode==='edit'?'danger-full-access':'read-only')+'"','-c','approval_policy="never"',...model,'-'],stdin:true};
+  if(chat.provider==='claude')return {exe,args:['--print','--output-format','stream-json','--verbose','--include-partial-messages','--permission-mode',chat.mode==='edit'?'bypassPermissions':'plan','--permission-prompts','none',...model,...(chat.sessionId?['--resume',chat.sessionId]:[])],stdin:true};
   return {exe,args:['run','--format','json',...(chat.model?['--model',chat.model]:[]),'--agent',chat.mode==='read'?'plan':(chat.agent||'build'),...(chat.sessionId?['--session',chat.sessionId]:[])],stdin:true};
 }
 const clip=(v,n)=>String(v==null?'':v).slice(0,n);

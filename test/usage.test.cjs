@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
-const {parser,upsertSubagent,upsertActivity,rateWindows}=require('../electron/providers.cjs');
+const {parser,upsertSubagent,upsertActivity,rateWindows,command}=require('../electron/providers.cjs');
 const usage=require('../electron/usage.cjs');
 const {Store}=require('../electron/store.cjs');
 const run=(provider,events)=>{const out=[];const p=parser(provider,e=>out.push(e));for(const e of events)p.accept(e);return out;};
@@ -89,4 +89,18 @@ test('claude background subagent stays running until task_notification',()=>{
   assert.deepEqual(states,['running','running','running','done']);
   assert.equal(list[0].background,true);assert.equal(list[0].result,'oi');assert.equal(list[0].stats.tokens,150);
   assert.equal(out.filter(e=>e.type==='text').map(e=>e.text).join(''),'Lancei.\n\nPronto.');
+});
+test('store v1 migrates every existing chat to full edit once; new chats default to edit',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'omph-mig-'));
+  fs.writeFileSync(path.join(dir,'omphalos.json'),JSON.stringify({version:1,settings:{},projects:[],chats:[{id:'a',mode:'read',messages:[]},{id:'b',mode:'edit',messages:[]}],memories:[]}));
+  let s=new Store(dir);assert.equal(s.state.version,2);assert.deepEqual(s.state.chats.map(c=>c.mode),['edit','edit']);
+  s.state.chats[0].mode='read';s.save();
+  s=new Store(dir);assert.equal(s.state.chats[0].mode,'read','a user choice made after the migration must survive restarts');
+  assert.equal(s.addChat({provider:'claude'}).mode,'edit');assert.equal(s.addChat({provider:'claude',mode:'read'}).mode,'read');
+});
+test('edit mode gives full access in every provider',()=>{
+  const args=p=>command({provider:p,mode:'edit',model:'m1'},'exe').args.join(' ');
+  assert.match(args('claude'),/--permission-mode bypassPermissions/);assert.match(args('claude'),/--model m1/);
+  assert.match(args('codex'),/sandbox_mode="danger-full-access"/);
+  assert.match(command({provider:'claude',mode:'read'},'exe').args.join(' '),/--permission-mode plan/);
 });
