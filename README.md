@@ -17,7 +17,8 @@ A versão portátil anterior, `release/Omphalos-0.1.0.exe`, também continua dis
 - Temas Obsidiana, Aurora e Papel; quatro cores de destaque; escolhas persistentes.
 - Markdown, atividades das ferramentas, cancelamento, renomeação, exclusão e exportação de conversas.
 - Botão no canto inferior direito para retomar o chat no terminal nativo quando uma tarefa precisar de interação ou aprovação.
-- AI Memory 3.0.0 real, incluído no executável, conectado por MCP via stdio. Nenhuma porta de rede é aberta pelo motor de memória.
+- AI Memory 3.0.0 real, incluído no executável. O Omphalos inicia um único servidor MCP HTTP só em `127.0.0.1`, numa porta livre e com token aleatório a cada execução; o aplicativo e os agentes que ele abre usam esse mesmo servidor.
+- Agentes com acesso à memória (opção nas preferências, ligada por padrão): Claude, Codex e OpenCode recebem as ferramentas do AI Memory (`memory_query`, `memory_write_page` e as demais) apenas nas sessões abertas pelo Omphalos, via `--mcp-config`, `-c mcp_servers...` e `OPENCODE_CONFIG_CONTENT`. Cada chat é orientado a usar o workspace `omphalos` e o projeto do chat.
 - Busca no contexto do projeto; preferências pessoais compartilhadas entre todas as IAs; gravação, edição e exclusão de memórias.
 
 ## Primeiro uso
@@ -34,7 +35,7 @@ Atalhos: **Ctrl+N** abre um novo chat; **Ctrl+K** busca conversas; **Enter** env
 
 Os dados ficam em `%APPDATA%/Omphalos`. A pasta pode ser aberta nas preferências. `omphalos.json` contém chats e o catálogo de notas; `memory/` contém o armazenamento Markdown e o índice do AI Memory. Faça backup da pasta inteira com o aplicativo fechado.
 
-O motor de memória funciona offline por busca textual (FTS), sem API, conta adicional ou download de modelo de embeddings. O suporte do AI Memory nativo ao Windows é experimental. A integração do Omphalos não instala hooks nem altera as configurações globais de outros agentes; vale para os chats iniciados aqui.
+O motor de memória funciona offline por busca textual (FTS), sem API, conta adicional ou download de modelo de embeddings. O suporte do AI Memory nativo ao Windows é experimental. A integração do Omphalos não instala hooks nem altera as configurações globais de outros agentes (`~/.claude`, `~/.codex`, configuração global do OpenCode); vale para os chats iniciados aqui.
 
 Com a captura habilitada, cada resposta concluída guarda um trecho da pergunta (até 6 mil caracteres) e da resposta (até 10 mil) como memória episódica. Isso não gera automaticamente um perfil de preferências: registre preferências duráveis na tela Memória. As notas de um projeto são isoladas das de outro; preferências pessoais são compartilhadas. A busca acrescenta apenas um contexto limitado ao próximo pedido da IA. Padrões comuns de chaves são removidos dos trechos guardados; essa filtragem não garante detectar todo segredo possível.
 
@@ -57,11 +58,12 @@ npm start
 npm test
 node scripts/test-memory.cjs
 node scripts/test-providers.cjs
+npx electron scripts/test-memory-agent.cjs claude
 npm run dist
 npm run installer
 ```
 
-Os testes de integração usam pastas temporárias próprias, independentes da localização do checkout. O teste dos provedores realiza duas chamadas curtas em cada conta configurada. `runtime/ai-memory.exe` veio da versão oficial v3.0.0, com SHA-256 verificado. Para reconstruir em outro checkout, consulte `scripts/download-memory.ps1`. Dependências, executáveis gerados, runtime baixado, credenciais, chats e memórias não entram no Git.
+Os testes de integração usam pastas temporárias próprias, independentes da localização do checkout. O teste dos provedores realiza duas chamadas curtas em cada conta configurada. `test-memory-agent.cjs` (argumento `claude`, `codex` ou `opencode`) faz o agente real consultar e gravar no AI Memory por MCP numa pasta temporária. `runtime/ai-memory.exe` veio da versão oficial v3.0.0, com SHA-256 verificado. Para reconstruir em outro checkout, consulte `scripts/download-memory.ps1`. Dependências, executáveis gerados, runtime baixado, credenciais, chats e memórias não entram no Git.
 
 ## Referências
 

@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { emptyUsage } = require('./usage.cjs');
-const defaults = () => ({version: 2, settings: {theme: 'obsidian', accent: 'violet', memoryEnabled: true, capture: true, density: 'comfortable'}, projects: [], chats: [], memories: [], usage: emptyUsage()});
+const defaults = () => ({version: 2, settings: {theme: 'obsidian', accent: 'violet', memoryEnabled: true, capture: true, memoryTools: true, density: 'comfortable'}, projects: [], chats: [], memories: [], usage: emptyUsage()});
 class Store {
   constructor(dir) { this.dir = dir; this.file = path.join(dir, 'omphalos.json'); fs.mkdirSync(dir, {recursive:true}); this.state = defaults(); if (fs.existsSync(this.file)) { try { const saved = JSON.parse(fs.readFileSync(this.file,'utf8')); this.state = {...this.state,...saved, settings:{...this.state.settings,...saved.settings}, usage:{...this.state.usage,...saved.usage, rateLimit:{...this.state.usage.rateLimit,...saved.usage?.rateLimit}, daily:{...saved.usage?.daily}}, version:Math.max(2,saved.version||1)}; if((saved.version||1)<2){for(const c of this.state.chats)c.mode='edit';this.save();} } catch (err) { throw new Error('Os dados do Omphalos não puderam ser lidos. O arquivo original foi preservado. '+err.message); } } }
   save() { const tmp = this.file+'.tmp'; fs.writeFileSync(tmp, JSON.stringify(this.state,null,2),'utf8'); fs.renameSync(tmp,this.file); }

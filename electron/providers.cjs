@@ -13,17 +13,34 @@ function locate(name) {
 }
 function run(exe,args,options={}) {return new Promise((resolve,reject)=>{ if(!exe) return reject(new Error('Programa não encontrado')); const child=spawn(exe,args,{windowsHide:true,shell:false,...options}); child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');let stdout='',stderr=''; const timer=setTimeout(()=>{kill(child);reject(new Error('O programa demorou para responder'));},options.timeout||20000); child.stdout.on('data',b=>stdout=(stdout+b).slice(-1000000)); child.stderr.on('data',b=>stderr=(stderr+b).slice(-10000)); child.on('error',e=>{clearTimeout(timer);reject(e)}); child.on('close',code=>{clearTimeout(timer); code===0?resolve(stdout):reject(new Error(stderr||stdout||'Erro '+code))}); if(child.stdin){child.stdin.on('error',()=>{});child.stdin.end(options.input||'');}});}
 function kill(child) {if(!child?.pid||child.exitCode!==null)return; if(process.platform==='win32')execFile('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true},()=>{});else child.kill('SIGTERM');}
-function command(chat,exe) {
+// The AI Memory MCP server is registered per launch (flags/env), never in ~/.claude, ~/.codex or the global OpenCode config.
+const MEMORY_SERVER='omphalos-memory',MEMORY_TOKEN_ENV='OMPHALOS_MEMORY_TOKEN';
+function memoryTools(provider,endpoint){
+  if(!endpoint)return {args:[],env:{}};
+  const env={[MEMORY_TOKEN_ENV]:endpoint.token};
+  // The token travels by environment; each CLI expands it into the Authorization header itself.
+  if(provider==='claude')return {env,args:['--mcp-config',JSON.stringify({mcpServers:{[MEMORY_SERVER]:{type:'http',url:endpoint.mcp,headers:{Authorization:'Bearer ${'+MEMORY_TOKEN_ENV+'}'}}}}),'--allowedTools','mcp__'+MEMORY_SERVER]};
+  if(provider==='codex'){const key='mcp_servers.'+MEMORY_SERVER+'.';return {env,args:['-c',key+'url="'+endpoint.mcp+'"','-c',key+'bearer_token_env_var="'+MEMORY_TOKEN_ENV+'"','-c',key+'default_tools_approval_mode="approve"']};}
+  return {args:[],env:{...env,OPENCODE_CONFIG_CONTENT:JSON.stringify({mcp:{[MEMORY_SERVER]:{type:'remote',url:endpoint.mcp,enabled:true,oauth:false,headers:{Authorization:'Bearer {env:'+MEMORY_TOKEN_ENV+'}'}}}})}};
+}
+// Tells the agent which scope is its own: tool calls without workspace/project would land in the server's default (inbox).
+function memoryHint(projectId){
+  const project=projectId||'inbox';
+  return 'Você tem acesso à memória compartilhada do Omphalos pelas ferramentas MCP do servidor "'+MEMORY_SERVER+'" (AI Memory). Nelas, sempre passe workspace "omphalos" e project "'+project+'". Use memory_query para buscar decisões e contexto de conversas anteriores quando forem relevantes, e memory_write_page para registrar decisões, fatos e lições duráveis deste projeto (caminhos como "agentes/<assunto>.md"). Não grave segredos nem trechos longos de código.';
+}
+function command(chat,exe,endpoint) {
   const model=chat.model?['--model',chat.model]:[];
-  if(chat.provider==='codex') return {exe,args:['exec',...(chat.sessionId?['resume',chat.sessionId]:[]),'--json','--skip-git-repo-check','-c','sandbox_mode="'+(chat.mode==='edit'?'danger-full-access':'read-only')+'"','-c','approval_policy="never"',...model,'-'],stdin:true};
-  if(chat.provider==='claude')return {exe,args:['--print','--output-format','stream-json','--verbose','--include-partial-messages','--permission-mode',chat.mode==='edit'?'bypassPermissions':'plan','--permission-prompts','none',...model,...(chat.sessionId?['--resume',chat.sessionId]:[])],stdin:true};
-  return {exe,args:['run','--format','json',...(chat.model?['--model',chat.model]:[]),'--agent',chat.mode==='read'?'plan':(chat.agent||'build'),...(chat.sessionId?['--session',chat.sessionId]:[])],stdin:true};
+  const mem=memoryTools(chat.provider,endpoint);
+  if(chat.provider==='codex') return {exe,args:['exec',...(chat.sessionId?['resume',chat.sessionId]:[]),'--json','--skip-git-repo-check','-c','sandbox_mode="'+(chat.mode==='edit'?'danger-full-access':'read-only')+'"','-c','approval_policy="never"',...mem.args,...model,'-'],env:mem.env,stdin:true};
+  if(chat.provider==='claude')return {exe,args:['--print','--output-format','stream-json','--verbose','--include-partial-messages','--permission-mode',chat.mode==='edit'?'bypassPermissions':'plan','--permission-prompts','none',...mem.args,...model,...(chat.sessionId?['--resume',chat.sessionId]:[])],env:mem.env,stdin:true};
+  return {exe,args:['run','--format','json',...(chat.model?['--model',chat.model]:[]),'--agent',chat.mode==='read'?'plan':(chat.agent||'build'),...(chat.sessionId?['--session',chat.sessionId]:[])],env:mem.env,stdin:true};
 }
 const clip=(v,n)=>String(v==null?'':v).slice(0,n);
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
 // Tool name -> visual kind of the activity card.
 function toolKind(name){
   const n=String(name||'').toLowerCase();
+  if(n.includes(MEMORY_SERVER)||n.includes('omphalos_memory'))return 'memory';
   if(n.startsWith('mcp__')||n.startsWith('mcp_'))return 'mcp';
   if(/^(bash|shell|powershell|command|exec)/.test(n))return 'command';
   if(/^(read|write|edit|multiedit|notebookedit|patch|apply_patch|file)/.test(n))return 'file';
@@ -32,6 +49,8 @@ function toolKind(name){
   if(/^(todo|task_?create|task_?update)/.test(n))return 'todo';
   return 'tool';
 }
+// Memory tools read as "Memória · memory_query" instead of the raw MCP-qualified name.
+const toolLabel=name=>{const n=String(name||'');if(toolKind(n)!=='memory')return 'Usando '+n;const i=n.lastIndexOf('memory_'),tool=i>=0?n.slice(i):n;return 'Memória · '+tool;};
 const textOf=c=>typeof c==='string'?c:Array.isArray(c)?c.map(x=>typeof x==='string'?x:x?.text||'').filter(Boolean).join('\n'):c&&c.text?c.text:'';
 // Strips the harness frame Claude Code wraps around a subagent report and its per-line indentation.
 const unframe=s=>{const m=/The report follows:\s*\n/i.exec(s);if(!m)return s;return s.slice(m.index+m[0].length).split('\n').map(l=>l.replace(/^ {2}/,'')).join('\n');};
@@ -74,7 +93,7 @@ function parser(provider,emit) {
       if(item?.type==='agent_message' && ['item.completed'].includes(event.type)) append((text?'\n\n':'')+item.text);
       if(item?.type==='command_execution')activity(done?'Comando concluído':'Executando comando',item.command,{kind:'command',id:item.id,status:done?'done':'running'});
       if(item?.type==='file_change')activity('Arquivos atualizados',(item.changes||[]).map(x=>x.path).join(', '),{kind:'file',id:item.id,status:'done'});
-      if(item?.type==='mcp_tool_call')activity('Consultando ferramenta',[item.server,item.tool].filter(Boolean).join(' · '),{kind:'mcp',id:item.id,status:done?'done':'running'});
+      if(item?.type==='mcp_tool_call')activity(item.server===MEMORY_SERVER?toolLabel(MEMORY_SERVER+'_'+item.tool):'Consultando ferramenta',item.server===MEMORY_SERVER?item.arguments?.query||item.arguments?.path||'':[item.server,item.tool].filter(Boolean).join(' · '),{kind:item.server===MEMORY_SERVER?'memory':'mcp',id:item.id,status:done?'done':'running'});
       if(item?.type==='web_search')activity('Pesquisando na web',item.query,{kind:'web',id:item.id,status:done?'done':'running'});
       if(event.type==='turn.completed'&&event.usage)cost({inputTokens:event.usage.input_tokens,outputTokens:num(event.usage.output_tokens)+num(event.usage.reasoning_output_tokens),cacheTokens:event.usage.cached_input_tokens});
       if(event.type==='error'||event.type==='turn.failed')emit({type:'provider-error',message:event.message||event.error?.message||'O Codex não concluiu a resposta'});
@@ -86,7 +105,7 @@ function parser(provider,emit) {
         if(!subs.has(parent))return;
         const step=s=>subagent({toolUseId:parent,step:s});
         if(event.type==='assistant')for(const block of event.message?.content||[]){
-          if(block.type==='tool_use'){const i=block.input||{};step({id:block.id,kind:toolKind(block.name),label:'Usando '+block.name,detail:clip(i.command||i.file_path||i.path||i.pattern||i.url||i.query||i.description||'',300),status:'running'});}
+          if(block.type==='tool_use'){const i=block.input||{};step({id:block.id,kind:toolKind(block.name),label:toolLabel(block.name),detail:clip(i.command||i.file_path||i.path||i.pattern||i.url||i.query||i.description||'',300),status:'running'});}
           if(block.type==='text'&&block.text?.trim())step({id:event.message?.id+':text',kind:'text',label:'Escrevendo',detail:clip(block.text.trim(),300),status:'done'});
         }
         if(event.type==='user'&&Array.isArray(event.message?.content))for(const block of event.message.content)if(block?.type==='tool_result')step({id:block.tool_use_id,status:block.is_error?'error':'done'});
@@ -97,7 +116,7 @@ function parser(provider,emit) {
         if(block.type==='text'&&!text)append(block.text);
         if(block.type==='tool_use'){
           if(block.name==='Agent'||block.name==='Task'){if(!subs.has(block.id))startSub(block.id,block.input,'running');}
-          else{const i=block.input||{};activity('Usando '+block.name,i.command||i.file_path||i.path||i.pattern||i.url||i.query||i.description||'',{kind:toolKind(block.name),id:block.id,status:'running'});}
+          else{const i=block.input||{};activity(toolLabel(block.name),i.command||i.file_path||i.path||i.pattern||i.url||i.query||i.description||'',{kind:toolKind(block.name),id:block.id,status:'running'});}
         }
       }
       if(event.type==='user'&&Array.isArray(event.message?.content))for(const block of event.message.content){
@@ -129,7 +148,7 @@ function parser(provider,emit) {
         if(part.tool==='task'){
           const status=st.status==='error'?'error':st.status==='completed'?'done':'running';
           startSub(id,st.input||{},status,status==='running'?undefined:summarize(st.output||st.error||st.title));
-        } else activity('Usando '+part.tool,st.title||st.input?.command||st.input?.filePath||st.input?.pattern||'',{kind:toolKind(part.tool),id:id||undefined,status:st.status==='completed'?'done':st.status==='error'?'error':'running'});
+        } else activity(toolLabel(part.tool),st.title||st.input?.query||st.input?.path||st.input?.command||st.input?.filePath||st.input?.pattern||'',{kind:toolKind(part.tool),id:id||undefined,status:st.status==='completed'?'done':st.status==='error'?'error':'running'});
       }
       if(event.type==='step_finish'&&event.part){const t=event.part.tokens||{};cost({inputTokens:t.input,outputTokens:num(t.output)+num(t.reasoning),cacheTokens:num(t.cache?.read)+num(t.cache?.write),costUsd:event.part.cost});}
       if(event.type==='error')emit({type:'provider-error',message:event.error?.data?.message||event.error?.message||'Falha no OpenCode'});
@@ -151,4 +170,4 @@ function upsertActivity(list,ev){
   const {type,...a}=ev;if(a.id){const i=list.findIndex(x=>x.id===a.id);if(i>=0){list[i]={...list[i],...a};return list[i];}}
   list.push(a);return a;
 }
-module.exports={locate,run,kill,command,parser,upsertSubagent,upsertActivity,rateWindows,normWindow};
+module.exports={locate,run,kill,command,memoryTools,memoryHint,MEMORY_SERVER,parser,upsertSubagent,upsertActivity,rateWindows,normWindow};
