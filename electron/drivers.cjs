@@ -41,15 +41,20 @@ function runClaude(spec, ctx) {
     const answer = await ctx.ask({provider: 'claude', tool: r.tool_name, title: r.description || r.display_name || r.tool_name, command: isShell(r.tool_name) ? input.command : '', detail: isShell(r.tool_name) ? (r.blocked_path ? 'Caminho: ' + r.blocked_path : '') : claudeDetail(r.tool_name, input), subagent: ctx.parse.ownerOf(r.tool_use_id) || (r.agent_id ? 'subagente' : '')});
     write({type: 'control_response', response: {subtype: 'success', request_id: e.request_id, response: answer.allow ? {behavior: 'allow', updatedInput: input} : {behavior: 'deny', message: answer.message || 'Negado pelo usuário.'}}});
   };
+  // After the final result Claude may stay alive only to wait for background shell commands it started (a dev
+  // server, a watcher) that never end. The turn is over: give it a moment, then end claude.exe alone, never its
+  // process tree, so whatever it left running keeps running.
+  let settled = false, linger = null;
+  const settle = () => { if (settled) return; settled = true; finish(); linger = setTimeout(() => { if (child.exitCode === null) try { child.kill(); } catch {} }, ctx.lingerMs ?? 5000); };
   lines(child.stdout, l => {
     const e = json(l); if (!e) { stderr = (stderr + '\n' + l).slice(-6000); return; }
     if (e.type === 'control_request') { control(e).catch(() => {}); return; }
     if (e.type === 'control_response' || e.type === 'control_cancel_request') return;
     ctx.parse.accept(e);
-    if (e.type === 'result' && !ctx.parse.backgroundRunning()) finish();
+    if (e.type === 'result' && !ctx.parse.backgroundRunning()) settle();
   });
   write({type: 'user', message: {role: 'user', content: ctx.prompt}});
-  const done = new Promise(resolve => { child.on('error', err => resolve({code: -1, stderr: err.message})); child.on('close', code => resolve({code, stderr})); });
+  const done = new Promise(resolve => { child.on('error', err => resolve({code: -1, stderr: err.message})); child.on('close', code => { clearTimeout(linger); resolve({code: settled ? 0 : code, stderr}); }); });
   return {done, stop() { finish(); kill(child); }};
 }
 
