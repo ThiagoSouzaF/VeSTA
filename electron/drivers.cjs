@@ -178,5 +178,5 @@ function runOpenCode(spec, ctx) {
   return {done, stop() { stopped = true; if (sessionId && base) api('POST', '/session/' + sessionId + '/abort').catch(() => {}).finally(close); else close(); }};
 }
 
-function start(provider, spec, ctx) { return provider === 'claude' ? runClaude(spec, ctx) : provider === 'codex' ? runCodex(spec, ctx) : runOpenCode(spec, ctx); }
+function start(provider, spec, ctx) { return provider === 'drael' ? require('./drael.cjs').start(spec, ctx) : provider === 'claude' ? runClaude(spec, ctx) : provider === 'codex' ? runCodex(spec, ctx) : runOpenCode(spec, ctx); }
 module.exports = {start, claudeDetail};

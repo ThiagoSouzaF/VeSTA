@@ -4,6 +4,7 @@ const {plainCommand} = require('./permissions.cjs');
 const path = require('node:path');
 const os = require('node:os');
 function locate(name) {
+  if(name==='drael')return require('./drael.cjs').locate();
   const home=os.homedir(), local=process.env.LOCALAPPDATA||path.join(home,'AppData','Local');
   const names=name==='opencode'?['opencode.exe']: [name+'.exe'];
   const candidates=(process.env.PATH||'').split(path.delimiter).flatMap(dir=>names.map(n=>path.join(dir,n)));
@@ -35,6 +36,7 @@ const modeOf=chat=>MODES.includes(chat.mode)?chat.mode:'edit';
 // How each CLI is launched. Claude speaks stream-json both ways (its permission requests arrive on stdout and are
 // answered on stdin); Codex runs its app-server (JSON-RPC with approval requests); OpenCode runs its HTTP server.
 function command(chat,exe,endpoint) {
+  if(chat.provider==='drael')return require('./drael.cjs').command(chat,exe,endpoint);
   const mode=modeOf(chat),mem=memoryTools(chat.provider,endpoint);
   if(chat.provider==='codex'){
     const policy=mode==='ask'?{approvalPolicy:'on-request',sandbox:'read-only'}:{approvalPolicy:'never',sandbox:mode==='edit'?'danger-full-access':'read-only'};
@@ -56,7 +58,7 @@ function toolKind(name){
   const n=String(name||'').toLowerCase();
   if(n.includes(MEMORY_SERVER)||n.includes('vesta_memory'))return 'memory';
   if(n.startsWith('mcp__')||n.startsWith('mcp_'))return 'mcp';
-  if(/^(bash|shell|powershell|command|exec)/.test(n))return 'command';
+  if(/^(bash|shell|powershell|command|exec|run$)/.test(n))return 'command';
   if(/^(read|write|edit|multiedit|notebookedit|patch|apply_patch|file)/.test(n))return 'file';
   if(/^(grep|glob|list|ls|find|search|toolsearch)/.test(n))return 'search';
   if(/^(web|fetch|browser)/.test(n))return 'web';
@@ -102,6 +104,7 @@ function codexItem(it,done){
 }
 function parser(provider,emit) {
   let text='',seen=new Set(),subs=new Set(),gap=false;const subLabels=new Map();
+  let draelToolId=0;const draelTools=new Map();
   const append=t=>{if(!t)return; text+=t;emit({type:'text',text:t});};
   const activity=(label,detail,extra={})=>emit({type:'activity',label,detail:clip(detail,3000),kind:'tool',...extra});
   const subagent=o=>emit({type:'subagent',provider,...o});
@@ -121,7 +124,23 @@ function parser(provider,emit) {
   ownerOf(toolUseId){const id=toolOwner.get(toolUseId);return id?subLabels.get(id)||'subagente':null;},
   ownerOfThread(threadId){if(!threadId||threadId===mainThread)return null;const id=threadOwner.get(threadId);return threadLabel.get(threadId)||(id&&subLabels.get(id))||'subagente';},
   accept(event){
-    if(provider==='codex') {
+    if(provider==='drael') {
+      if(event.type==='text')append(event.text);
+      if(event.type==='tool'){
+        const id='drael-'+(++draelToolId),queue=draelTools.get(event.name)||[];queue.push(id);draelTools.set(event.name,queue);
+        if(event.name==='task')startSub(id,event.args,'running');
+        else activity(event.name,JSON.stringify(event.args||{}),{kind:toolKind(event.name),status:'running',toolUseId:id});
+      }
+      if(event.type==='result'){
+        const id=draelTools.get(event.name)?.shift()||'drael-'+(++draelToolId),status=event.error?'error':'done';
+        if(event.name==='task')subagent({toolUseId:id,status,result:clip(event.text,12000)});
+        else activity(event.name,event.text,{kind:toolKind(event.name),status,toolUseId:id});
+      }
+      if(event.type==='end'){
+        cost({inputTokens:event.usage?.input,outputTokens:event.usage?.output,cacheTokens:event.usage?.cached});
+        if(event.refused||event.stopped==='max_turns')emit({type:'provider-error',message:event.refused||'Drael atingiu o limite de etapas desta resposta.'});
+      }
+    } else if(provider==='codex') {
       // JSON-RPC notifications from `codex app-server` ({method, params}).
       const m=event.method,p=event.params||{},it=p.item,tid=p.threadId||p.thread?.id;
       if(m==='thread/started'&&!mainThread)mainThread=p.thread?.id;
