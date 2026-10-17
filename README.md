@@ -62,6 +62,7 @@ node scripts/test-memory.cjs
 node scripts/test-providers.cjs
 npx electron scripts/test-permissions.cjs claude allow
 npx electron scripts/test-claude-background.cjs
+npx electron scripts/test-claude-stale-task.cjs
 npx electron scripts/test-memory-agent.cjs claude
 npm run dist
 npm run installer

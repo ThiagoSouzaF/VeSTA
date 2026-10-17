@@ -51,7 +51,9 @@ function runClaude(spec, ctx) {
     if (e.type === 'control_request') { control(e).catch(() => {}); return; }
     if (e.type === 'control_response' || e.type === 'control_cancel_request') return;
     ctx.parse.accept(e);
-    if (e.type === 'result' && !ctx.parse.backgroundRunning()) settle();
+    // On resume, a background task that died with the previous process is delivered first as its own empty
+    // turn (num_turns 0, no result text); the answer to this prompt comes after it, so that one must not settle.
+    if (e.type === 'result' && !(e.num_turns === 0 && !e.result) && !ctx.parse.backgroundRunning()) settle();
   });
   write({type: 'user', message: {role: 'user', content: ctx.prompt}});
   const done = new Promise(resolve => { child.on('error', err => resolve({code: -1, stderr: err.message})); child.on('close', code => { clearTimeout(linger); resolve({code: settled ? 0 : code, stderr}); }); });

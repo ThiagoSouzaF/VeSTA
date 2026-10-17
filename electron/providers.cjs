@@ -215,7 +215,8 @@ function parser(provider,emit) {
       // A second turn (after a background task) starts a new message: keep paragraphs apart.
       if(event.type==='stream_event'&&event.event?.type==='message_start'&&text)gap=true;
       if(event.type==='rate_limit_event'){const w=rateWindows(event.rate_limit_info);if(w.fiveHour||w.sevenDay)emit({type:'usage',provider:'claude',...w});}
-      if(event.type==='result'){
+      if(event.type==='result'&&event.num_turns===0&&!event.result&&!event.is_error){}
+      else if(event.type==='result'){
         if(!text&&event.result)append(event.result);
         const u=event.usage;if(u||event.total_cost_usd!=null)cost({inputTokens:u?.input_tokens,outputTokens:u?.output_tokens,cacheTokens:num(u?.cache_read_input_tokens)+num(u?.cache_creation_input_tokens),costUsd:event.total_cost_usd});
         if(event.is_error)emit({type:'provider-error',message:(event.errors||[]).join('\n')||event.result||'Falha no Claude'});
