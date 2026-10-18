@@ -14,6 +14,7 @@ import {
   BarChart3,
   ShieldAlert,
   Activity,
+  Swords,
 } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { action } from '../lib/api';
@@ -35,6 +36,7 @@ export function Sidebar({
   active,
   goChat,
   taskCounts,
+  questsRunning = 0,
 }) {
   return (
     <aside className="sidebar">
@@ -57,6 +59,7 @@ export function Sidebar({
         {[
           { id: 'chat', name: 'Conversas', icon: MessageSquare },
           { id: 'activity', name: 'Atividade', icon: Activity },
+          { id: 'quests', name: 'Quests', icon: Swords },
           { id: 'memory', name: 'Memória', icon: Brain },
           { id: 'usage', name: 'Uso', icon: BarChart3 },
           { id: 'connections', name: 'Conexões', icon: Layers },
@@ -65,6 +68,11 @@ export function Sidebar({
             <n.icon size={18} />
             {n.name}
             {n.id === 'memory' && data.memories.length > 0 && <span className="count">{data.memories.length}</span>}
+            {n.id === 'quests' && questsRunning > 0 && (
+              <span className="count live" title="Quests rodando agora">
+                {questsRunning}
+              </span>
+            )}
             {n.id === 'activity' && taskCounts.total > 0 && (
               <span className="count live" title="Tarefas rodando agora">
                 {taskCounts.total}

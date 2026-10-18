@@ -1,0 +1,296 @@
+const { randomUUID } = require('node:crypto');
+const Q = require('./quests.cjs');
+const { redact } = require('./memory.cjs');
+
+// The quest engine: glue between the pure model (quests.cjs) and the rest of the main process. It reacts to the
+// 'chat-done' event of the bus and starts step chats through the regular `send` flow (no duplicated spawn logic).
+// `deps` (all optional, for tests) = { send(ctx, args), now(), memory() }.
+function createQuestEngine(ctx, deps = {}) {
+  const store = ctx.store;
+  const send = deps.send || require('./send.cjs').send;
+  const now = deps.now || Date.now;
+  const quests = () => store.state.quests;
+  const find = (id) => {
+    const q = quests().find((x) => x.id === id);
+    if (!q) throw new Error('Quest não encontrada');
+    return q;
+  };
+  const commit = () => {
+    store.save();
+    ctx.sync();
+  };
+  // AIs that can take part, with the models the app knows for each.
+  const installed = () => {
+    const out = {};
+    for (const p of Q.PROVIDER_IDS)
+      if (ctx.integrations[p]?.installed) out[p] = { models: ctx.integrations[p].models || [] };
+    return out;
+  };
+  const newChat = (input, title, extra) => {
+    const chat = store.addChat(input);
+    chat.title = title.slice(0, 100);
+    Object.assign(chat, extra);
+    return chat;
+  };
+  const assistantOf = (chat) => [...chat.messages].reverse().find((m) => m.role === 'assistant');
+
+  // ---- Scheduling -----------------------------------------------------------------------------------------------
+  function startStep(q, s) {
+    let chat;
+    try {
+      chat = newChat(
+        { provider: s.provider, model: s.model, projectId: q.projectId, mode: s.mode, memory: true },
+        'Quest: ' + q.title + ' — ' + s.title,
+        { questId: q.id, stepId: s.id }
+      );
+    } catch (e) {
+      Q.failStep(q, s.id, e.message, now());
+      return;
+    }
+    Q.beginStep(q, s.id, chat.id, now());
+    const prompt = Q.buildStepPrompt(q, s);
+    Promise.resolve()
+      .then(() => send(ctx, { chatId: chat.id, text: prompt }))
+      .catch((e) => {
+        // The turn never started (no CLI, project gone...): there will be no 'chat-done'.
+        const cur = Q.step(q, s.id);
+        if (cur?.status === 'running' && cur.chatId === chat.id) {
+          Q.failStep(q, s.id, redact(e.message), now());
+          advance(q);
+          commit();
+        }
+      });
+  }
+  // Starts everything that is ready (within maxParallel), then settles the quest status.
+  function advance(q) {
+    for (let guard = 0; guard < Q.MAX_STEPS + 2; guard++) {
+      const [s] = Q.readySteps(q);
+      if (!s) break;
+      startStep(q, s);
+    }
+    Q.evaluate(q, now());
+  }
+
+  // ---- Reactions ------------------------------------------------------------------------------------------------
+  async function remember(q, s) {
+    const memory = deps.memory ? deps.memory() : ctx.memory;
+    if (!memory || !store.state.settings.memoryEnabled) return;
+    try {
+      await memory.ensureProject?.(q.projectId);
+      const note = {
+        id: randomUUID(),
+        path: 'quests/' + q.id + '/' + s.id + '.md',
+        title: 'Quest: ' + q.title + ' — ' + s.title,
+        kind: 'quest',
+        projectId: q.projectId,
+        chatId: s.chatId,
+        body: redact('IA: ' + s.provider + (s.model ? ' (' + s.model + ')' : '') + '\n\n' + s.result),
+        createdAt: now(),
+      };
+      await memory.write(note);
+      store.state.memories = store.state.memories.filter((n) => n.path !== note.path);
+      store.state.memories.unshift(note);
+      commit();
+    } catch (e) {
+      Q.addLog(q, 'Memória indisponível para "' + s.title + '": ' + redact(e.message).slice(0, 120), now());
+      commit();
+    }
+  }
+  function onPlanDone(q, chat, status) {
+    const reply = assistantOf(chat);
+    const planning = { ...q.planning };
+    if (q.status !== 'draft') return;
+    if (status !== 'done' || !reply?.text) {
+      q.planning = { ...planning, status: 'error', error: reply?.error || 'O planejamento não terminou.' };
+      Q.addLog(q, 'Falha no planejamento: ' + q.planning.error, now());
+      return;
+    }
+    const plan = Q.parsePlan(reply.text, installed());
+    if (!plan.ok) {
+      q.planning = { ...planning, status: 'error', error: plan.error };
+      Q.addLog(q, 'Plano inválido: ' + plan.error, now());
+      return;
+    }
+    q.steps = plan.steps;
+    q.planning = { ...planning, status: 'done', error: null, warnings: plan.warnings };
+    Q.addLog(q, 'Plano pronto: ' + plan.steps.length + ' etapa(s). Revise e inicie.', now());
+  }
+  // Called for every finished turn; only chats that belong to a quest matter.
+  function onChatDone({ chatId, status }) {
+    const chat = store.state.chats.find((c) => c.id === chatId);
+    if (!chat?.questId) return;
+    const q = quests().find((x) => x.id === chat.questId);
+    if (!q) return;
+    if (chat.questRole === 'plan') {
+      if (q.planning?.chatId === chatId && q.planning.status === 'running') {
+        onPlanDone(q, chat, status);
+        Q.touch(q, now());
+        commit();
+      }
+      return;
+    }
+    const s = q.steps.find((x) => x.id === chat.stepId && x.chatId === chatId);
+    if (!s || s.status !== 'running') return; // cancelled, retried or skipped meanwhile
+    const reply = assistantOf(chat);
+    if (status === 'done') {
+      Q.finishStep(q, s.id, Q.extractResult(reply?.text || ''), now());
+      remember(q, s);
+    } else {
+      Q.failStep(
+        q,
+        s.id,
+        status === 'cancelled' ? 'A resposta foi interrompida.' : reply?.error || 'A IA falhou.',
+        now()
+      );
+    }
+    advance(q);
+    commit();
+  }
+
+  // ---- Operations (the IPC methods) -----------------------------------------------------------------------------
+  const apply = (q, input) => {
+    if (input.title !== undefined) q.title = String(input.title).trim().slice(0, 120) || q.title;
+    if (input.goal !== undefined) q.goal = String(input.goal).trim().slice(0, 8000);
+    if (input.guidelines !== undefined) q.guidelines = String(input.guidelines).trim().slice(0, 8000);
+    if (input.projectId !== undefined) {
+      if (input.projectId && !ctx.project(input.projectId)) throw new Error('Projeto inválido');
+      q.projectId = input.projectId || null;
+    }
+    if (input.maxParallel !== undefined)
+      q.maxParallel = Q.normalizeQuest({ maxParallel: input.maxParallel }).maxParallel;
+    if (input.steps !== undefined) {
+      if (q.status !== 'draft') throw new Error('O plano só pode ser editado antes de iniciar');
+      const steps = Q.normalizeSteps(input.steps).map((s) => ({
+        ...s,
+        status: 'pending',
+        chatId: null,
+        result: '',
+        startedAt: null,
+        endedAt: null,
+        attempts: 0,
+      }));
+      const err = steps.length ? Q.validateSteps(steps) : null;
+      if (err) throw new Error(err);
+      q.steps = steps;
+    }
+    Q.touch(q, now());
+  };
+  function plan(q, { provider, model }) {
+    if (!ctx.integrations[provider]?.installed) throw new Error('Esta IA não está instalada. Confira as Conexões.');
+    if (!q.goal) throw new Error('Descreva o objetivo para planejar');
+    const chat = newChat(
+      { provider, model: model || '', projectId: q.projectId, mode: 'read', memory: false },
+      'Quest: ' + q.title + ' — planejamento',
+      { questId: q.id, questRole: 'plan' }
+    );
+    q.planning = { chatId: chat.id, provider, status: 'running', error: null, startedAt: now() };
+    Q.addLog(q, 'Planejando com ' + provider + '…', now());
+    Promise.resolve()
+      .then(() => send(ctx, { chatId: chat.id, text: Q.buildPlanPrompt(q, installed()) }))
+      .catch((e) => {
+        if (q.planning?.chatId === chat.id && q.planning.status === 'running') {
+          q.planning = { ...q.planning, status: 'error', error: redact(e.message) };
+          Q.addLog(q, 'Falha no planejamento: ' + redact(e.message), now());
+          commit();
+        }
+      });
+  }
+  const stop = (chatId) => ctx.stopChat(chatId);
+  return {
+    onChatDone,
+    // App (re)opened: nothing may stay stuck in "running".
+    recover() {
+      let changed = false;
+      for (const q of quests()) changed = Q.reconcile(q, [...ctx.jobs.keys()], now()) || changed;
+      if (changed) commit();
+      return changed;
+    },
+    createQuest(input) {
+      const title = String(input.title || '').trim();
+      if (!title) throw new Error('Dê um título à quest');
+      const q = Q.normalizeQuest({ id: randomUUID(), title, status: 'draft', createdAt: now(), updatedAt: now() });
+      apply(q, {
+        goal: input.goal ?? '',
+        guidelines: input.guidelines ?? '',
+        projectId: input.projectId,
+        maxParallel: input.maxParallel,
+      });
+      if (input.steps?.length) apply(q, { steps: input.steps });
+      if (!q.goal && !q.steps.length) throw new Error('Descreva o objetivo da quest');
+      Q.addLog(q, 'Quest criada.', now());
+      if (input.plan) plan(q, input.plan);
+      quests().unshift(q);
+      commit();
+      return q;
+    },
+    updateQuest({ id, ...patch }) {
+      const q = find(id);
+      if (q.status === 'done' || q.status === 'cancelled') throw new Error('Esta quest já terminou');
+      apply(q, patch);
+      commit();
+      return q;
+    },
+    replan({ id, provider, model }) {
+      const q = find(id);
+      if (q.status !== 'draft') throw new Error('Só dá para planejar antes de iniciar');
+      if (q.planning?.status === 'running') throw new Error('O planejamento já está em andamento');
+      plan(q, { provider, model });
+      commit();
+      return q;
+    },
+    startQuest({ id, ...patch }) {
+      const q = find(id);
+      if (q.planning?.status === 'running') throw new Error('Aguarde o planejamento terminar');
+      apply(q, patch);
+      Q.start(q, now());
+      advance(q);
+      commit();
+      return q;
+    },
+    pauseQuest({ id }) {
+      const q = find(id);
+      Q.pause(q, now());
+      commit();
+      return q;
+    },
+    resumeQuest({ id }) {
+      const q = find(id);
+      Q.resume(q, now());
+      advance(q);
+      commit();
+      return q;
+    },
+    cancelQuest({ id }) {
+      const q = find(id);
+      if (q.planning?.status === 'running') {
+        stop(q.planning.chatId);
+        q.planning = { ...q.planning, status: 'error', error: 'Cancelado.' };
+      }
+      for (const chatId of Q.cancel(q, now())) stop(chatId);
+      commit();
+      return q;
+    },
+    retryStep({ id, stepId }) {
+      const q = find(id);
+      Q.retryStep(q, stepId, now());
+      advance(q);
+      commit();
+      return q;
+    },
+    skipStep({ id, stepId }) {
+      const q = find(id);
+      Q.skipStep(q, stepId, now());
+      advance(q);
+      commit();
+      return q;
+    },
+    deleteQuest({ id }) {
+      const q = find(id);
+      if (q.status === 'running' || q.planning?.status === 'running')
+        throw new Error('Cancele a quest antes de excluir');
+      store.state.quests = quests().filter((x) => x.id !== id);
+      commit();
+    },
+  };
+}
+module.exports = { createQuestEngine };

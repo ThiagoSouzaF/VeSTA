@@ -11,13 +11,15 @@ export function MainHeader({ page, chat, data, memoryStatus, inspector, setInspe
             ? chat?.title || 'Visão geral'
             : page === 'activity'
               ? 'Atividade'
-              : page === 'memory'
-                ? 'Memória compartilhada'
-                : page === 'usage'
-                  ? 'Uso'
-                  : page === 'connections'
-                    ? 'Conexões'
-                    : 'Preferências'}
+              : page === 'quests'
+                ? 'Quests'
+                : page === 'memory'
+                  ? 'Memória compartilhada'
+                  : page === 'usage'
+                    ? 'Uso'
+                    : page === 'connections'
+                      ? 'Conexões'
+                      : 'Preferências'}
         </strong>
       </div>
       <div className="header-actions">

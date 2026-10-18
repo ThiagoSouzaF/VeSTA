@@ -1,0 +1,448 @@
+/* ---- Quests: list, board, plan editor ---- */
+.quests-page,
+.quest-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.quest-count {
+  font-size: 11px;
+  color: var(--muted);
+}
+.quest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quest-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) auto minmax(150px, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  text-align: left;
+  padding: 14px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.quest-row:hover {
+  border-color: var(--border);
+  background: var(--surface);
+}
+.quest-row.running {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-bg);
+}
+.quest-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.quest-row-main strong {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.quest-row-main span,
+.quest-row-progress small {
+  font-size: 10px;
+  color: var(--faint);
+}
+.quest-row-ais {
+  display: flex;
+  gap: 4px;
+}
+.quest-row-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.quest-progress {
+  height: 6px;
+  border-radius: 4px;
+  background: var(--hover);
+  overflow: hidden;
+}
+.quest-progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+.quest-progress span.err {
+  background: var(--orange);
+}
+.quest-status {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--hover);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.quest-status.running {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.quest-status.done {
+  background: #9fcdb91f;
+  color: var(--green);
+}
+.quest-status.paused,
+.quest-status.failed {
+  background: #d9a3861f;
+  color: var(--orange);
+}
+.quest-heading {
+  margin-bottom: 6px;
+}
+.quest-heading h1 {
+  margin-bottom: 8px;
+}
+.quest-heading p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.quest-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  align-self: flex-start;
+}
+.quest-back:hover {
+  color: var(--text);
+}
+.quest-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.quest-brief {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.quest-brief p {
+  white-space: pre-wrap;
+  margin-top: 6px;
+  max-height: 120px;
+  overflow: auto;
+}
+.quest-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 11px;
+  color: var(--muted);
+}
+.quest-banner.err {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+.quest-hint {
+  font-size: 11px;
+  color: var(--orange);
+}
+.quest-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.quest-col {
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 10px;
+  min-height: 120px;
+}
+.quest-col h3 {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin: 2px 4px 10px;
+}
+.quest-col.problems h3 span {
+  color: var(--orange);
+}
+.quest-col.running h3 span {
+  color: var(--accent);
+}
+.quest-col-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.quest-col-empty {
+  text-align: center;
+  color: var(--faint);
+  font-size: 11px;
+}
+.step-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 11px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface);
+  min-width: 0;
+}
+.step-card.running {
+  border-color: var(--accent);
+}
+.step-card.error {
+  border-color: var(--orange);
+}
+.step-card.skipped {
+  opacity: 0.65;
+}
+.step-card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.step-card header strong {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.step-state.ok {
+  color: var(--green);
+}
+.step-state.err {
+  color: var(--orange);
+}
+.step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 10px;
+  color: var(--faint);
+  align-items: center;
+}
+.step-tag {
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--hover);
+  color: var(--muted);
+}
+.quest-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.step-deps {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--faint);
+}
+.step-result {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.step-result.err {
+  color: var(--orange);
+}
+.step-card footer {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.step-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--accent);
+}
+.step-link:hover {
+  text-decoration: underline;
+}
+.quest-log,
+.quest-summary {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--panel);
+}
+.quest-log h3,
+.quest-summary h3 {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.quest-log ol {
+  list-style: none;
+  max-height: 220px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.quest-log time {
+  color: var(--faint);
+  margin-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.quest-summary pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text);
+}
+/* plan editor */
+.plan-editor ol {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.plan-step {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.plan-step-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.plan-step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 10px;
+  flex: none;
+}
+.plan-step input,
+.plan-step select,
+.plan-step textarea {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 12px;
+  min-width: 0;
+}
+.plan-step-head input {
+  flex: 1;
+}
+.plan-step textarea {
+  min-height: 70px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.plan-step-opts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.plan-step-opts label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.plan-deps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--faint);
+}
+.dep-chip {
+  padding: 3px 9px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--muted);
+}
+.dep-chip.on {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.plan-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  align-items: center;
+}
+.plan-actions .grow {
+  flex: 1;
+}
+.plan-empty,
+.plan-problem {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 10px;
+}
+.plan-problem {
+  color: var(--orange);
+}
+.quest-modal {
+  width: 600px;
+}
+.quest-modal .quest-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.quest-modal .modal-footer {
+  flex-wrap: wrap;
+}
+@media (max-width: 1280px) {
+  .quest-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .quest-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}

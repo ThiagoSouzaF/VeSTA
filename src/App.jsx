@@ -19,6 +19,8 @@ import { Toast } from './components/Toast';
 import { Modal } from './components/modals/Modal';
 import { FloatingTerminal } from './components/FloatingTerminal';
 import { ActivityPage } from './components/ActivityPage';
+import { QuestsPage } from './components/QuestsPage';
+import { runningQuests } from './lib/quests';
 import { activityGroups, runningCounts } from './lib/activity';
 export function App() {
   const [data, setData] = useState(empty),
@@ -201,6 +203,18 @@ export function App() {
   // Derived per chat/message with memoization: a text delta only recomputes the message it touched.
   const groups = useMemo(() => activityGroups(data.chats, data.running), [data.chats, data.running]);
   const counts = useMemo(() => runningCounts(groups), [groups]);
+  const questsRunning = useMemo(() => runningQuests(data.quests), [data.quests]);
+  // Stable callback for the quests screen: reads the chats through a ref so text deltas do not change its identity.
+  const chatsRef = useRef(data.chats);
+  chatsRef.current = data.chats;
+  const openChatById = useCallback(
+    (chatId) => {
+      const c = chatsRef.current.find((x) => x.id === chatId);
+      if (c) goChat(c);
+      else notify('Este chat não existe mais');
+    },
+    [notify]
+  );
   const openFromActivity = useCallback(
     (chatId, messageId) => {
       const c = data.chats.find((x) => x.id === chatId);
@@ -241,6 +255,7 @@ export function App() {
           active={active}
           goChat={goChat}
           taskCounts={counts}
+          questsRunning={questsRunning}
         />
         <main className="main">
           <Backdrop
@@ -296,6 +311,16 @@ export function App() {
             />
           ) : page === 'activity' ? (
             <ActivityPage groups={groups} projects={data.projects} call={call} onOpen={openFromActivity} />
+          ) : page === 'quests' ? (
+            <QuestsPage
+              quests={data.quests}
+              projects={data.projects}
+              integrations={integrations}
+              call={call}
+              setData={replaceData}
+              onOpenChat={openChatById}
+              notify={notify}
+            />
           ) : page === 'memory' ? (
             <MemoryPage
               newMemory={newMemory}

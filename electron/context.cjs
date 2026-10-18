@@ -18,6 +18,15 @@ function createContext({ app, dialog, shell, bus }) {
     project: (id) => ctx.store.state.projects.find((p) => p.id === id),
     state: () => ({ ...ctx.store.state, running: [...ctx.jobs.keys()], appVersion: app.getVersion() }),
     sync: () => bus.emit({ type: 'state', state: ctx.state() }),
+    // Interrupts a running response (used by the Stop button and by quests).
+    stopChat(chatId) {
+      const task = ctx.jobs.get(chatId);
+      if (!task) return false;
+      task.cancelled = true;
+      ctx.permissions?.cancelChat(chatId);
+      task.run?.stop();
+      return true;
+    },
     workdir(chat) {
       const dir = chat.projectId ? ctx.project(chat.projectId)?.path : path.join(app.getPath('userData'), 'workspace');
       if (!dir) throw new Error('O projeto deste chat não existe mais');

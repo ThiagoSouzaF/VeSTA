@@ -336,7 +336,7 @@ test('store v1 migrates every existing chat to full edit once; new chats default
     })
   );
   let s = new Store(dir);
-  assert.equal(s.state.version, 2);
+  assert.equal(s.state.version, 3);
   assert.deepEqual(
     s.state.chats.map((c) => c.mode),
     ['edit', 'edit']

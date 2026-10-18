@@ -8,6 +8,7 @@ const { Permissions } = require('./permissions.cjs');
 const { createBus } = require('./events.cjs');
 const { createContext } = require('./context.cjs');
 const { createMethods } = require('./methods.cjs');
+const { createQuestEngine } = require('./quest-engine.cjs');
 app.setName('VeSTA');
 app.commandLine.appendSwitch('force-renderer-accessibility');
 if (process.env.VESTA_DATA_DIR) app.setPath('userData', process.env.VESTA_DATA_DIR);
@@ -106,6 +107,10 @@ app.whenReady().then(() => {
         m.status = 'cancelled';
         m.error = 'A sessão foi interrompida ao fechar o aplicativo.';
       }
+  // Quests: the engine reacts to finished turns; anything left "running" by a previous run is closed first.
+  ctx.quests = createQuestEngine(ctx);
+  ctx.quests.recover();
+  bus.subscribe((event) => event.type === 'chat-done' && ctx.quests.onChatDone(event));
   store.save();
   ctx.memory = new Memory(
     app.isPackaged

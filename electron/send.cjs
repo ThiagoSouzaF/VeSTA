@@ -170,6 +170,8 @@ async function send(ctx, { chatId, text }) {
       jobs.delete(chatId);
       store.save();
       sync();
+      // Lets other parts of the main process (quests) react to the end of a turn without coupling to this function.
+      emit({ type: 'chat-done', chatId, status: assistant.status });
     }
   })();
   return state();

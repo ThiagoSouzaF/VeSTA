@@ -568,10 +568,236 @@ async function activityPhase() {
   }
 }
 
+// ---- Phase 4: Quests (seeded store; nothing is sent to an AI) ----------------------------------------------------
+const Q = require('../electron/quests.cjs');
+function questStore(dataDir) {
+  const now = Date.now();
+  const chat = (id, title, provider, stepId, questId, text) => ({
+    id,
+    title,
+    provider,
+    model: '',
+    agent: '',
+    projectId: null,
+    mode: 'edit',
+    questId,
+    stepId,
+    messages: [
+      { id: id + 'u', role: 'user', text: 'prompt da etapa', createdAt: now - 5000 },
+      {
+        id: id + 'a',
+        role: 'assistant',
+        text,
+        createdAt: now - 4000,
+        activities: [{ id: 'c1', kind: 'command', label: 'Executando comando', detail: 'ls', status: 'done' }],
+        subagents: [],
+        status: 'done',
+        provider,
+        model: '',
+      },
+    ],
+    sessionId: null,
+    createdAt: now - 6000,
+    updatedAt: now,
+    memory: false,
+  });
+  const step = (id, title, o) => ({ id, title, instructions: 'faça ' + title, ...o });
+  const quest = Q.normalizeQuest({
+    id: 'quest-1',
+    title: 'Site de contato',
+    goal: 'Criar a página de contato com testes.',
+    guidelines: 'Sem dependências novas.',
+    status: 'running',
+    createdAt: now - 60000,
+    steps: [
+      step('s1', 'Criar a página', {
+        provider: 'claude',
+        model: 'claude-haiku-5-5',
+        status: 'done',
+        chatId: 'qc1',
+        startedAt: now - 50000,
+        endedAt: now - 30000,
+        attempts: 1,
+        result: 'Criei contato.html com formulário.',
+      }),
+      step('s2', 'Revisar a página', {
+        provider: 'codex',
+        kind: 'review',
+        mode: 'read',
+        dependsOn: ['s1'],
+        status: 'running',
+        chatId: 'qc2',
+        startedAt: now - 20000,
+        attempts: 1,
+      }),
+      step('s3', 'Resumir', { provider: 'claude', dependsOn: ['s1', 's2'] }),
+    ],
+    log: [{ at: now - 50000, text: 'Quest iniciada.' }],
+  });
+  const other = Q.normalizeQuest({
+    id: 'quest-2',
+    title: 'Migrar relatórios',
+    goal: 'Migrar os relatórios.',
+    status: 'done',
+    summary: 'Quest "Migrar relatórios" concluída: 1 etapa(s) feita(s).',
+    steps: [
+      step('s1', 'Migrar', { status: 'done', result: 'ok', startedAt: now - 9000, endedAt: now - 3000, attempts: 1 }),
+    ],
+  });
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dataDir, 'vesta.json'),
+    JSON.stringify({
+      version: 3,
+      settings: { memoryEnabled: false, capture: false, memoryTools: false },
+      projects: [],
+      chats: [
+        chat(
+          'qc1',
+          'Quest: Site de contato — Criar a página',
+          'claude',
+          's1',
+          'quest-1',
+          'Pronto.\n\n## Resultado\nCriei contato.html com formulário.'
+        ),
+        chat('qc2', 'Quest: Site de contato — Revisar a página', 'codex', 's2', 'quest-1', 'Revisando…'),
+      ],
+      memories: [],
+      quests: [quest, other],
+    })
+  );
+}
+async function questPhase() {
+  const dataDir = scratch('ui-smoke-quests');
+  questStore(dataDir);
+  const app = await launch(dataDir);
+  const problems = [];
+  try {
+    const page = await app.firstWindow();
+    page.on('console', (m) => m.type() === 'error' && problems.push('console: ' + m.text()));
+    page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
+    const nav = (name) => page.locator('nav .nav-item', { hasText: name });
+    const inject = (ev) =>
+      app.evaluate(({ BrowserWindow }, e) => BrowserWindow.getAllWindows()[0].webContents.send('vesta:event', e), ev);
+    const col = (id) => page.locator('.quest-col[data-col="' + id + '"]');
+    await page.waitForSelector('.loading', { state: 'detached' });
+
+    await step('Quests appears in the sidebar and lists both quests with progress', async () => {
+      await nav('Quests').click();
+      await page.locator('h1', { hasText: 'Dê uma quest às suas IAs.' }).waitFor();
+      assert.equal(await page.locator('.quest-row').count(), 2);
+      const row = page.locator('.quest-row[data-quest="quest-1"]');
+      assert.match(await row.innerText(), /Site de contato/);
+      assert.match(await row.innerText(), /1\/3 etapas/);
+      assert.equal(await row.locator('.provider-icon').count(), 2, 'Claude and ChatGPT involved');
+      assert.equal(await row.locator('[role=progressbar]').getAttribute('aria-valuenow'), '33');
+    });
+    await step('reopening the app paused the quest that was "running" and flagged the orphan step', async () => {
+      const row = page.locator('.quest-row[data-quest="quest-1"]');
+      assert.equal(await row.locator('.quest-status').getAttribute('data-status'), 'paused');
+      await row.click();
+      await page.locator('h1', { hasText: 'Site de contato' }).waitFor();
+      assert.equal(await col('problems').locator('.step-card').count(), 1);
+      assert.match(await col('problems').innerText(), /interrompida/);
+      assert.equal(await col('done').locator('.step-card').count(), 1);
+      assert.equal(await col('pending').locator('.step-card').count(), 1);
+      assert.equal(await col('running').locator('.step-card').count(), 0);
+    });
+    await step('paused board offers Retomar, Cancelar, Tentar de novo and Pular', async () => {
+      const bar = page.locator('.quest-controls');
+      assert.equal(await bar.locator('[data-action=resume]').isVisible(), true);
+      assert.equal(await bar.locator('[data-action=cancel]').isVisible(), true);
+      assert.equal(await col('problems').locator('[data-action=retry]').isVisible(), true);
+      assert.equal(await col('problems').locator('[data-action=skip]').isVisible(), true);
+      assert.equal((await page.locator('.quest-log li').count()) >= 2, true, 'journal has entries');
+    });
+    await step('a running quest shows the running card, Pausar and the sidebar counter', async () => {
+      const st = (await page.evaluate(() => window.vesta.call('bootstrap'))).state;
+      const q = st.quests.find((x) => x.id === 'quest-1');
+      q.status = 'running';
+      q.pauseReason = null;
+      q.steps[1] = { ...q.steps[1], status: 'running', result: '', endedAt: null };
+      q.updatedAt = Date.now();
+      st.running = ['qc2'];
+      await inject({ type: 'state', state: st });
+      await page.waitForFunction(() => document.querySelector('nav .count.live')?.textContent === '1');
+      assert.equal(await col('running').locator('.step-card').count(), 1);
+      assert.match(await col('running').innerText(), /Revisar a página/);
+      assert.match(await col('running').innerText(), /Criar a página/);
+      assert.equal(await page.locator('.quest-controls [data-action=pause]').isVisible(), true);
+      assert.equal(await page.locator('.quest-controls [data-action=resume]').count(), 0);
+      assert.equal(await col('running').locator('.quest-time').count(), 1, 'elapsed time on the running card');
+      await page.screenshot({ path: path.join(process.env.VESTA_SHOTS || scratch('shots'), 'w3-smoke-board.png') });
+    });
+    await step('a step card links to its chat', async () => {
+      await col('done').locator('[data-action=open-chat]').click();
+      await page.waitForSelector('.chat-heading h2');
+      assert.equal(await page.locator('.chat-heading h2').innerText(), 'Quest: Site de contato — Criar a página');
+    });
+    await step('Atividade shows quest chats by their quest name', async () => {
+      await nav('Atividade').click();
+      await page.getByRole('tab', { name: 'Tudo' }).click();
+      await page.locator('.activity-group-title', { hasText: 'Quest: Site de contato' }).first().waitFor();
+    });
+    await step('finished quest shows its final summary and no run controls', async () => {
+      await nav('Quests').click();
+      await page.locator('.quest-row[data-quest="quest-2"]').click();
+      assert.match(await page.locator('.quest-summary').innerText(), /concluída/);
+      assert.equal(await page.locator('.quest-controls [data-action=pause], [data-action=resume]').count(), 0);
+      await page.locator('.quest-back').click();
+    });
+    await step('new quest: manual assembly, plan editor (add, depend, reorder, remove)', async () => {
+      await page.locator('[data-action=new-quest]').click();
+      const dlg = page.getByRole('dialog');
+      await dlg.locator('#quest-title').fill('Quest manual');
+      assert.equal(await dlg.getByRole('button', { name: /Montar manualmente/ }).isDisabled(), true, 'goal required');
+      await dlg.locator('#quest-goal').fill('Meta de teste');
+      await dlg.getByRole('button', { name: /Planejar com IA/ }).waitFor();
+      await dlg.getByRole('button', { name: /Montar manualmente/ }).click();
+      await page.locator('h1', { hasText: 'Quest manual' }).waitFor();
+      const editor = page.locator('.plan-editor');
+      assert.equal(await editor.locator('[data-action=start]').isDisabled(), true, 'no steps yet');
+      await editor.getByRole('button', { name: /Adicionar etapa/ }).click();
+      await editor.getByRole('button', { name: /Adicionar etapa/ }).click();
+      await editor.getByLabel('Título da etapa 1').fill('Primeira');
+      await editor.getByLabel('Instruções da etapa 1').fill('faça a primeira');
+      await editor.getByLabel('Título da etapa 2').fill('Segunda');
+      await editor.getByLabel('Instruções da etapa 2').fill('faça a segunda');
+      await editor.getByLabel('Modo da etapa 2').selectOption('read');
+      assert.equal(await editor.locator('.dep-chip.on').count(), 1, 'second step depends on the first by default');
+      await editor.getByRole('button', { name: 'Descer etapa' }).first().click();
+      assert.equal(await editor.getByLabel('Título da etapa 1').inputValue(), 'Segunda');
+      assert.equal(await editor.locator('.dep-chip.on').count(), 0, 'dependency pointing forward was dropped');
+      await editor.getByRole('button', { name: 'Subir etapa' }).nth(1).click();
+      await editor.locator('.dep-chip').click();
+      assert.equal(await editor.locator('.dep-chip.on').count(), 1);
+      await editor.getByRole('button', { name: /Salvar plano/ }).click();
+      await page.waitForFunction(() => document.querySelectorAll('.plan-step').length === 2);
+      const saved = (await page.evaluate(() => window.vesta.call('bootstrap'))).state.quests[0];
+      assert.deepEqual(
+        saved.steps.map((s) => s.title),
+        ['Primeira', 'Segunda']
+      );
+      assert.deepEqual(saved.steps[1].dependsOn, [saved.steps[0].id]);
+      assert.equal(saved.steps[1].mode, 'read');
+      assert.equal(saved.status, 'draft', 'saving never starts the quest');
+      await editor.getByRole('button', { name: 'Remover etapa' }).first().click();
+      assert.equal(await editor.locator('.plan-step').count(), 1);
+      assert.equal(await editor.locator('[data-action=start]').isDisabled(), false);
+    });
+    await wait(300);
+    assert.deepEqual(problems, [], 'renderer reported errors:\n' + problems.join('\n'));
+  } finally {
+    await app.close().catch(() => {});
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+}
+
 (async () => {
   await emptyStorePhase();
   await seededPhase();
   await activityPhase();
+  await questPhase();
   console.log('PASS ' + results.length + ' steps, no console errors');
 })().catch((e) => {
   console.error('FAIL', e.message);

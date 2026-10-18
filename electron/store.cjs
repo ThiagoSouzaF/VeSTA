@@ -2,8 +2,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { emptyUsage, migrate } = require('./usage.cjs');
+const { normalizeQuests } = require('./quests.cjs');
 const defaults = () => ({
-  version: 2,
+  version: 3,
   settings: {
     theme: 'obsidian',
     accent: 'ember',
@@ -17,6 +18,7 @@ const defaults = () => ({
   projects: [],
   chats: [],
   memories: [],
+  quests: [],
   usage: emptyUsage(),
 });
 class Store {
@@ -33,7 +35,8 @@ class Store {
           ...saved,
           settings: { ...this.state.settings, ...saved.settings },
           usage: migrate({ ...this.state.usage, ...saved.usage, daily: { ...saved.usage?.daily } }),
-          version: Math.max(2, saved.version || 1),
+          quests: normalizeQuests(saved.quests),
+          version: Math.max(3, saved.version || 1),
         };
         if ((saved.version || 1) < 2) {
           for (const c of this.state.chats) c.mode = 'edit';

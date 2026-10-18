@@ -9,6 +9,7 @@ const { discover } = require('./integrations.cjs');
 const { send } = require('./send.cjs');
 const { readCodexRateLimits } = require('./rate-limits.cjs');
 const { openTerminal } = require('./terminal.cjs');
+const { questMethods } = require('./quest-methods.cjs');
 // Text zoom: 80%..160% in steps of 10%.
 const clampFontScale = (v) => Math.min(1.6, Math.max(0.8, Math.round(v * 10) / 10));
 async function inspectProject(ctx, id) {
@@ -115,14 +116,10 @@ function createMethods(ctx) {
       }
     },
     stop: ({ chatId }) => {
-      const task = jobs.get(chatId);
-      if (task) {
-        task.cancelled = true;
-        permissions.cancelChat(chatId);
-        task.run?.stop();
-      }
+      ctx.stopChat(chatId);
       return true;
     },
+    ...questMethods(ctx),
     // Ends one background task of a running chat. Only Claude exposes this, and only while its process is alive.
     stopTask: ({ chatId, taskId }) => {
       const run = jobs.get(chatId)?.run;

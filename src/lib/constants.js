@@ -41,6 +41,7 @@ export const empty = {
   projects: [],
   chats: [],
   memories: [],
+  quests: [],
   running: [],
 };
 export const MODEL_LABELS = {
