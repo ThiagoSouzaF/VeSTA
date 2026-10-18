@@ -94,7 +94,7 @@ export function App() {
       .catch((e) => setMemoryStatus({ connected: false, error: e.message }));
     return api.onEvent((e) => {
       if (e.type === 'state') replaceData(e.state);
-      if (e.type === 'update' && e.message) notify(e.message);
+      if ((e.type === 'update' || e.type === 'remote-notice') && e.message) notify(e.message);
       if (e.type === 'permission' && e.permission?.status === 'pending' && e.chatId !== activeRef.current)
         notify('Uma IA pede permissão em outra conversa');
       if (e.type === 'text' || e.type === 'activity' || e.type === 'subagent' || e.type === 'permission')

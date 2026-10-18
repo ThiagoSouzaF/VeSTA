@@ -2,6 +2,7 @@ import { Brain, Folder, Check, RefreshCw, Palette, HardDrive, Minus, Plus } from
 import { THEME_NAMES } from '../lib/constants';
 import { BACKDROPS } from './Backdrop';
 import { SettingToggle } from './SettingToggle';
+import { RemoteSettings } from './RemoteSettings';
 import { action } from '../lib/api';
 import { Mark, Wordmark } from './Brand';
 import { SCALE_MIN, SCALE_MAX, scalePercent } from '../lib/zoom';
@@ -175,6 +176,7 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
           acontece localmente.
         </p>
       </section>
+      <RemoteSettings call={call} notify={notify} />
       <section className="settings-section">
         <div className="settings-label">
           <RefreshCw size={19} />

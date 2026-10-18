@@ -8,13 +8,14 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "start": "electron .",
-    "build": "vite build",
+    "build": "vite build && vite build --config vite.mobile.config.mjs",
     "test": "node --test test/*.test.cjs",
     "dist": "npm run build && electron-builder --win portable --x64",
     "installer": "npm run build && electron-builder --win nsis --x64",
     "release": "node scripts/release.cjs",
-    "format": "prettier --write \"electron/**/*.cjs\" \"src/**/*.{jsx,js,css}\" \"test/**/*.cjs\" \"scripts/**/*.cjs\"",
-    "format:check": "prettier --check \"electron/**/*.cjs\" \"src/**/*.{jsx,js,css}\" \"test/**/*.cjs\" \"scripts/**/*.cjs\""
+    "format": "prettier --write \"electron/**/*.cjs\" \"src/**/*.{jsx,js,css}\" \"mobile/**/*.{jsx,js,mjs,css}\" \"test/**/*.cjs\" \"scripts/**/*.cjs\" \"vite*.mjs\"",
+    "format:check": "prettier --check \"electron/**/*.cjs\" \"src/**/*.{jsx,js,css}\" \"mobile/**/*.{jsx,js,mjs,css}\" \"test/**/*.cjs\" \"scripts/**/*.cjs\" \"vite*.mjs\"",
+    "dev:mobile": "vite --config vite.mobile.config.mjs --host 127.0.0.1"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
@@ -22,8 +23,10 @@
     "json5": "^2.2.3",
     "lucide-react": "^0.468.0",
     "marked": "^15.0.0",
+    "qrcode": "^1.5.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.4.0",
@@ -43,6 +46,7 @@
     },
     "files": [
       "dist/**/*",
+      "dist-mobile/**/*",
       "electron/**/*",
       "package.json",
       "assets/vesta.png"

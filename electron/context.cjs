@@ -16,7 +16,11 @@ function createContext({ app, dialog, shell, bus }) {
     emit: (event) => bus.emit(event),
     bounded: (value, max = 20000) => String(value || '').slice(0, max),
     project: (id) => ctx.store.state.projects.find((p) => p.id === id),
-    state: () => ({ ...ctx.store.state, running: [...ctx.jobs.keys()], appVersion: app.getVersion() }),
+    // The remote-control config (device hashes) stays in the main process.
+    state: () => {
+      const { remote, ...rest } = ctx.store.state;
+      return { ...rest, running: [...ctx.jobs.keys()], appVersion: app.getVersion() };
+    },
     sync: () => bus.emit({ type: 'state', state: ctx.state() }),
     // Interrupts a running response (used by the Stop button and by quests).
     stopChat(chatId) {

@@ -11,3 +11,4 @@ runtime/
 vesta.json
 memory/
 .vesta-tests/
+dist-mobile/

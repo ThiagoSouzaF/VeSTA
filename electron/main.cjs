@@ -9,6 +9,8 @@ const { createBus } = require('./events.cjs');
 const { createContext } = require('./context.cjs');
 const { createMethods } = require('./methods.cjs');
 const { createQuestEngine } = require('./quest-engine.cjs');
+const { createRemote, remoteMethods } = require('./remote/index.cjs');
+const { createConfirmer } = require('./remote/confirm.cjs');
 app.setName('VeSTA');
 app.commandLine.appendSwitch('force-renderer-accessibility');
 if (process.env.VESTA_DATA_DIR) app.setPath('userData', process.env.VESTA_DATA_DIR);
@@ -38,7 +40,7 @@ ctx.permissions = new Permissions({
     if (record.status === 'always') ctx.store.save();
   },
 });
-const methods = createMethods(ctx);
+const methods = { ...createMethods(ctx), ...remoteMethods(ctx) };
 // Asks before updating; on yes downloads the verified installer, quits, and the installer reopens the app.
 let updating = false;
 async function checkForUpdate({ interactive = false } = {}) {
@@ -112,6 +114,11 @@ app.whenReady().then(() => {
   ctx.quests.recover();
   bus.subscribe((event) => event.type === 'chat-done' && ctx.quests.onChatDone(event));
   store.save();
+  // Remote control (phone): off unless the user turned it on in Preferências.
+  // Native dialogs approve new devices and full access (the test-only auto answer is ignored when packaged).
+  const confirmer = createConfirmer({ dialog, getWindow: () => ctx.win, isPackaged: app.isPackaged });
+  ctx.remote = createRemote({ ctx, methods, bus, deps: { confirm: (request) => confirmer.confirm(request) } });
+  if (store.state.remote.enabled) ctx.remote.start().catch(() => {});
   ctx.memory = new Memory(
     app.isPackaged
       ? path.join(process.resourcesPath, 'ai-memory.exe')
@@ -191,11 +198,22 @@ app.whenReady().then(() => {
   }
 });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => {
+let remoteDown = false;
+app.on('before-quit', (event) => {
   for (const task of jobs.values()) {
     task.cancelled = true;
     task.run?.stop();
   }
+  // Take our `tailscale serve` publication down before leaving: quitting is paused until it is done (bounded).
+  if (ctx.remote && !remoteDown) {
+    remoteDown = true;
+    event.preventDefault();
+    ctx.remote
+      .shutdown()
+      .catch(() => {})
+      .finally(() => app.quit());
+    return;
+  }
   ctx.memory?.close().catch(() => {});
 });
-module.exports = { methods, getState: () => ctx.state() };
+module.exports = { methods, ctx, getState: () => ctx.state() };

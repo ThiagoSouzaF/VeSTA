@@ -3,6 +3,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { emptyUsage, migrate } = require('./usage.cjs');
 const { normalizeQuests } = require('./quests.cjs');
+const { defaultRemote, normalizeRemote } = require('./remote/index.cjs');
 const defaults = () => ({
   version: 3,
   settings: {
@@ -20,6 +21,7 @@ const defaults = () => ({
   memories: [],
   quests: [],
   usage: emptyUsage(),
+  remote: defaultRemote(),
 });
 class Store {
   constructor(dir) {
@@ -36,6 +38,7 @@ class Store {
           settings: { ...this.state.settings, ...saved.settings },
           usage: migrate({ ...this.state.usage, ...saved.usage, daily: { ...saved.usage?.daily } }),
           quests: normalizeQuests(saved.quests),
+          remote: normalizeRemote(saved.remote),
           version: Math.max(3, saved.version || 1),
         };
         if ((saved.version || 1) < 2) {
