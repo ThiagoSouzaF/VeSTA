@@ -6,7 +6,7 @@ O centro do seu lar digital: um aplicativo desktop para reunir suas IAs, projeto
 
 Instale com o `VeSTA-Setup-<versão>.exe` da [última Release](https://github.com/ThiagoSouzaF/VeSTA/releases/latest) para o seu usuário do Windows. O instalador cria o atalho **VeSTA** no menu Iniciar e registra a desinstalação nas configurações do Windows.
 
-O símbolo é uma chama de lareira no centro de um anel pontilhado, com fagulhas que se desfazem em pixels. Nas preferências dá para escolher o fundo da área principal: **Liso**, **Brasa** (fagulhas subindo), **Chuva de código** (caracteres caindo, bem de leve) ou **Fluxo de texto** (palavras atravessando a tela), sempre nas cores do tema e mais calmos no centro, onde se lê a conversa. Com "reduzir movimento" ligado no Windows, o fundo fica parado. Há também a cor de destaque **Brasa**.
+A mascote é a própria Vesta, em mangá preto e branco: guardiã da chama, com a balança de Libra (o equilíbrio entre as IAs), o jarro de Aquário (o fluxo de dados) e vendada como a justiça. Ela muda de pose conforme o que as IAs estão fazendo (parada, pensando, trabalhando, sucesso, erro, dormindo) e pode ser escondida nas preferências; a página **Conheça a VeSTA** conta a história. Nas preferências dá para escolher o fundo da área principal: **Liso**, **Brasa** (fagulhas subindo), **Chuva de código** (caracteres caindo, bem de leve) ou **Fluxo de texto** (palavras atravessando a tela), sempre nas cores do tema e mais calmos no centro, onde se lê a conversa. Com "reduzir movimento" ligado no Windows, o fundo fica parado. Há também a cor de destaque **Brasa**.
 
 ## O que já funciona
 
@@ -22,6 +22,10 @@ O símbolo é uma chama de lareira no centro de um anel pontilhado, com fagulhas
 - AI Memory 3.0.0 real, incluído no executável. O VeSTA inicia um único servidor MCP HTTP só em `127.0.0.1`, numa porta livre e com token aleatório a cada execução; o aplicativo e os agentes que ele abre usam esse mesmo servidor.
 - Agentes com acesso à memória (opção nas preferências, ligada por padrão): Claude, Codex e OpenCode recebem as ferramentas do AI Memory (`memory_query`, `memory_write_page` e as demais) apenas nas sessões abertas pelo VeSTA, via `--mcp-config`, `-c mcp_servers...` e `OPENCODE_CONFIG_CONTENT`. Cada chat é orientado a usar o workspace `vesta` e o projeto do chat.
 - Busca no contexto do projeto; preferências pessoais compartilhadas entre todas as IAs; gravação, edição e exclusão de memórias.
+- **Atividade**: todo o trabalho em paralelo de todas as IAs, ao vivo e em árvore (turno → subagentes → comandos, ferramentas, tarefas em segundo plano e Monitor), com tempos, detalhes, filtros e Parar (por chat; por tarefa no Claude). A barra lateral mostra quantas tarefas rodam em cada chat.
+- **Quests**: dê um objetivo e as IAs trabalham juntas. Uma IA planeja (ou você monta o plano), cada etapa vai para a IA escolhida num chat próprio, os resultados passam de uma etapa para a seguinte e ficam no AI Memory, e o quadro mostra Pendentes, Rodando, Concluídas e Problemas.
+- **Uso por IA**: janelas oficiais do plano do Claude (5 h e semanal) e do Codex (lidas do `codex app-server`), além de tokens e custo por dia de cada IA.
+- **Leitura confortável**: zoom do texto de 80% a 160% (**Ctrl +**, **Ctrl −**, **Ctrl 0** ou Ctrl+roda); a conversa só rola sozinha se você estiver no fim, com botão para descer até o fim.
 
 ## Primeiro uso
 
@@ -31,7 +35,7 @@ O símbolo é uma chama de lareira no centro de um anel pontilhado, com fagulhas
 4. Em **Memória**, adicione suas preferências pessoais (como idioma e organização de arquivos) ou notas específicas de um projeto.
 5. Em **Preferências**, escolha o tema, a cor e se quer gravar trechos das conversas.
 
-Atalhos: **Ctrl+N** abre um novo chat; **Ctrl+K** busca conversas; **Enter** envia; **Shift+Enter** insere nova linha.
+Atalhos: **Ctrl+N** abre um novo chat; **Ctrl+K** busca conversas; **Enter** envia; **Shift+Enter** insere nova linha; **Ctrl +/−/0** ajusta o zoom do texto; **End** vai ao fim da conversa.
 
 ## Memória e dados
 
@@ -45,7 +49,7 @@ As mensagens e o contexto recuperado são enviados ao provedor selecionado usand
 
 ## Modos de trabalho
 
-**Consultar** usa sandbox de leitura no Codex, modo plan no Claude e plan com edição e comandos negados no OpenCode. **Editar projeto** permite escrita no workspace do Codex e edições no Claude/OpenCode conforme as regras nativas. O aplicativo não ativa opções de bypass geral. Pedidos de aprovação que não podem ser resolvidos em modo não interativo precisam ser retomados no terminal. Não há navegador embutido, controle visual do PC, voz ou anexos nesta versão.
+**Consulta** usa sandbox de leitura no Codex, modo plan no Claude e plan com edição e comandos negados no OpenCode. **Pedir permissão** deixa a IA trabalhar, mas cada comando ou alteração de arquivo passa por você na conversa. **Acesso completo** deixa a IA editar arquivos e rodar comandos sem perguntar (sem sandbox no Codex, permissões ignoradas no Claude, edição e comandos liberados no OpenCode); use só em projetos em que confia. O botão de terminal abre a sessão nativa no mesmo modo do chat. Não há navegador embutido, controle visual do PC, voz ou anexos nesta versão.
 
 ## Controle remoto pelo celular
 
