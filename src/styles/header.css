@@ -1,0 +1,56 @@
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.main-header {
+  height: 61px;
+  flex-shrink: 0;
+  padding: 0 29px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  min-width: 0;
+}
+.breadcrumb > span {
+  color: var(--faint);
+  white-space: nowrap;
+}
+.breadcrumb svg {
+  color: var(--faint);
+}
+.breadcrumb strong {
+  font-weight: 450;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.memory-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  color: var(--muted);
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+.memory-badge svg {
+  color: var(--accent);
+}

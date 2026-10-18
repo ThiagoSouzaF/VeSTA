@@ -1,0 +1,57 @@
+.app-shell {
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  font-size: 13px;
+}
+.titlebar {
+  height: 36px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  padding-left: 17px;
+  -webkit-app-region: drag;
+  user-select: none;
+  color: var(--muted);
+}
+.titlebar-brand {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.titlebar-brand svg {
+  color: var(--accent);
+}
+.titlebar-caption {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.25px;
+  color: var(--faint);
+}
+.window-controls {
+  display: flex;
+  height: 100%;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+.window-controls button {
+  width: 45px;
+  display: grid;
+  place-items: center;
+}
+.window-controls button:hover {
+  background: var(--hover);
+}
+.window-controls button:last-child:hover {
+  background: #b73a4e;
+  color: white;
+}
+.app-body {
+  display: flex;
+  height: calc(100vh - 36px);
+}

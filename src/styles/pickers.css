@@ -1,0 +1,105 @@
+.model-picker {
+  position: relative;
+  display: inline-flex;
+}
+.model-chip,
+.mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 10px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+.model-chip:hover:not(:disabled),
+.mode-chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.model-chip:disabled,
+.mode-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.model-chip svg:first-child {
+  color: var(--accent);
+}
+.mode-chip.edit {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+}
+.model-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  width: 250px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.model-menu-title {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: var(--faint);
+  padding: 4px 6px 6px;
+}
+.model-menu > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  padding: 6px 8px;
+  cursor: pointer;
+  text-align: left;
+}
+.model-menu > button:hover {
+  background: var(--accent-bg);
+}
+.model-menu > button.selected {
+  color: var(--accent);
+}
+.model-menu > button span {
+  flex: 1;
+}
+.model-menu > button code {
+  font-size: 9px;
+  color: var(--faint);
+  font-family: Consolas, monospace;
+}
+.model-menu form {
+  padding: 6px 2px 2px;
+}
+.model-menu input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  padding: 6px 8px;
+}
+.model-menu p {
+  font-size: 9px;
+  color: var(--faint);
+  margin: 6px 6px 2px;
+  line-height: 1.4;
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 // Animated backgrounds drawn behind the main area, in the colours of the current theme.
 export const BACKDROPS = [

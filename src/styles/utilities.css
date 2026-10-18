@@ -1,0 +1,51 @@
+.toast {
+  position: fixed;
+  z-index: 50;
+  left: 50%;
+  bottom: 27px;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  padding: 14px 20px;
+  border-radius: 9px;
+  font-size: 12px;
+  max-width: 650px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  line-height: 1.7;
+}
+.toast svg {
+  color: var(--accent);
+}
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spin {
+  animation: spin 1.5s linear infinite;
+}
+.pulse-dot {
+  height: 5px;
+  width: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: blink 1.3s infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}

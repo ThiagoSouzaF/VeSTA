@@ -1,0 +1,40 @@
+/* VeSTA: hearth accent, wordmark and animated backgrounds */
+:root[data-accent='ember'] {
+  --accent: #f0a47e;
+  --accent-bg: #3d2a23;
+  --accent-strong: #e08d65;
+}
+:root[data-theme='paper'][data-accent='ember'] {
+  --accent: #b8613a;
+  --accent-bg: #f6e2d7;
+  --accent-strong: #c4704a;
+}
+.accent-swatch.ember {
+  background: #f0a47e;
+}
+.wordmark {
+  font-family: 'Cascadia Mono', 'Cascadia Code', Consolas, monospace;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+.wordmark em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--accent);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.brand strong .wordmark {
+  font-size: 18px;
+  letter-spacing: 0.14em;
+}
+.titlebar-brand .wordmark {
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--muted);
+}
+.about strong .wordmark {
+  font-size: 13px;
+}
+.brand-mark svg {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 35%, transparent));
+}

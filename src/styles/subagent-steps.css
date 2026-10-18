@@ -1,0 +1,10 @@
+.subagent-now {
+  font-size: 9px;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.subagent-steps {
+  margin: 0 0 4px;
+}

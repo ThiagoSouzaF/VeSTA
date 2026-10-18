@@ -1,0 +1,143 @@
+.modal-backdrop {
+  position: fixed;
+  inset: 36px 0 0;
+  z-index: 20;
+  background: #0008;
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal {
+  width: 540px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 29px;
+  box-shadow: var(--shadow);
+}
+.modal-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 26px;
+}
+.modal-heading h2 {
+  font-family: Georgia, serif;
+  font-size: 28px;
+  font-weight: 400;
+  margin-top: 10px;
+  letter-spacing: -0.5px;
+}
+.field-label {
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 1.3px;
+  color: var(--muted);
+  display: block;
+  margin: 20px 0 9px;
+}
+.modal input,
+.modal select,
+.modal textarea {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 11px 12px;
+  font-size: 12px;
+  width: 100%;
+  line-height: 1.6;
+}
+.modal select + select {
+  margin-top: 10px;
+}
+.modal textarea {
+  display: block;
+  min-height: 150px;
+}
+.field-help {
+  font-size: 9px;
+  line-height: 1.8;
+  color: var(--faint);
+  margin-top: 9px;
+}
+.modal .row select {
+  flex: 1;
+  min-width: 0;
+}
+.modal .row .secondary-button {
+  padding: 12px;
+}
+.modal-providers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.modal-providers button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+}
+.modal-providers button.selected {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.modal-providers button > svg {
+  color: var(--accent);
+  margin-left: auto;
+}
+.mode-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mode-options > button {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 13px;
+  text-align: left;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 7px;
+}
+.mode-options > button.selected {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.mode-options svg {
+  color: var(--accent);
+}
+.mode-options strong {
+  font-size: 11px;
+  font-weight: 450;
+  align-self: center;
+}
+.mode-options span {
+  font-size: 9px;
+  color: var(--muted);
+  grid-column: 2;
+}
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-soft);
+}
+.modal-footer .danger-button:not(.filled) {
+  margin-right: auto;
+}
+.delete-description {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.9;
+}

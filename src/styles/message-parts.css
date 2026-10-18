@@ -1,0 +1,140 @@
+.activities {
+  font-size: 9px;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+.activities summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+}
+.activities summary > svg:first-child {
+  color: var(--accent);
+}
+.activities > div {
+  border-left: 1px solid var(--border);
+  padding: 4px 0 4px 10px;
+  margin-top: 9px;
+}
+.activities p {
+  display: flex;
+  gap: 7px;
+  font-size: 9px;
+  line-height: 1.7;
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+.activities p svg {
+  color: var(--green);
+  margin-top: 3px;
+}
+.activities code {
+  color: var(--faint);
+  display: block;
+  font-size: 9px;
+  font-family: Consolas, monospace;
+  white-space: pre-wrap;
+}
+.message-tools {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+  opacity: 0.6;
+}
+.message-tools:hover {
+  opacity: 1;
+}
+.message-tools > button:not(.icon-button) {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8px;
+  color: var(--muted);
+}
+.message-tools .icon-button {
+  width: 25px;
+  height: 25px;
+}
+.message-tools .icon-button svg {
+  width: 13px;
+}
+.inline-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #d88a91;
+  font-size: 10px;
+  line-height: 1.8;
+  background: #d88a910c;
+  border: 1px solid #d88a9122;
+  padding: 10px;
+  border-radius: 7px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-top: 10px;
+}
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 9px 0;
+}
+.thinking > span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: blink 1.2s infinite;
+}
+.thinking > span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.thinking > span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.thinking small {
+  font-size: 9px;
+  color: var(--faint);
+  margin-left: 7px;
+}
+.muted {
+  color: var(--faint);
+  font-size: 9px;
+}
+.conversation-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 90px 20px;
+  color: var(--muted);
+  text-align: center;
+}
+.conversation-empty h3 {
+  font-size: 22px;
+  font-weight: 400;
+  font-family: Georgia, serif;
+  color: var(--text);
+  margin: 20px 0 10px;
+}
+.conversation-empty p {
+  font-size: 11px;
+}
+.floating-terminal {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  color: var(--faint);
+  border: 1px solid var(--border);
+  width: 27px;
+  height: 27px;
+  border-radius: 6px;
+  background: var(--panel);
+  display: grid;
+  place-items: center;
+}
+.floating-terminal:hover {
+  color: var(--accent);
+}

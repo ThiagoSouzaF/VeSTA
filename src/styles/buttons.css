@@ -1,0 +1,40 @@
+.primary-button,
+.secondary-button,
+.danger-button {
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.primary-button {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 550;
+}
+.primary-button:hover {
+  background: var(--accent-strong);
+}
+.secondary-button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+}
+.secondary-button:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.danger-button {
+  color: #d88a91;
+}
+.danger-button:hover {
+  background: #d88a9115;
+}
+.danger-button.filled {
+  background: #ae4052;
+  color: white;
+}

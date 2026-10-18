@@ -1,0 +1,204 @@
+.context-panel {
+  width: 255px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border-soft);
+  background: var(--panel);
+  padding: 26px 21px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.context-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  color: var(--muted);
+}
+.context-title svg {
+  color: var(--accent);
+}
+.context-section {
+  padding: 26px 0 23px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.context-label {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--faint);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+.context-section select {
+  font-size: 10px;
+  width: 100%;
+  height: 35px;
+  padding: 7px 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.context-project {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.context-project > svg {
+  color: var(--accent);
+}
+.context-project strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 450;
+}
+.context-project span {
+  font-size: 9px;
+  color: var(--faint);
+  display: block;
+  margin-top: 4px;
+}
+.context-path {
+  font-size: 8px;
+  margin-top: 11px;
+  color: var(--faint);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  text-align: left;
+  line-height: 1.6;
+}
+.context-path span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.text-button {
+  font-size: 10px;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--accent);
+  padding: 0;
+  line-height: 1.6;
+}
+.text-button:hover {
+  color: var(--text);
+}
+.context-section .text-button {
+  margin-top: 13px;
+  font-size: 9px;
+}
+.memory-visual {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 13px;
+}
+.memory-visual > svg {
+  color: var(--accent);
+  padding: 7px;
+  background: var(--accent-bg);
+  width: 37px;
+  height: 37px;
+  border-radius: 9px;
+}
+.memory-visual strong {
+  font-size: 10px;
+  font-weight: 450;
+  display: block;
+}
+.memory-visual span {
+  font-size: 8px;
+  color: var(--faint);
+  display: block;
+  margin-top: 5px;
+}
+.context-section > p {
+  font-size: 10px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin: 10px 0 16px;
+}
+.context-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 11px;
+}
+.context-stat strong {
+  font-size: 10px;
+  font-weight: 400;
+  font-family: Consolas, monospace;
+  color: var(--text);
+}
+.instruction {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  font-size: 9px;
+  padding: 8px 7px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  margin-top: 6px;
+  border-radius: 5px;
+  text-align: left;
+}
+.instruction > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.instruction > svg:first-child {
+  color: var(--muted);
+}
+.instruction > svg:last-child {
+  color: var(--green);
+}
+.instruction-placeholder {
+  display: flex;
+  gap: 9px;
+  color: var(--faint);
+  font-size: 9px;
+  line-height: 1.7;
+}
+.fine-print {
+  font-size: 9px !important;
+  line-height: 1.8;
+  color: var(--faint) !important;
+}
+.context-section > .fine-print {
+  margin-bottom: 0;
+}
+.context-bottom {
+  margin-top: auto;
+  padding-top: 35px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--faint);
+}
+.small-mark {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.context-bottom p {
+  font-size: 9px;
+  line-height: 1.8;
+}
+.context-bottom strong {
+  font-weight: 450;
+  color: var(--muted);
+}

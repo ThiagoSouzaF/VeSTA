@@ -1,0 +1,76 @@
+.activity-count {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 0 6px;
+  font-size: 8px;
+}
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-left: 1px solid var(--border);
+  padding: 4px 0 4px 10px;
+  margin-top: 9px;
+}
+.activity-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.activity-row > div {
+  flex: 1;
+  min-width: 0;
+}
+.activity-row strong {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text);
+}
+.activity-row code {
+  display: block;
+  color: var(--faint);
+  font-size: 9px;
+  font-family: Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-top: 2px;
+  max-height: 90px;
+  overflow: auto;
+}
+.activity-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-bg);
+  color: var(--accent);
+  flex: none;
+}
+.activity-row.command .activity-icon {
+  background: #2a2a2f;
+  color: var(--green);
+}
+.activity-row.file .activity-icon {
+  color: var(--orange);
+}
+.activity-row.mcp .activity-icon {
+  color: var(--accent-strong);
+}
+.activity-state {
+  margin-top: 4px;
+  flex: none;
+  color: var(--muted);
+}
+.activity-state.ok {
+  color: var(--green);
+}
+.activity-state.err {
+  color: #e07a7a;
+}

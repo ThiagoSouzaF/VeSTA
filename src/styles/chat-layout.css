@@ -1,0 +1,11 @@
+.chat-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.conversation {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
