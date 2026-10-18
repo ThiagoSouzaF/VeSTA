@@ -12,8 +12,6 @@ const {Permissions}=require('./permissions.cjs');
 app.setName('VeSTA');
 app.commandLine.appendSwitch('force-renderer-accessibility');
 if(process.env.VESTA_DATA_DIR)app.setPath('userData',process.env.VESTA_DATA_DIR);
-// Up to 0.1.4 the app was Omphalos and kept everything in %APPDATA%\Omphalos: keep using that folder so chats, memories and drafts survive the rename.
-else{const legacy=path.join(app.getPath('appData'),'Omphalos');if(fs.existsSync(path.join(legacy,'omphalos.json'))&&!fs.existsSync(path.join(app.getPath('userData'),'omphalos.json')))app.setPath('userData',legacy);}
 let win,store,memory;
 const permissions=new Permissions({
   rules:chatId=>{const c=store.state.chats.find(x=>x.id===chatId);if(!c)return null;c.permissionRules=c.permissionRules||[];return c.permissionRules;},
@@ -141,7 +139,7 @@ const methods={
   addProject:async()=>{const result=await dialog.showOpenDialog(win,{title:'Escolher projeto',properties:['openDirectory']});if(result.canceled)return null;const dir=fs.realpathSync(result.filePaths[0]);let p=store.state.projects.find(p=>p.path.toLowerCase()===dir.toLowerCase());if(!p){p={id:randomUUID(),name:path.basename(dir),path:dir,createdAt:Date.now()};store.state.projects.push(p);store.save();sync();}return p;},
   inspectProject:({id})=>inspectProject(id),
   saveSettings:input=>{const s=store.state.settings;if(['obsidian','aurora','paper'].includes(input.theme))s.theme=input.theme;if(['ember','violet','mint','amber','rose'].includes(input.accent))s.accent=input.accent;if(['none','ember','rain','stream'].includes(input.background))s.background=input.background;for(const key of ['memoryEnabled','capture','memoryTools'])if(typeof input[key]==='boolean')s[key]=input[key];store.save();sync();return state();},
-  memoryStatus:async()=>{try{await memory.call('memory_status',{workspace:'omphalos',project:'inbox'});return {connected:true,version:'3.0.0',mode:'Busca local (FTS)',dir:memory.dir,agents:store.state.settings.memoryTools!==false,endpoint:memory.endpoint?.mcp};}catch(e){return {connected:false,error:e.message,dir:memory.dir}}},
+  memoryStatus:async()=>{try{await memory.call('memory_status',{workspace:'vesta',project:'inbox'});return {connected:true,version:'3.0.0',mode:'Busca local (FTS)',dir:memory.dir,agents:store.state.settings.memoryTools!==false,endpoint:memory.endpoint?.mcp};}catch(e){return {connected:false,error:e.message,dir:memory.dir}}},
   saveMemory:async input=>{const existing=input.id?store.state.memories.find(n=>n.id===input.id):null;const kind=existing?.kind||(['preference','note'].includes(input.kind)?input.kind:'note');const id=existing?.id||randomUUID();const note={...existing,id,path:existing?.path||(kind==='preference'?'preferences/':'notas/')+id+'.md',kind,projectId:existing?.projectId||input.projectId||null,title:bounded(input.title,120).trim(),body:redact(bounded(input.body,30000)),createdAt:existing?.createdAt||Date.now(),updatedAt:Date.now()};if(!note.title||!note.body.trim())throw new Error('Preencha título e conteúdo');if(note.projectId&&!project(note.projectId))throw new Error('Projeto inválido');await memory.write(note);store.state.memories=store.state.memories.filter(n=>n.id!==id);store.state.memories.unshift(note);store.save();sync();return state();},
   deleteMemory:async({id})=>{const note=store.state.memories.find(n=>n.id===id);if(note){await memory.remove(note);store.state.memories=store.state.memories.filter(n=>n.id!==id);store.save();sync();}return state();},
   searchMemory:({query,projectId})=>memory.query(bounded(query,500),projectId),

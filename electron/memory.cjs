@@ -6,7 +6,7 @@ const {randomBytes} = require('node:crypto');
 const {Client} = require('@modelcontextprotocol/sdk/client/index.js');
 const {StreamableHTTPClientTransport} = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
 const redact = text => String(text).replace(/\b(?:sk-|dk-|ghp_|github_pat_)[A-Za-z0-9_-]{16,}/g,'[chave removida]').replace(/((?:api[_-]?key|authorization|password|senha|token)\s*[:=]\s*)[^\s,;]+/gi,'$1[removido]');
-const scope = projectId => ({workspace:'omphalos', project:projectId||'inbox'});
+const scope = projectId => ({workspace:'vesta', project:projectId||'inbox'});
 const freePort = () => new Promise((resolve,reject)=>{const s=net.createServer();s.unref();s.on('error',reject);s.listen(0,'127.0.0.1',()=>{const {port}=s.address();s.close(()=>resolve(port));});});
 const wait = ms => new Promise(r=>setTimeout(r,ms));
 // One HTTP server owns the data dir (ai-memory refuses a second `serve` on it); the app and every agent it launches share it.
@@ -21,7 +21,7 @@ class Memory {
     const pidFile=path.join(this.dir,'vesta-server.pid');reapOrphan(pidFile);
     const port=await freePort(),token=randomBytes(24).toString('hex'),url='http://127.0.0.1:'+port;
     // Loopback only, and a per-run bearer token keeps other local processes out of the store.
-    const server=spawn(this.exe,['--data-dir',this.dir,'serve','--transport','http','--bind','127.0.0.1:'+port,'--workspace','omphalos','--project','inbox'],{env:{...process.env,AI_MEMORY_EMBEDDING_PROVIDER:'none',AI_MEMORY_AUTH_TOKEN:token},windowsHide:true,stdio:['ignore','pipe','pipe']});
+    const server=spawn(this.exe,['--data-dir',this.dir,'serve','--transport','http','--bind','127.0.0.1:'+port,'--workspace','vesta','--project','inbox'],{env:{...process.env,AI_MEMORY_EMBEDDING_PROVIDER:'none',AI_MEMORY_AUTH_TOKEN:token},windowsHide:true,stdio:['ignore','pipe','pipe']});
     this.server=server;try{fs.writeFileSync(pidFile,String(server.pid));}catch{}
     const logs=b=>this.log=(this.log+b).slice(-6000);server.stdout.on('data',logs);server.stderr.on('data',logs);
     server.on('exit',()=>{if(this.server===server){this.server=null;this.endpoint=null;this.client=null;}});
@@ -44,9 +44,9 @@ class Memory {
   async agentEndpoint() {await this.connect();return this.endpoint;}
   async call(name,args) {const client=await this.connect(); const result=await client.callTool({name,arguments:args},undefined,{timeout:20000}); const text=(result.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('\n'); if(result.isError)throw new Error(text||'Falha no AI Memory'); return text;}
   // A fresh project has no wiki yet: memory_query/memory_status fail until its first page exists.
-  async ensureProject(projectId) {try{await this.call('memory_status',scope(projectId));}catch(e){if(!/not found in workspace/.test(e.message))throw e;await this.call('memory_write_page',{path:'omphalos/space.md',body:'# Espaço de trabalho\n\nEspaço de memória criado pelo VeSTA.',...scope(projectId)});}}
+  async ensureProject(projectId) {try{await this.call('memory_status',scope(projectId));}catch(e){if(!/not found in workspace/.test(e.message))throw e;await this.call('memory_write_page',{path:'vesta/space.md',body:'# Espaço de trabalho\n\nEspaço de memória criado pelo VeSTA.',...scope(projectId)});}}
   async query(query,projectId) {const terms=String(query).match(/[\p{L}\p{N}_-]{3,}/gu)?.slice(0,12)||[];if(!terms.length)return '';const expression=terms.map(t=>'"'+t.replace(/"/g,'')+'"').join(' OR ');const args={query:expression,...scope(projectId),limit:6};try{return await this.call('memory_query',args)}catch(e){if(!/project .+ not found in workspace/.test(e.message))throw e;await this.ensureProject(projectId);return this.call('memory_query',args);}}
-  async write(note) {return this.call('memory_write_page',{path:note.path,body:'# '+note.title.replace(/\n/g,' ')+'\n\n'+redact(note.body),tier:note.kind==='session'?'episodic':'semantic',tags:['omphalos',note.kind||'note'],...(note.kind==='preference'?{scope:'profile'}:scope(note.projectId))});}
+  async write(note) {return this.call('memory_write_page',{path:note.path,body:'# '+note.title.replace(/\n/g,' ')+'\n\n'+redact(note.body),tier:note.kind==='session'?'episodic':'semantic',tags:['vesta',note.kind||'note'],...(note.kind==='preference'?{scope:'profile'}:scope(note.projectId))});}
   async remove(note) {return this.call('memory_delete_page',{path:note.path,...(note.kind==='preference'?{scope:'profile'}:scope(note.projectId))});}
   // The server is stopped synchronously first: before-quit does not wait for this promise.
   async close(){const server=this.server,client=this.client;this.client=null;this.server=null;this.endpoint=null;if(server)stop(server);await client?.close().catch(()=>{});}

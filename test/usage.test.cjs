@@ -56,7 +56,7 @@ test('usage accumulates per day/provider and store merges old state',()=>{
   usage.recordRateLimit(u,{fiveHour:{utilization:0.5,resetsAt:1}},t);usage.recordRateLimit(u,{sevenDay:{utilization:0.1,resetsAt:2}},t);
   assert.equal(u.rateLimit.fiveHour.utilization,0.5);assert.equal(u.rateLimit.sevenDay.utilization,0.1);
   assert.equal(usage.summary(u,t).today.claude.turns,2);
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'omphalos-usage-'));fs.writeFileSync(path.join(dir,'omphalos.json'),JSON.stringify({version:1,chats:[]}));
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'vesta-usage-'));fs.writeFileSync(path.join(dir,'vesta.json'),JSON.stringify({version:1,chats:[]}));
   const s=new Store(dir);assert.deepEqual(s.state.usage.daily,{});assert.equal(s.state.usage.rateLimit.fiveHour,null);
 });
 test('claude subagent inner events become live steps, never main text',()=>{
@@ -92,7 +92,7 @@ test('claude background subagent stays running until task_notification',()=>{
 });
 test('store v1 migrates every existing chat to full edit once; new chats default to edit',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'omph-mig-'));
-  fs.writeFileSync(path.join(dir,'omphalos.json'),JSON.stringify({version:1,settings:{},projects:[],chats:[{id:'a',mode:'read',messages:[]},{id:'b',mode:'edit',messages:[]}],memories:[]}));
+  fs.writeFileSync(path.join(dir,'vesta.json'),JSON.stringify({version:1,settings:{},projects:[],chats:[{id:'a',mode:'read',messages:[]},{id:'b',mode:'edit',messages:[]}],memories:[]}));
   let s=new Store(dir);assert.equal(s.state.version,2);assert.deepEqual(s.state.chats.map(c=>c.mode),['edit','edit']);
   s.state.chats[0].mode='read';s.save();
   s=new Store(dir);assert.equal(s.state.chats[0].mode,'read','a user choice made after the migration must survive restarts');

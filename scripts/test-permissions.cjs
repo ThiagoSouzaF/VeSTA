@@ -7,7 +7,7 @@ const scenario=process.argv.find(a=>['allow','deny','subagent','always','stop'].
 const model=process.argv.slice(2).find(a=>!a.endsWith('.cjs')&&(a.includes('/')||a.startsWith('claude-')||a.startsWith('gpt-')))||(provider==='claude'?'claude-haiku-5-5':provider==='opencode'?'drael/drael-v1':'');
 const data=require('./test-scratch.cjs')('permissions'),projectDir=path.join(data,'projeto');
 fs.mkdirSync(projectDir,{recursive:true});
-fs.writeFileSync(path.join(data,'omphalos.json'),JSON.stringify({version:2,projects:[{id:'proj',name:'projeto',path:projectDir,createdAt:Date.now()}],chats:[],memories:[]}));
+fs.writeFileSync(path.join(data,'vesta.json'),JSON.stringify({version:2,projects:[{id:'proj',name:'projeto',path:projectDir,createdAt:Date.now()}],chats:[],memories:[]}));
 process.env.VESTA_DATA_DIR=data;process.env.VESTA_SERVICE_TEST='1';
 delete process.env.CLAUDECODE;delete process.env.CLAUDE_CODE_ENTRYPOINT;
 const {app}=require('electron');

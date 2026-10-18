@@ -90,7 +90,7 @@ function UsagePage({call,usage}){
     <section className="usage-section"><div className="context-label">ÚLTIMOS DIAS</div>{info?.days?.length?info.days.map(d=><div className="usage-day" key={d.date}><div className="usage-day-head"><strong>{d.date.split('-').reverse().join('/')}</strong><span>{fmtCost(sum(d.providers).costUsd)}</span></div>{Object.entries(d.providers).map(([id,p])=>row(d.date+id,PROVIDERS[id]?.name||id,p))}</div>):<p className="muted">Sem histórico ainda.</p>}</section>
     <p className="fine-print">Custo do ChatGPT (Codex) não é informado pelo CLI; apenas tokens são somados.</p></div>;
 }
-const loadDrafts=()=>{try{const v=JSON.parse(localStorage.getItem('omphalos.drafts')||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{}}catch{return {}}};
+const loadDrafts=()=>{try{const v=JSON.parse(localStorage.getItem('vesta.drafts')||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{}}catch{return {}}};
 function App(){
   const [data,setData]=useState(empty),[integrations,setIntegrations]=useState({}),[loading,setLoading]=useState(true),[page,setPage]=useState('chat'),[active,setActive]=useState(null),[provider,setProvider]=useState('codex'),[projectId,setProjectId]=useState(''),[drafts,setDrafts]=useState(loadDrafts),[newModel,setNewModel]=useState(null),[search,setSearch]=useState(''),[inspector,setInspector]=useState(true),[modal,setModal]=useState(null),[toast,setToast]=useState(''),[memoryStatus,setMemoryStatus]=useState(null),[instructions,setInstructions]=useState([]),[memorySearch,setMemorySearch]=useState(''),[memoryFilter,setMemoryFilter]=useState('all'),[queryResult,setQueryResult]=useState(null),[busy,setBusy]=useState(false);
   const bottom=useRef(),textarea=useRef();
@@ -112,7 +112,7 @@ function App(){
       if(e.type==='text'||e.type==='activity'||e.type==='subagent'||e.type==='permission')setData(d=>({...d,chats:d.chats.map(c=>c.id!==e.chatId?c:{...c,messages:c.messages.map(m=>m.id!==e.messageId?m:patchMessage(m,e))})}));
     });
   },[]);
-  useEffect(()=>{if(loading)return;const t=setTimeout(()=>{try{const ids=new Set(data.chats.map(c=>c.id)),keep={};for(const [k,v] of Object.entries(drafts))if(v&&(k==='new'||ids.has(k)||!api))keep[k]=v;localStorage.setItem('omphalos.drafts',JSON.stringify(keep))}catch{}},400);return()=>clearTimeout(t)},[drafts,data.chats,loading]);
+  useEffect(()=>{if(loading)return;const t=setTimeout(()=>{try{const ids=new Set(data.chats.map(c=>c.id)),keep={};for(const [k,v] of Object.entries(drafts))if(v&&(k==='new'||ids.has(k)||!api))keep[k]=v;localStorage.setItem('vesta.drafts',JSON.stringify(keep))}catch{}},400);return()=>clearTimeout(t)},[drafts,data.chats,loading]);
   useEffect(()=>{document.documentElement.dataset.theme=data.settings.theme;document.documentElement.dataset.accent=data.settings.accent;},[data.settings.theme,data.settings.accent]);
   useEffect(()=>{if(!currentProjectId){setInstructions([]);return;}let alive=true;api?.call('inspectProject',{id:currentProjectId}).then(r=>{if(alive)setInstructions(r)});return()=>{alive=false}},[currentProjectId]);
   useEffect(()=>{bottom.current?.scrollIntoView({behavior:'smooth'})},[active,chat?.messages.at(-1)?.text,chat?.messages.at(-1)?.status]);

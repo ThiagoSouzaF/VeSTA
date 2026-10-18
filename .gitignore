@@ -8,6 +8,6 @@ runtime/
 !.env.example
 *.pem
 *.key
-omphalos.json
+vesta.json
 memory/
-.omphalos-tests/
+.vesta-tests/

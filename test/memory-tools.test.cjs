@@ -16,7 +16,7 @@ test('memory tools are registered per launch and the token never goes on the com
   for(const c of [claude,codex,opencode]){assert.ok(!c.args.join(' ').includes(endpoint.token));assert.equal(c.env.VESTA_MEMORY_TOKEN,endpoint.token);}
   assert.ok(!opencode.env.OPENCODE_CONFIG_CONTENT.includes(endpoint.token));
 });
-test('memory hint names the chat scope',()=>{assert.match(memoryHint('p-1'),/project "p-1"/);assert.match(memoryHint(null),/project "inbox"/);assert.match(memoryHint(null),/workspace "omphalos"/);});
+test('memory hint names the chat scope',()=>{assert.match(memoryHint('p-1'),/project "p-1"/);assert.match(memoryHint(null),/project "inbox"/);assert.match(memoryHint(null),/workspace "vesta"/);});
 test('memory tool calls show as memory activities in every provider',()=>{
   const ev=[];parser('claude',e=>ev.push(e)).accept({type:'assistant',message:{content:[{type:'tool_use',id:'t1',name:'mcp__'+MEMORY_SERVER+'__memory_query',input:{query:'auth'}}]}});
   assert.equal(ev[0].kind,'memory');assert.equal(ev[0].label,'Memória · memory_query');assert.equal(ev[0].detail,'auth');
@@ -28,7 +28,7 @@ test('memory tool calls show as memory activities in every provider',()=>{
 });
 const exe=path.join(__dirname,'../runtime/ai-memory.exe');
 test('one HTTP server is shared by the app and an outside MCP client',{skip:!fs.existsSync(exe)&&'ai-memory.exe ausente',timeout:60000},async()=>{
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'omphalos-mem-'));const m=new Memory(exe,dir);
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'vesta-mem-'));const m=new Memory(exe,dir);
   try{
     const ep=await m.agentEndpoint();assert.match(ep.mcp,/^http:\/\/127\.0\.0\.1:\d+\/mcp$/);
     const denied=await fetch(ep.mcp,{method:'POST',headers:{'content-type':'application/json',accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list',params:{}})});
@@ -37,7 +37,7 @@ test('one HTTP server is shared by the app and an outside MCP client',{skip:!fs.
     // An agent-side client writes; the app's own query sees it, because both talk to the same server.
     const {Client}=require('@modelcontextprotocol/sdk/client/index.js');const {StreamableHTTPClientTransport}=require('@modelcontextprotocol/sdk/client/streamableHttp.js');
     const agent=new Client({name:'agent',version:'1'});await agent.connect(new StreamableHTTPClientTransport(new URL(ep.mcp),{requestInit:{headers:{Authorization:'Bearer '+ep.token}}}));
-    const w=await agent.callTool({name:'memory_write_page',arguments:{path:'agentes/zebra.md',body:'# Zebra\n\nDecisão: usar a palavra quimera42 como marcador.',workspace:'omphalos',project:'proj-x'}});assert.ok(!w.isError,JSON.stringify(w));
+    const w=await agent.callTool({name:'memory_write_page',arguments:{path:'agentes/zebra.md',body:'# Zebra\n\nDecisão: usar a palavra quimera42 como marcador.',workspace:'vesta',project:'proj-x'}});assert.ok(!w.isError,JSON.stringify(w));
     await agent.close();
     assert.match(await m.query('quimera42','proj-x'),/zebra/i);
     assert.equal(fs.readFileSync(path.join(dir,'vesta-server.pid'),'utf8'),String(m.server.pid));

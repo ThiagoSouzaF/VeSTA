@@ -6,8 +6,7 @@ const crypto = require('node:crypto');
 const {spawn} = require('node:child_process');
 const {run} = require('./providers.cjs');
 const REPO = process.env.VESTA_UPDATE_REPO || 'ThiagoSouzaF/VeSTA';
-// Installer asset names: Omphalos-Setup-* up to 0.1.4 (and on releases kept readable by those installs), VeSTA-Setup-* after.
-const SETUP = /^(VeSTA|Omphalos)-Setup-.+\.exe$/;
+const SETUP = /^VeSTA-Setup-.+\.exe$/;
 function locateGh() {
   const names = ['gh.exe'];
   const candidates = (process.env.PATH || '').split(path.delimiter).flatMap(dir => names.map(n => path.join(dir, n)));
@@ -57,7 +56,7 @@ async function verify(dir, expectedVersion) {
   return file;
 }
 // The installer outlives the app: silent install over the current one, then it reopens the app (--force-run).
-// /D= pins the target to the folder this copy runs from (the Omphalos→VeSTA update landed in a new folder without it).
+// /D= pins the target to the folder this copy runs from, so an update never lands in a second install folder.
 // NSIS wants /D= last and unquoted, so the command line is passed verbatim.
 function installerArgs(installDir) { return ['/S', '--updated', '--force-run', ...(installDir ? ['/D=' + installDir] : [])]; }
 function launchInstaller(file, installDir = path.dirname(process.execPath)) {

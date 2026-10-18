@@ -28,7 +28,7 @@ function memoryTools(provider,endpoint){
 // Tells the agent which scope is its own: tool calls without workspace/project would land in the server's default (inbox).
 function memoryHint(projectId){
   const project=projectId||'inbox';
-  return 'Você tem acesso à memória compartilhada do VeSTA pelas ferramentas MCP do servidor "'+MEMORY_SERVER+'" (AI Memory). Nelas, sempre passe workspace "omphalos" e project "'+project+'". Use memory_query para buscar decisões e contexto de conversas anteriores quando forem relevantes, e memory_write_page para registrar decisões, fatos e lições duráveis deste projeto (caminhos como "agentes/<assunto>.md"). Não grave segredos nem trechos longos de código.';
+  return 'Você tem acesso à memória compartilhada do VeSTA pelas ferramentas MCP do servidor "'+MEMORY_SERVER+'" (AI Memory). Nelas, sempre passe workspace "vesta" e project "'+project+'". Use memory_query para buscar decisões e contexto de conversas anteriores quando forem relevantes, e memory_write_page para registrar decisões, fatos e lições duráveis deste projeto (caminhos como "agentes/<assunto>.md"). Não grave segredos nem trechos longos de código.';
 }
 // Chat modes: 'edit' = full access, 'ask' = the agent asks the user before acting, 'read' = consultation only.
 const MODES=['ask','edit','read'];
