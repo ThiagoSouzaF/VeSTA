@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { UserError } = require('./errors.cjs');
 const { emptyUsage, migrate } = require('./usage.cjs');
 const { normalizeQuests } = require('./quests.cjs');
 const { defaultRemote, normalizeRemote } = require('./remote/index.cjs');
@@ -57,11 +58,11 @@ class Store {
   }
   chat(id) {
     const c = this.state.chats.find((c) => c.id === id);
-    if (!c) throw new Error('Chat não encontrado');
+    if (!c) throw new UserError('Chat não encontrado');
     return c;
   }
   addChat(input) {
-    if (!['codex', 'claude', 'drael', 'opencode'].includes(input.provider)) throw new Error('IA inválida');
+    if (!['codex', 'claude', 'drael', 'opencode'].includes(input.provider)) throw new UserError('IA inválida');
     const c = {
       id: randomUUID(),
       title: 'Novo chat',

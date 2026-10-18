@@ -1,4 +1,6 @@
 import { Mark, Wordmark } from './Brand';
+import { MascotAvatar, useMascot } from './Mascot';
+import { STATE_LABEL } from '../lib/mascot';
 import {
   ArrowUpRight,
   Plus,
@@ -38,6 +40,7 @@ export function Sidebar({
   taskCounts,
   questsRunning = 0,
 }) {
+  const mascot = useMascot();
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -52,6 +55,15 @@ export function Sidebar({
           <span>O centro do seu lar digital.</span>
         </div>
       </div>
+      {mascot.enabled && (
+        <div className="brand-mascot">
+          <MascotAvatar onOpen={() => setPage('activity')} />
+          <div>
+            <strong>{STATE_LABEL[mascot.state]}</strong>
+            <span>{mascot.phrase}</span>
+          </div>
+        </div>
+      )}
       <button className="new-chat" onClick={openNew}>
         <Plus size={18} /> Novo chat <kbd>Ctrl N</kbd>
       </button>

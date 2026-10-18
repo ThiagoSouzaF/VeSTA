@@ -22,6 +22,8 @@ import { ActivityPage } from './components/ActivityPage';
 import { QuestsPage } from './components/QuestsPage';
 import { runningQuests } from './lib/quests';
 import { activityGroups, runningCounts } from './lib/activity';
+import { MascotProvider } from './components/Mascot';
+import { AboutPage } from './components/AboutPage';
 export function App() {
   const [data, setData] = useState(empty),
     [integrations, setIntegrations] = useState({}),
@@ -237,149 +239,154 @@ export function App() {
   const newMemory = () =>
     setModal({ type: 'memory', title: '', body: '', kind: 'preference', projectId: projectId || '' });
   return (
-    <div className="app-shell">
-      <Titlebar />
-      <div className="app-body">
-        <Sidebar
-          openNew={openNew}
-          page={page}
-          setPage={setPage}
-          data={data}
-          addProject={addProject}
-          projectId={projectId}
-          setProjectId={setProjectId}
-          setActive={setActive}
-          filteredChats={filteredChats}
-          search={search}
-          setSearch={setSearch}
-          active={active}
-          goChat={goChat}
-          taskCounts={counts}
-          questsRunning={questsRunning}
-        />
-        <main className="main">
-          <Backdrop
-            kind={data.settings.background || 'rain'}
-            theme={data.settings.theme}
-            accent={data.settings.accent}
-          />
-          <MainHeader
+    <MascotProvider data={data} groups={groups}>
+      <div className="app-shell">
+        <Titlebar />
+        <div className="app-body">
+          <Sidebar
+            openNew={openNew}
             page={page}
-            chat={chat}
+            setPage={setPage}
             data={data}
-            memoryStatus={memoryStatus}
-            inspector={inspector}
-            setInspector={setInspector}
+            addProject={addProject}
+            projectId={projectId}
+            setProjectId={setProjectId}
+            setActive={setActive}
+            filteredChats={filteredChats}
+            search={search}
+            setSearch={setSearch}
+            active={active}
+            goChat={goChat}
+            taskCounts={counts}
+            questsRunning={questsRunning}
           />
-          {loading ? (
-            <div className="loading">
-              <LoaderCircle className="spin" />
-              <p>Acendendo a chama…</p>
-            </div>
-          ) : page === 'chat' ? (
-            <ChatPage
+          <main className="main">
+            <Backdrop
+              kind={data.settings.background || 'rain'}
+              theme={data.settings.theme}
+              accent={data.settings.accent}
+            />
+            <MainHeader
+              page={page}
               chat={chat}
-              currentProject={currentProject}
-              setModal={setModal}
-              call={call}
-              running={running}
-              notify={notify}
-              provider={provider}
-              setProvider={setProvider}
-              integrations={integrations}
-              setDraft={setDraft}
-              draftKey={draftKey}
-              textarea={textarea}
-              currentProvider={currentProvider}
-              input={input}
-              send={send}
-              busy={busy}
-              setData={replaceData}
-              setNewModel={setNewModel}
-              newModel={newModel}
               data={data}
-              active={active}
+              memoryStatus={memoryStatus}
               inspector={inspector}
-              projectId={projectId}
-              setProjectId={setProjectId}
-              addProject={addProject}
-              memoryStatus={memoryStatus}
-              currentProjectId={currentProjectId}
-              setPage={setPage}
-              instructions={instructions}
-              focus={focus}
+              setInspector={setInspector}
             />
-          ) : page === 'activity' ? (
-            <ActivityPage groups={groups} projects={data.projects} call={call} onOpen={openFromActivity} />
-          ) : page === 'quests' ? (
-            <QuestsPage
-              quests={data.quests}
-              projects={data.projects}
-              integrations={integrations}
-              call={call}
-              setData={replaceData}
-              onOpenChat={openChatById}
-              notify={notify}
-            />
-          ) : page === 'memory' ? (
-            <MemoryPage
-              newMemory={newMemory}
-              data={data}
-              memoryStatus={memoryStatus}
-              memoryFilter={memoryFilter}
-              setMemoryFilter={setMemoryFilter}
-              memorySearch={memorySearch}
-              setMemorySearch={setMemorySearch}
-              setQueryResult={setQueryResult}
-              call={call}
-              projectId={projectId}
-              queryResult={queryResult}
-              shownMemories={shownMemories}
-              setModal={setModal}
-            />
-          ) : page === 'usage' ? (
-            <UsagePage call={call} usage={data.usage} />
-          ) : page === 'connections' ? (
-            <ConnectionsPage
-              setBusy={setBusy}
-              setIntegrations={setIntegrations}
-              call={call}
-              notify={notify}
-              busy={busy}
-              integrations={integrations}
-              memoryStatus={memoryStatus}
-              setMemoryStatus={setMemoryStatus}
-            />
-          ) : (
-            <SettingsPage
-              data={data}
-              setting={setting}
-              call={call}
-              notify={notify}
-              fontScale={fontScale}
-              stepFontScale={stepFontScale}
-            />
-          )}
-        </main>
+            {loading ? (
+              <div className="loading">
+                <LoaderCircle className="spin" />
+                <p>Acendendo a chama…</p>
+              </div>
+            ) : page === 'chat' ? (
+              <ChatPage
+                chat={chat}
+                currentProject={currentProject}
+                setModal={setModal}
+                call={call}
+                running={running}
+                notify={notify}
+                provider={provider}
+                setProvider={setProvider}
+                integrations={integrations}
+                setDraft={setDraft}
+                draftKey={draftKey}
+                textarea={textarea}
+                currentProvider={currentProvider}
+                input={input}
+                send={send}
+                busy={busy}
+                setData={replaceData}
+                setNewModel={setNewModel}
+                newModel={newModel}
+                data={data}
+                active={active}
+                inspector={inspector}
+                projectId={projectId}
+                setProjectId={setProjectId}
+                addProject={addProject}
+                memoryStatus={memoryStatus}
+                currentProjectId={currentProjectId}
+                setPage={setPage}
+                instructions={instructions}
+                focus={focus}
+              />
+            ) : page === 'activity' ? (
+              <ActivityPage groups={groups} projects={data.projects} call={call} onOpen={openFromActivity} />
+            ) : page === 'quests' ? (
+              <QuestsPage
+                quests={data.quests}
+                projects={data.projects}
+                integrations={integrations}
+                call={call}
+                setData={replaceData}
+                onOpenChat={openChatById}
+                notify={notify}
+              />
+            ) : page === 'memory' ? (
+              <MemoryPage
+                newMemory={newMemory}
+                data={data}
+                memoryStatus={memoryStatus}
+                memoryFilter={memoryFilter}
+                setMemoryFilter={setMemoryFilter}
+                memorySearch={memorySearch}
+                setMemorySearch={setMemorySearch}
+                setQueryResult={setQueryResult}
+                call={call}
+                projectId={projectId}
+                queryResult={queryResult}
+                shownMemories={shownMemories}
+                setModal={setModal}
+              />
+            ) : page === 'usage' ? (
+              <UsagePage call={call} usage={data.usage} />
+            ) : page === 'connections' ? (
+              <ConnectionsPage
+                setBusy={setBusy}
+                setIntegrations={setIntegrations}
+                call={call}
+                notify={notify}
+                busy={busy}
+                integrations={integrations}
+                memoryStatus={memoryStatus}
+                setMemoryStatus={setMemoryStatus}
+              />
+            ) : page === 'about' ? (
+              <AboutPage version={data.appVersion} onBack={() => setPage('settings')} />
+            ) : (
+              <SettingsPage
+                data={data}
+                setting={setting}
+                call={call}
+                notify={notify}
+                fontScale={fontScale}
+                stepFontScale={stepFontScale}
+                onAbout={() => setPage('about')}
+              />
+            )}
+          </main>
+        </div>
+        {toast && <Toast toast={toast} />}
+        {modal && (
+          <Modal
+            setModal={setModal}
+            modal={modal}
+            data={data}
+            addProject={addProject}
+            integrations={integrations}
+            createChat={createChat}
+            busy={busy}
+            setBusy={setBusy}
+            setData={replaceData}
+            call={call}
+            notify={notify}
+            setActive={setActive}
+          />
+        )}
+        {chat && page === 'chat' && <FloatingTerminal call={call} chat={chat} />}
       </div>
-      {toast && <Toast toast={toast} />}
-      {modal && (
-        <Modal
-          setModal={setModal}
-          modal={modal}
-          data={data}
-          addProject={addProject}
-          integrations={integrations}
-          createChat={createChat}
-          busy={busy}
-          setBusy={setBusy}
-          setData={replaceData}
-          call={call}
-          notify={notify}
-          setActive={setActive}
-        />
-      )}
-      {chat && page === 'chat' && <FloatingTerminal call={call} chat={chat} />}
-    </div>
+    </MascotProvider>
   );
 }

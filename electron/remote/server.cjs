@@ -12,6 +12,7 @@ const { isIP } = require('node:net');
 const { hostAllowed } = require('./net.cjs');
 const { cleanName } = require('./tokens.cjs');
 const { validateArgs, isAllowed, RemoteError } = require('./allowlist.cjs');
+const { isUserError } = require('../errors.cjs');
 const { createLimiter } = require('./limiter.cjs');
 const { createConnectionGate, normalizeIp, isLoopback } = require('./connections.cjs');
 
@@ -280,6 +281,11 @@ function createRemoteServer({
     } catch (e) {
       if (res.headersSent) return res.destroy();
       if (e instanceof RemoteError) return fail(req, res, e.status, e.message);
+      // Messages written for the person (UserError) are safe to show on the phone; the detail still goes to the log.
+      if (isUserError(e)) {
+        log('aviso em ' + req.method + ' ' + String(req.url).split('?')[0] + ':', e.message);
+        return fail(req, res, 422, e.message);
+      }
       // Anything unexpected: the detail stays in the local log, the client only gets a generic message.
       log('erro em ' + req.method + ' ' + String(req.url).split('?')[0] + ':', e?.stack || e);
       fail(req, res, 500, GENERIC_ERROR);

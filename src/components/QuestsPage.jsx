@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useState } from 'react';
+import { MascotPanel } from './Mascot';
 import { Plus, Swords } from 'lucide-react';
 import { ProviderIcon } from './ProviderIcon';
 import { NewQuestModal } from './quests/NewQuestModal';
@@ -112,6 +113,7 @@ export const QuestsPage = memo(function QuestsPage({
         ))}
         {!quests.length && (
           <div className="activity-empty">
+            <MascotPanel calm className="compact" text="Que tal a primeira missão? Eu cuido do quadro." />
             <Swords size={22} />
             <strong>Nenhuma quest ainda.</strong>
             <span>Clique em Nova quest e descreva o que precisa ficar pronto.</span>

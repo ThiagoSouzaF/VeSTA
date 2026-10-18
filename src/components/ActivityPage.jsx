@@ -5,6 +5,7 @@ import { TaskNode } from './TaskTree';
 import { PROVIDERS } from '../lib/constants';
 import { RECENT_MS, filterGroups, summarize } from '../lib/activity';
 import { useNow } from '../hooks/useNow';
+import { MascotPanel } from './Mascot';
 
 // A turn is shown while it runs or inside the recent window (whole minutes, so groups do not re-render each second).
 const turnVisible = (t, scope, cutoff) =>
@@ -87,6 +88,7 @@ export function ActivityPage({ groups, projects, call, onOpen }) {
           <p>Todo o trabalho das suas IAs, ao vivo: respostas, subagentes, comandos e tarefas em segundo plano.</p>
         </div>
       </div>
+      <MascotPanel live className="activity-mascot" />
       <div className="activity-summary" role="status">
         <Chip
           id="working"

@@ -1069,6 +1069,60 @@ test('unexpected errors answer a generic message; the detail only goes to the lo
   }
 });
 
+test('UserError messages reach the phone; every other error stays generic and logged', async () => {
+  const { UserError } = require('../electron/errors.cjs');
+  const s = await startServer({
+    dispatch: async (name) => {
+      if (name === 'usage') throw new UserError('Aguarde a resposta terminar antes de trocar a IA');
+      if (name === 'stop') throw new Error('Aguarde: C:UsersMariasegredo.txt'); // Portuguese but a plain Error
+      // the pure modules shared with the renderers raise the same kind of error without requiring errors.cjs
+      if (name === 'answerPermission') throw Object.assign(new Error('Esta quest já terminou'), { userSafe: true });
+      return {};
+    },
+  });
+  try {
+    const { token } = await s.pair();
+    const user = await s.call(token, 'usage');
+    assert.equal(user.status, 422);
+    assert.equal((await user.json()).error, 'Aguarde a resposta terminar antes de trocar a IA');
+    const duck = await s.call(token, 'answerPermission', { id: 'p', decision: 'once' });
+    assert.equal(duck.status, 422);
+    assert.equal((await duck.json()).error, 'Esta quest já terminou');
+    const plain = await s.call(token, 'stop', { chatId: 'c' });
+    assert.equal(plain.status, 500);
+    const text = await plain.text();
+    assert.ok(!/Maria|segredo/.test(text), text);
+    assert.match(JSON.parse(text).error, /Não foi possível concluir/);
+    assert.ok(s.logs.some((l) => l.includes('segredo')));
+  } finally {
+    await s.close();
+  }
+});
+
+test('the methods reachable from the phone raise UserError (real modules, not mocks)', async () => {
+  const { UserError, isUserError } = require('../electron/errors.cjs');
+  const Q = require('../electron/quests.cjs');
+  const { send } = require('../electron/send.cjs');
+  assert.ok(new UserError('x') instanceof Error);
+  assert.equal(isUserError(new Error('x')), false);
+  assert.throws(
+    () => Q.start({ status: 'running', steps: [] }),
+    (e) => isUserError(e) && /já foi iniciada/.test(e.message)
+  );
+  const jobs = new Map([['c', {}]]);
+  const ctx = { store: { chat: () => ({ provider: 'claude' }) }, jobs, bounded: (t) => t };
+  await assert.rejects(
+    send(ctx, { chatId: 'c', text: '  ' }),
+    (e) => e instanceof UserError && /Digite/.test(e.message)
+  );
+  await assert.rejects(
+    send(ctx, { chatId: 'c', text: 'oi' }),
+    (e) => e instanceof UserError && /já está respondendo/.test(e.message)
+  );
+  const store = require('../electron/store.cjs');
+  assert.ok(store, 'store loads with the error module');
+});
+
 test('a late error on the listening server is logged and never thrown', async () => {
   const s = await startServer();
   try {

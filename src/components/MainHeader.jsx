@@ -19,7 +19,9 @@ export function MainHeader({ page, chat, data, memoryStatus, inspector, setInspe
                     ? 'Uso'
                     : page === 'connections'
                       ? 'Conexões'
-                      : 'Preferências'}
+                      : page === 'about'
+                        ? 'Sobre a VeSTA'
+                        : 'Preferências'}
         </strong>
       </div>
       <div className="header-actions">

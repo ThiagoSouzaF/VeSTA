@@ -271,8 +271,8 @@
   color: var(--faint);
   padding: 10px 0 20px;
 }
-.about > svg {
-  color: var(--accent);
+.about .brand-icon {
+  opacity: 0.95;
 }
 .about strong {
   font-size: 14px;
@@ -285,6 +285,11 @@
 .about > p {
   font-size: 10px;
   margin-left: auto;
+}
+.about > .secondary-button {
+  flex-basis: 100%;
+  width: fit-content;
+  margin-top: 6px;
 }
 .zoom-setting {
   display: flex;

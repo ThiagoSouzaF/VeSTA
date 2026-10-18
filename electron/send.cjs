@@ -1,4 +1,5 @@
 const { randomUUID } = require('node:crypto');
+const { UserError } = require('./errors.cjs');
 const providers = require('./providers.cjs');
 const usage = require('./usage.cjs');
 const { redact } = require('./memory.cjs');
@@ -9,10 +10,10 @@ async function send(ctx, { chatId, text }) {
   const { store, jobs, memory, permissions, app, bounded, emit, sync, state } = ctx;
   const chat = store.chat(chatId);
   text = bounded(text, 50000).trim();
-  if (!text) throw new Error('Digite uma mensagem');
-  if (jobs.has(chatId)) throw new Error('Este chat já está respondendo');
+  if (!text) throw new UserError('Digite uma mensagem');
+  if (jobs.has(chatId)) throw new UserError('Este chat já está respondendo');
   const exe = ctx.integrations[chat.provider]?.exe || providers.locate(chat.provider);
-  if (!exe) throw new Error('Instale ou configure ' + chat.provider + ' na tela Conexões');
+  if (!exe) throw new UserError('Instale ou configure ' + chat.provider + ' na tela Conexões');
   const cwd = ctx.workdir(chat);
   const task = { run: null, cancelled: false, assistant: null };
   jobs.set(chatId, task);

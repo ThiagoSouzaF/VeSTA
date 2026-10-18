@@ -7,12 +7,12 @@ import { ActivityScreen } from './screens/Activity';
 import { QuestsScreen, QuestDetailScreen } from './screens/Quests';
 import { UsageScreen } from './screens/Usage';
 import { PermissionSheet } from './components/PermissionSheet';
-import { Empty, Mascot, Sheet } from './components/ui';
+import { Empty, Mascot, MascotCtx, Sheet } from './components/ui';
+import { useMascotState } from '../../src/hooks/useMascotState';
 import { useRemote } from './hooks/useRemote';
-import { appMood, pairingCode, parseRoute, pendingPermissions } from './lib/state';
+import { pairingCode, parseRoute, pendingPermissions } from './lib/state';
 import { askNotifications, notificationState } from './lib/notify';
 import { forget, saved } from './lib/client';
-import { MOOD_LABEL } from './lib/mascot';
 
 const TABS = [
   ['chats', 'Conversas', MessageSquare],
@@ -83,7 +83,9 @@ function Signed({ token, onSignOut }) {
   }, [state.settings.theme, state.settings.accent]);
   const pending = useMemo(() => pendingPermissions(state.chats), [state.chats]);
   const waitingIds = useMemo(() => new Set(pending.map((x) => x.chat.id)), [pending]);
-  const mood = appMood({ online, chats: state.chats, running: state.running, pending: pending.length, done });
+  const mascot = useMascotState(state, undefined, { online });
+  const showMascot = state.settings.mascot !== false;
+  const mascotCtx = useMemo(() => ({ enabled: showMascot, ...mascot }), [showMascot, mascot]);
   const openChat = useCallback((id) => go('#/chat/' + id), []);
   const chat = route.name === 'chat' ? state.chats.find((c) => c.id === route.id) : null;
   const quest = route.name === 'quest' ? state.quests.find((q) => q.id === route.id) : null;
@@ -94,114 +96,113 @@ function Signed({ token, onSignOut }) {
   const detail = (route.name === 'chat' && chat) || (route.name === 'quest' && quest);
 
   return (
-    <div className="app">
-      {!online && (
-        <div className="offline" role="status">
-          <WifiOff size={14} /> {loaded ? 'Sem conexão com o computador. Reconectando…' : 'Conectando ao computador…'}
-        </div>
-      )}
-      {detail ? (
-        route.name === 'chat' ? (
-          <ChatView
-            chat={chat}
-            running={state.running.includes(chat.id)}
-            waiting={waitingIds.has(chat.id)}
-            done={done[chat.id]}
-            integrations={integrations}
-            call={call}
-            notify={notify}
-            onBack={() => history.back()}
-            onOpenActivity={() => go('#/atividade')}
-          />
+    <MascotCtx.Provider value={mascotCtx}>
+      <div className="app">
+        {!online && (
+          <div className="offline" role="status">
+            <WifiOff size={14} /> {loaded ? 'Sem conexão com o computador. Reconectando…' : 'Conectando ao computador…'}
+          </div>
+        )}
+        {detail ? (
+          route.name === 'chat' ? (
+            <ChatView
+              chat={chat}
+              running={state.running.includes(chat.id)}
+              waiting={waitingIds.has(chat.id)}
+              done={done[chat.id]}
+              integrations={integrations}
+              call={call}
+              notify={notify}
+              onBack={() => history.back()}
+              onOpenActivity={() => go('#/atividade')}
+            />
+          ) : (
+            <QuestDetailScreen
+              quest={quest}
+              projects={state.projects}
+              onBack={() => go('#/quests')}
+              onAct={questAct}
+              onOpenChat={openChat}
+            />
+          )
         ) : (
-          <QuestDetailScreen
-            quest={quest}
-            projects={state.projects}
-            onBack={() => go('#/quests')}
-            onAct={questAct}
-            onOpenChat={openChat}
-          />
-        )
-      ) : (
-        <>
-          <header className="topbar main">
-            <Mascot mood={mood} size={40} label />
-            <div className="topbar-title">
-              <strong>{title}</strong>
-              <span className="muted">
-                {MOOD_LABEL[mood]}
-                {state.running.length ? ' · ' + state.running.length + ' em andamento' : ''}
-              </span>
-            </div>
-            <button className="icon-btn" onClick={() => setMenu(true)} aria-label="Menu do aparelho">
-              {notificationState() === 'granted' ? <Bell size={20} /> : <BellOff size={20} />}
-            </button>
-          </header>
-          <main className="scroll" data-screen={tab}>
-            {!loaded && online && <p className="muted center">Carregando…</p>}
-            {(route.name === 'chat' || route.name === 'quest') && loaded && (
-              <Empty title="Não encontrado">Este item não existe mais.</Empty>
-            )}
-            {tab === 'chats' && route.name === 'chats' && (
-              <ChatsScreen
-                chats={state.chats}
-                projects={state.projects}
-                running={state.running}
-                waitingIds={waitingIds}
-                done={done}
-                integrations={integrations}
-                onOpen={openChat}
-                onCreate={async (input) => {
-                  const r = await call('createChat', input);
-                  openChat(r.chat.id);
-                }}
-              />
-            )}
-            {route.name === 'atividade' && (
-              <ActivityScreen
-                chats={state.chats}
-                running={state.running}
-                projects={state.projects}
-                call={call}
-                onOpenChat={openChat}
-                notify={notify}
-              />
-            )}
-            {route.name === 'quests' && (
-              <QuestsScreen
-                quests={state.quests}
-                projects={state.projects}
-                onOpen={(id) => go('#/quest/' + id)}
-                onCreate={(input) => call('createQuest', input)}
-              />
-            )}
-            {route.name === 'uso' && <UsageScreen call={call} />}
-          </main>
-          <nav className="tabbar" aria-label="Seções">
-            {TABS.map(([id, label, Icon]) => (
-              <button
-                key={id}
-                className={tab === id ? 'on' : ''}
-                aria-current={tab === id ? 'page' : undefined}
-                onClick={() => go('#/' + id)}
-              >
-                <Icon size={22} />
-                <span>{label}</span>
-                {id === 'chats' && pending.length > 0 && <i className="dot warn" />}
-                {id === 'atividade' && state.running.length > 0 && <i className="dot live" />}
+          <>
+            <header className="topbar main">
+              {showMascot && <Mascot mood={mascot.state} size={42} face label />}
+              <div className="topbar-title">
+                <strong>{title}</strong>
+                <span className="muted">{mascot.phrase}</span>
+              </div>
+              <button className="icon-btn" onClick={() => setMenu(true)} aria-label="Menu do aparelho">
+                {notificationState() === 'granted' ? <Bell size={20} /> : <BellOff size={20} />}
               </button>
-            ))}
-          </nav>
-        </>
-      )}
-      <PermissionSheet items={pending} onAnswer={answer} onOpenChat={openChat} />
-      {toast && (
-        <div className="toast" role="status">
-          {toast}
-        </div>
-      )}
-      {menu && <DeviceMenu onClose={() => setMenu(false)} onSignOut={onSignOut} version={state.appVersion} />}
-    </div>
+            </header>
+            <main className="scroll" data-screen={tab}>
+              {!loaded && online && <p className="muted center">Carregando…</p>}
+              {(route.name === 'chat' || route.name === 'quest') && loaded && (
+                <Empty title="Não encontrado">Este item não existe mais.</Empty>
+              )}
+              {tab === 'chats' && route.name === 'chats' && (
+                <ChatsScreen
+                  chats={state.chats}
+                  projects={state.projects}
+                  running={state.running}
+                  waitingIds={waitingIds}
+                  done={done}
+                  integrations={integrations}
+                  onOpen={openChat}
+                  onCreate={async (input) => {
+                    const r = await call('createChat', input);
+                    openChat(r.chat.id);
+                  }}
+                />
+              )}
+              {route.name === 'atividade' && (
+                <ActivityScreen
+                  chats={state.chats}
+                  running={state.running}
+                  projects={state.projects}
+                  call={call}
+                  onOpenChat={openChat}
+                  notify={notify}
+                />
+              )}
+              {route.name === 'quests' && (
+                <QuestsScreen
+                  quests={state.quests}
+                  projects={state.projects}
+                  onOpen={(id) => go('#/quest/' + id)}
+                  onCreate={(input) => call('createQuest', input)}
+                />
+              )}
+              {route.name === 'uso' && <UsageScreen call={call} />}
+            </main>
+            <nav className="tabbar" aria-label="Seções">
+              {TABS.map(([id, label, Icon]) => (
+                <button
+                  key={id}
+                  className={tab === id ? 'on' : ''}
+                  aria-current={tab === id ? 'page' : undefined}
+                  onClick={() => go('#/' + id)}
+                >
+                  <Icon size={22} />
+                  <span>{label}</span>
+                  {id === 'chats' && pending.length > 0 && <i className="dot warn" />}
+                  {id === 'atividade' && state.running.length > 0 && <i className="dot live" />}
+                </button>
+              ))}
+            </nav>
+          </>
+        )}
+        <PermissionSheet items={pending} onAnswer={answer} onOpenChat={openChat} />
+        {toast && (
+          <div className="toast" role="status">
+            {toast}
+          </div>
+        )}
+        {menu && <DeviceMenu onClose={() => setMenu(false)} onSignOut={onSignOut} version={state.appVersion} />}
+      </div>
+    </MascotCtx.Provider>
   );
 }
 

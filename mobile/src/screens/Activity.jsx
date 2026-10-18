@@ -92,7 +92,7 @@ export function ActivityScreen({ chats, running, projects, call, onOpenChat, not
           </section>
         ))
       ) : (
-        <Empty title="Nada rodando agora">
+        <Empty mascot title="Nada rodando agora">
           Quando uma IA estiver trabalhando, subagentes, comandos e tarefas aparecem aqui ao vivo.
         </Empty>
       )}

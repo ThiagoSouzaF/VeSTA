@@ -20,6 +20,19 @@ const step = async (name, fn) => {
   console.log('ok -', name);
 };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// VESTA_SHOTS=<dir> also saves screenshots (w5-*.png) of the mascot screens; without it this is a no-op.
+const shot = async (page, name) => {
+  if (!process.env.VESTA_SHOTS) return;
+  fs.mkdirSync(process.env.VESTA_SHOTS, { recursive: true });
+  await page.waitForTimeout(500); // lets the crossfade settle
+  await page.screenshot({ path: path.join(process.env.VESTA_SHOTS, 'w5-' + name + '.png') });
+};
+const avatarState = (page) => page.locator('[data-testid=mascot-avatar]').getAttribute('data-state');
+const panelState = (page) => page.locator('[data-testid=mascot-panel]').first().getAttribute('data-state');
+const waitAvatar = (page, state, timeout = 5000) =>
+  page.waitForFunction((v) => document.querySelector('[data-testid=mascot-avatar]')?.dataset.state === v, state, {
+    timeout,
+  });
 const launch = (dataDir) =>
   electron.launch({
     executablePath: require('electron'),
@@ -45,6 +58,33 @@ async function emptyStorePhase() {
       assert.equal(await page.title(), 'VeSTA');
       assert.equal(await page.locator('.welcome h1').count(), 1);
     });
+    await step(
+      'mascot: avatar in the sidebar (idle), calm panel on the empty chat screen, nothing broken',
+      async () => {
+        const avatar = page.locator('[data-testid=mascot-avatar]');
+        await avatar.waitFor();
+        assert.equal(await avatarState(page), 'idle');
+        assert.match(await avatar.getAttribute('title'), /Pronta/);
+        assert.equal(await page.locator('.welcome [data-testid=mascot-panel]').count(), 1);
+        // every panel is preloaded and decodes
+        const broken = await page.evaluate(
+          () =>
+            [...document.querySelectorAll('.mascot-face img')].filter((i) => !i.complete || i.naturalWidth === 0).length
+        );
+        assert.equal(broken, 0);
+        assert.equal(await page.locator('.mascot-face img').count(), 6);
+        await shot(page, 'empty-chat');
+      }
+    );
+    await step('clicking the avatar opens Atividade (empty state with the calm panel)', async () => {
+      await page.locator('[data-testid=mascot-avatar]').click();
+      await page.locator('h1', { hasText: 'O que está acontecendo.' }).waitFor();
+      assert.equal(await page.locator('.activity-mascot[data-testid=mascot-panel]').count(), 1);
+      assert.match(await panelState(page), /idle|sleeping/);
+      await shot(page, 'activity-empty');
+      await nav('Conversas').click();
+      await page.waitForSelector('.welcome h1');
+    });
     await step('userData points at the scratch dir', async () => {
       const boot = await page.evaluate(() => window.vesta.call('bootstrap'));
       assert.equal(path.resolve(boot.dataDir), path.resolve(dataDir));
@@ -63,6 +103,37 @@ async function emptyStorePhase() {
     await step('Preferências page opens', async () => {
       await page.locator('.sidebar-bottom .nav-item', { hasText: 'Preferências' }).click();
       await heading('Seu lar. Seu estilo.').waitFor();
+      await nav('Conversas').click();
+    });
+    await step('Sobre a VeSTA opens from the Preferências with the art and the version', async () => {
+      await page.locator('.sidebar-bottom .nav-item', { hasText: 'Preferências' }).click();
+      await page.locator('[data-action=about]').click();
+      await heading('Conheça a').waitFor();
+      await page.waitForFunction(() => document.querySelector('.about-figure img')?.naturalWidth > 0);
+      assert.equal(await page.locator('.about-meanings li').count(), 4);
+      assert.match(await page.locator('.about-page').innerText(), /Libra[\s\S]*Aquário[\s\S]*Vendada/);
+      assert.match(await page.locator('.about-version').innerText(), /VeSTA v?\d/);
+      await page.locator('.about-sheet img').scrollIntoViewIfNeeded();
+      await page.waitForFunction(() => document.querySelector('.about-sheet img')?.naturalWidth > 0);
+      await page.locator('.about-page').evaluate((el) => (el.scrollTop = 0));
+      await shot(page, 'about');
+      await page.locator('.about-page .page-heading .secondary-button').click();
+      await heading('Seu lar. Seu estilo.').waitFor();
+    });
+    await step('"Mostrar a mascote" hides avatar and panels, persists, and comes back', async () => {
+      const toggle = page.getByRole('switch', { name: 'Mostrar a mascote' });
+      assert.equal(await toggle.getAttribute('aria-checked'), 'true');
+      await toggle.click();
+      await page.waitForFunction(() => !document.querySelector('[data-testid=mascot-avatar]'));
+      assert.equal(await page.locator('[data-testid=mascot-panel]').count(), 0);
+      assert.equal((await page.evaluate(() => window.vesta.call('bootstrap'))).state.settings.mascot, false);
+      await nav('Conversas').click();
+      await page.waitForSelector('.welcome h1');
+      assert.equal(await page.locator('.welcome [data-testid=mascot-panel]').count(), 0, 'orbit shown instead');
+      await page.locator('.sidebar-bottom .nav-item', { hasText: 'Preferências' }).click();
+      await page.getByRole('switch', { name: 'Mostrar a mascote' }).click();
+      await page.locator('[data-testid=mascot-avatar]').waitFor();
+      assert.equal((await page.evaluate(() => window.vesta.call('bootstrap'))).state.settings.mascot, true);
       await nav('Conversas').click();
     });
     await step('creates a chat through the modal', async () => {
@@ -458,6 +529,11 @@ async function activityPhase() {
         0
       );
     });
+    await step('mascot: working, with the running tasks in the avatar tooltip', async () => {
+      await waitAvatar(page, 'working');
+      assert.match(await page.locator('[data-testid=mascot-avatar]').getAttribute('title'), /4 tarefas em andamento/);
+      await shot(page, 'sidebar-working');
+    });
     await step('Atividade lists the live chats with summary counters', async () => {
       await nav('Atividade').click();
       await page.locator('h1', { hasText: 'O que está acontecendo.' }).waitFor();
@@ -466,6 +542,9 @@ async function activityPhase() {
       assert.equal(await chip('subagents').innerText(), '1');
       assert.equal(await chip('commands').innerText(), '1');
       assert.equal(await chip('background').innerText(), '1');
+      assert.equal(await panelState(page), 'working');
+      assert.match(await page.locator('.activity-mascot .manga-bubble').innerText(), /4 tarefas em andamento/);
+      await shot(page, 'activity-working');
     });
     await step('the tree nests turn -> subagent -> step and shows live state and elapsed time', async () => {
       const g = page.locator('.activity-group[data-chat="act-claude"]');
@@ -551,6 +630,32 @@ async function activityPhase() {
       assert.match(await line.innerText(), /1 subagente · 2 comandos · 1 em segundo plano · 2 ferramentas/);
       await line.click();
       assert.ok((await page.locator('.task-summary .task-node').count()) >= 4);
+    });
+    await step('mascot follows the data: thinking, error, success, then back to idle by itself', async () => {
+      await nav('Atividade').click();
+      const base = (await page.evaluate(() => window.vesta.call('bootstrap'))).state;
+      const send = (chats, running = []) =>
+        inject({ type: 'state', state: { ...activityState(base), chats, running } });
+      const mk = (id, title, assistant) => {
+        const c = activityState(base).chats[0];
+        return { ...c, id, title, messages: [c.messages[0], { ...c.messages[1], id: id + '-a', ...assistant }] };
+      };
+      const bubble = () => page.locator('.activity-mascot .manga-bubble').innerText();
+      await send([mk('c1', 'Pergunta lenta', { status: 'running', text: '', activities: [], subagents: [] })], ['c1']);
+      await waitAvatar(page, 'thinking');
+      assert.match(await bubble(), /Pensando no seu pedido/);
+      await shot(page, 'activity-thinking');
+      const failed = { status: 'error', endedAt: Date.now(), activities: [], subagents: [], error: 'falhou' };
+      await send([mk('c2', 'Deploy do site', failed)]);
+      await waitAvatar(page, 'error');
+      assert.match(await bubble(), /Algo deu errado em Deploy do site/);
+      await shot(page, 'activity-error');
+      const ok = { status: 'done', endedAt: Date.now(), text: 'ok', activities: [], subagents: [] };
+      await send([mk('c3', 'Resumo pronto', ok)]);
+      await waitAvatar(page, 'success');
+      assert.match(await bubble(), /Tudo pronto/);
+      // no new event arrives: the timer alone brings her back after the 6 s window
+      await waitAvatar(page, 'idle', 15000);
     });
     await step('a chat that was running when the app closed shows as stopped, not live', async () => {
       const st = activityState((await page.evaluate(() => window.vesta.call('bootstrap'))).state);

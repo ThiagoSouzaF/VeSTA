@@ -35,6 +35,10 @@
 .about strong .wordmark {
   font-size: 13px;
 }
-.brand-mark svg {
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 35%, transparent));
+.brand-mark img {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.brand-icon {
+  display: block;
+  flex-shrink: 0;
 }

@@ -5,6 +5,8 @@
 //   status  'draft' | 'running' | 'paused' | 'done' | 'failed' | 'cancelled'
 // Step { id, title, instructions, provider, model, mode, dependsOn[], kind, status, chatId, result, startedAt, endedAt, attempts }
 //   kind    'work' | 'review'          status  'pending' | 'running' | 'done' | 'error' | 'skipped'
+// Message meant for the person (see errors.cjs; this file also runs in the renderers, so it cannot require it).
+const userError = (message) => Object.assign(new Error(message), { name: 'UserError', userSafe: true });
 const QUEST_STATUS = ['draft', 'running', 'paused', 'done', 'failed', 'cancelled'];
 const STEP_STATUS = ['pending', 'running', 'done', 'error', 'skipped'];
 const MODES = ['edit', 'read', 'ask'];
@@ -382,23 +384,23 @@ function buildSummary(q) {
 
 // ---- Transitions (mutate the quest, no I/O) ----------------------------------------------------------------------
 function start(q, now = Date.now()) {
-  if (q.status !== 'draft') throw new Error('Esta quest já foi iniciada');
+  if (q.status !== 'draft') throw userError('Esta quest já foi iniciada');
   const err = validateSteps(q.steps);
-  if (err) throw new Error(err);
+  if (err) throw userError(err);
   q.status = 'running';
   q.pauseReason = null;
   addLog(q, 'Quest iniciada.', now);
   return q;
 }
 function pause(q, now = Date.now()) {
-  if (q.status !== 'running') throw new Error('A quest não está rodando');
+  if (q.status !== 'running') throw userError('A quest não está rodando');
   q.status = 'paused';
   q.pauseReason = 'user';
   addLog(q, 'Pausada. As etapas em curso terminam; nenhuma nova começa.', now);
   return q;
 }
 function resume(q, now = Date.now()) {
-  if (q.status !== 'paused') throw new Error('A quest não está pausada');
+  if (q.status !== 'paused') throw userError('A quest não está pausada');
   q.status = 'running';
   q.pauseReason = null;
   addLog(q, 'Retomada.', now);
@@ -406,7 +408,7 @@ function resume(q, now = Date.now()) {
 }
 // Returns the chat ids that must be stopped.
 function cancel(q, now = Date.now()) {
-  if (q.status === 'done' || q.status === 'cancelled') throw new Error('A quest já terminou');
+  if (q.status === 'done' || q.status === 'cancelled') throw userError('A quest já terminou');
   const chats = [];
   for (const s of q.steps)
     if (s.status === 'running') {
@@ -460,7 +462,7 @@ function unblock(q, now) {
 }
 function retryStep(q, id, now = Date.now()) {
   const s = step(q, id);
-  if (!s || s.status !== 'error') throw new Error('Só dá para tentar de novo uma etapa com problema');
+  if (!s || s.status !== 'error') throw userError('Só dá para tentar de novo uma etapa com problema');
   s.status = 'pending';
   s.chatId = null;
   s.result = '';
@@ -472,7 +474,7 @@ function retryStep(q, id, now = Date.now()) {
 function skipStep(q, id, now = Date.now()) {
   const s = step(q, id);
   if (!s || !(s.status === 'error' || s.status === 'pending'))
-    throw new Error('Só dá para pular uma etapa pendente ou com problema');
+    throw userError('Só dá para pular uma etapa pendente ou com problema');
   s.status = 'skipped';
   s.endedAt = now;
   addLog(q, 'Pulou: ' + s.title + '.', now);

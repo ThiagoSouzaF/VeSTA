@@ -1,4 +1,5 @@
 const { randomUUID } = require('node:crypto');
+const { UserError } = require('./errors.cjs');
 const Q = require('./quests.cjs');
 const { redact } = require('./memory.cjs');
 
@@ -12,7 +13,7 @@ function createQuestEngine(ctx, deps = {}) {
   const quests = () => store.state.quests;
   const find = (id) => {
     const q = quests().find((x) => x.id === id);
-    if (!q) throw new Error('Quest não encontrada');
+    if (!q) throw new UserError('Quest não encontrada');
     return q;
   };
   const commit = () => {
@@ -153,13 +154,13 @@ function createQuestEngine(ctx, deps = {}) {
     if (input.goal !== undefined) q.goal = String(input.goal).trim().slice(0, 8000);
     if (input.guidelines !== undefined) q.guidelines = String(input.guidelines).trim().slice(0, 8000);
     if (input.projectId !== undefined) {
-      if (input.projectId && !ctx.project(input.projectId)) throw new Error('Projeto inválido');
+      if (input.projectId && !ctx.project(input.projectId)) throw new UserError('Projeto inválido');
       q.projectId = input.projectId || null;
     }
     if (input.maxParallel !== undefined)
       q.maxParallel = Q.normalizeQuest({ maxParallel: input.maxParallel }).maxParallel;
     if (input.steps !== undefined) {
-      if (q.status !== 'draft') throw new Error('O plano só pode ser editado antes de iniciar');
+      if (q.status !== 'draft') throw new UserError('O plano só pode ser editado antes de iniciar');
       const steps = Q.normalizeSteps(input.steps).map((s) => ({
         ...s,
         status: 'pending',
@@ -170,14 +171,14 @@ function createQuestEngine(ctx, deps = {}) {
         attempts: 0,
       }));
       const err = steps.length ? Q.validateSteps(steps) : null;
-      if (err) throw new Error(err);
+      if (err) throw new UserError(err);
       q.steps = steps;
     }
     Q.touch(q, now());
   };
   function plan(q, { provider, model }) {
-    if (!ctx.integrations[provider]?.installed) throw new Error('Esta IA não está instalada. Confira as Conexões.');
-    if (!q.goal) throw new Error('Descreva o objetivo para planejar');
+    if (!ctx.integrations[provider]?.installed) throw new UserError('Esta IA não está instalada. Confira as Conexões.');
+    if (!q.goal) throw new UserError('Descreva o objetivo para planejar');
     const chat = newChat(
       { provider, model: model || '', projectId: q.projectId, mode: 'read', memory: false },
       'Quest: ' + q.title + ' — planejamento',
@@ -207,7 +208,7 @@ function createQuestEngine(ctx, deps = {}) {
     },
     createQuest(input) {
       const title = String(input.title || '').trim();
-      if (!title) throw new Error('Dê um título à quest');
+      if (!title) throw new UserError('Dê um título à quest');
       const q = Q.normalizeQuest({ id: randomUUID(), title, status: 'draft', createdAt: now(), updatedAt: now() });
       apply(q, {
         goal: input.goal ?? '',
@@ -216,7 +217,7 @@ function createQuestEngine(ctx, deps = {}) {
         maxParallel: input.maxParallel,
       });
       if (input.steps?.length) apply(q, { steps: input.steps });
-      if (!q.goal && !q.steps.length) throw new Error('Descreva o objetivo da quest');
+      if (!q.goal && !q.steps.length) throw new UserError('Descreva o objetivo da quest');
       Q.addLog(q, 'Quest criada.', now());
       if (input.plan) plan(q, input.plan);
       quests().unshift(q);
@@ -225,22 +226,22 @@ function createQuestEngine(ctx, deps = {}) {
     },
     updateQuest({ id, ...patch }) {
       const q = find(id);
-      if (q.status === 'done' || q.status === 'cancelled') throw new Error('Esta quest já terminou');
+      if (q.status === 'done' || q.status === 'cancelled') throw new UserError('Esta quest já terminou');
       apply(q, patch);
       commit();
       return q;
     },
     replan({ id, provider, model }) {
       const q = find(id);
-      if (q.status !== 'draft') throw new Error('Só dá para planejar antes de iniciar');
-      if (q.planning?.status === 'running') throw new Error('O planejamento já está em andamento');
+      if (q.status !== 'draft') throw new UserError('Só dá para planejar antes de iniciar');
+      if (q.planning?.status === 'running') throw new UserError('O planejamento já está em andamento');
       plan(q, { provider, model });
       commit();
       return q;
     },
     startQuest({ id, ...patch }) {
       const q = find(id);
-      if (q.planning?.status === 'running') throw new Error('Aguarde o planejamento terminar');
+      if (q.planning?.status === 'running') throw new UserError('Aguarde o planejamento terminar');
       apply(q, patch);
       Q.start(q, now());
       advance(q);
@@ -287,7 +288,7 @@ function createQuestEngine(ctx, deps = {}) {
     deleteQuest({ id }) {
       const q = find(id);
       if (q.status === 'running' || q.planning?.status === 'running')
-        throw new Error('Cancele a quest antes de excluir');
+        throw new UserError('Cancele a quest antes de excluir');
       store.state.quests = quests().filter((x) => x.id !== id);
       commit();
     },

@@ -65,7 +65,7 @@ export function pendingPermissions(chats) {
 }
 
 const RECENT_DONE_MS = 2 * 60 * 1000;
-// idle | thinking | working | success | error | sleeping — mirrors what the AI of a chat is doing.
+// idle | thinking | working | success | error — mirrors what the AI of one chat is doing (row avatars).
 export function chatMood(chat, { running = false, waiting = false, done, now = Date.now() } = {}) {
   const last = chat.messages[chat.messages.length - 1];
   if (running) {
@@ -79,16 +79,7 @@ export function chatMood(chat, { running = false, waiting = false, done, now = D
   if (status === 'done' && now - at < RECENT_DONE_MS) return 'success';
   return 'idle';
 }
-// One mascot for the whole app.
-export function appMood({ online, chats, running, pending, done, now = Date.now() }) {
-  if (!online) return 'sleeping';
-  if (pending > 0) return 'thinking';
-  if (running.length) return 'working';
-  const moods = chats.map((c) => chatMood(c, { done: done[c.id], now }));
-  if (moods.includes('error')) return 'error';
-  if (moods.includes('success')) return 'success';
-  return 'idle';
-}
+// The mascot of the whole app comes from src/lib/mascot.js (same pure function as the desktop).
 
 // Last text of a chat for the list (markdown flattened).
 export function snippet(chat, max = 90) {

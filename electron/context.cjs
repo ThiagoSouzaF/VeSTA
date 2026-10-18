@@ -1,3 +1,4 @@
+const { UserError } = require('./errors.cjs');
 const fs = require('node:fs'),
   path = require('node:path');
 // Shared state of the main process. `store`, `memory` and `win` are filled in once the app is ready.
@@ -33,10 +34,10 @@ function createContext({ app, dialog, shell, bus }) {
     },
     workdir(chat) {
       const dir = chat.projectId ? ctx.project(chat.projectId)?.path : path.join(app.getPath('userData'), 'workspace');
-      if (!dir) throw new Error('O projeto deste chat não existe mais');
+      if (!dir) throw new UserError('O projeto deste chat não existe mais');
       if (!chat.projectId) fs.mkdirSync(dir, { recursive: true });
       if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory())
-        throw new Error('A pasta do projeto não está disponível');
+        throw new UserError('A pasta do projeto não está disponível');
       return dir;
     },
   };

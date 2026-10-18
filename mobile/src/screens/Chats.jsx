@@ -13,7 +13,7 @@ const Row = memo(
     return (
       <li>
         <button className={'chat-row' + (running ? ' live' : '')} data-chat={chat.id} onClick={() => onOpen(chat.id)}>
-          <Mascot mood={mood} size={42} />
+          <Mascot mood={mood} size={42} face />
           <span className="chat-row-main">
             <strong className="truncate">{chat.title}</strong>
             <span className="truncate muted">{snippet(chat) || 'Sem mensagens ainda'}</span>
@@ -68,7 +68,9 @@ export function ChatsScreen({ chats, projects, running, waitingIds, done, integr
           ))}
         </ul>
       ) : (
-        <Empty title="Nenhuma conversa ainda">Crie uma conversa com a sua IA preferida.</Empty>
+        <Empty mascot title="Nenhuma conversa ainda">
+          Crie uma conversa com a sua IA preferida.
+        </Empty>
       )}
       <button className="fab" onClick={() => setCreating(true)} aria-label="Nova conversa">
         <Plus size={26} />

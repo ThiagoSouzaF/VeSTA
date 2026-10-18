@@ -1,25 +1,31 @@
 import { Mark } from './Brand';
+import { MascotPanel, useMascot } from './Mascot';
 import { PROVIDERS } from '../lib/constants';
 import { ProviderIcon } from './ProviderIcon';
 import { ArrowUpRight, Brain, Folder, Check } from 'lucide-react';
 export function Welcome({ provider, setProvider, integrations, setDraft, draftKey, textarea }) {
+  const mascot = useMascot();
   return (
     <div className="welcome">
       <div className="hero-topline">
         <span className="mini-line" />
         <span>UM PONTO DE ENCONTRO PARA SUAS IDEIAS</span>
       </div>
-      <div className="hero-orbit">
-        <div className="orbit-ring one" />
-        <div className="orbit-ring two" />
-        <div className="orbit-ring three" />
-        <div className="orbit-star">
-          <Mark size={58} />
+      {mascot.enabled ? (
+        <MascotPanel calm className="hero" text="Qual será a primeira ideia de hoje?" />
+      ) : (
+        <div className="hero-orbit">
+          <div className="orbit-ring one" />
+          <div className="orbit-ring two" />
+          <div className="orbit-ring three" />
+          <div className="orbit-star">
+            <Mark size={58} />
+          </div>
+          <span className="orbit-dot d1" />
+          <span className="orbit-dot d2" />
+          <span className="orbit-dot d3" />
         </div>
-        <span className="orbit-dot d1" />
-        <span className="orbit-dot d2" />
-        <span className="orbit-dot d3" />
-      </div>
+      )}
       <h1>
         Muitas inteligências.
         <br />

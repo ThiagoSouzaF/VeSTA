@@ -901,3 +901,73 @@ fieldset.plain {
   flex-wrap: wrap;
   margin-top: 6px;
 }
+
+/* mascot: round face avatar and the calm panel of empty screens */
+.mascot.face {
+  position: relative;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #0b0b0d;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent, #b3a0f5) 55%, transparent);
+  --fy: 0.17;
+}
+.mascot.face.sleeping {
+  --fy: 0.3;
+}
+.mascot.face img {
+  position: absolute;
+  width: 250%;
+  height: auto;
+  max-width: none;
+  left: -75%;
+  top: calc(50% - var(--fy) * 282%);
+  border-radius: 0;
+}
+.mascot.working.face,
+.mascot.thinking.face {
+  animation: mascot-pulse 2s ease-in-out infinite;
+}
+.mascot.error.face {
+  animation: mascot-shake 0.5s ease 1;
+}
+.empty-mascot {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.empty-mascot .mascot {
+  background: #fff;
+  border: 3px solid #0b0b0d;
+  border-radius: 3px;
+  box-shadow: 4px 5px 0 #0b0b0d;
+  transform: rotate(-1.4deg);
+}
+.empty-mascot .mascot img {
+  border-radius: 0;
+  object-fit: cover;
+  object-position: 50% 0;
+  width: 92px;
+  height: 104px;
+}
+@keyframes mascot-pulse {
+  50% {
+    transform: scale(1.07);
+  }
+}
+@keyframes mascot-shake {
+  20% {
+    translate: -3px 0;
+  }
+  50% {
+    translate: 3px 0;
+  }
+  80% {
+    translate: -2px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mascot {
+    animation: none !important;
+  }
+}

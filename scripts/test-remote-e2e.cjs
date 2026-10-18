@@ -297,6 +297,14 @@ async function main() {
       assert.equal((await api(token, 'send', { chatId: 'chat-short' })).status, 400, 'invalid args');
     });
 
+    await step('useful method errors reach the phone (UserError); unexpected ones stay generic', async () => {
+      const missing = await api(token, 'send', { chatId: 'nao-existe', text: 'oi' });
+      assert.equal(missing.status, 422);
+      assert.equal(missing.body.error, 'Chat não encontrado');
+      const busyChat = await api(token, 'stop', { chatId: 'nao-existe' });
+      assert.ok(busyChat.status < 500, 'stop of an unknown chat is not a server error: ' + busyChat.status);
+    });
+
     // ---- live stream over the WebSocket + one real message ---------------------------------------------------------
     const ws = new WebSocket('ws://127.0.0.1:' + port + '/ws');
     const frames = [];
@@ -407,6 +415,19 @@ async function main() {
       assert.ok(await page.locator('.chat-row', { hasText: 'Refatorar o módulo de pagamentos' }).isVisible());
       assert.ok(await page.locator('.chat-row', { hasText: 'Conversa longa' }).isVisible());
       await shot('mobile-chats');
+      // the header avatar comes from the same pure function as the desktop (src/lib/mascot.js)
+      const avatar = page.locator('.topbar.main .mascot.face');
+      await avatar.waitFor();
+      assert.match(await avatar.getAttribute('class'), /\b(idle|thinking|working|success|error|sleeping)\b/);
+      assert.ok(await avatar.locator('img').evaluate((i) => i.complete && i.naturalWidth > 0), 'panel decoded');
+      assert.ok(
+        (await page.locator('.topbar.main .topbar-title span').innerText()).length > 3,
+        'phrase under the title'
+      );
+      await page.screenshot({
+        path: path.join(shots, 'w5-mobile-header.png'),
+        clip: { x: 0, y: 0, width: 390, height: 140 },
+      });
       await page.locator('.chat-row', { hasText: 'Refatorar o módulo de pagamentos' }).click();
       await page.waitForSelector('.chat-view .msg.assistant');
       assert.ok(await page.getByText('todos os testes passam').isVisible());

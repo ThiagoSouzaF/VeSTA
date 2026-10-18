@@ -3,6 +3,7 @@ const fs = require('node:fs'),
   os = require('node:os');
 const { randomUUID } = require('node:crypto');
 const providers = require('./providers.cjs');
+const { UserError } = require('./errors.cjs');
 const usage = require('./usage.cjs');
 const { redact } = require('./memory.cjs');
 const { discover } = require('./integrations.cjs');
@@ -56,7 +57,7 @@ function createMethods(ctx) {
     }),
     refreshConnections: () => discover(ctx),
     createChat: (input) => {
-      if (input.projectId && !project(input.projectId)) throw new Error('Projeto inválido');
+      if (input.projectId && !project(input.projectId)) throw new UserError('Projeto inválido');
       ctx.store.addChat(input);
       sync();
       return state();
@@ -68,15 +69,15 @@ function createMethods(ctx) {
       return state();
     },
     deleteChat: ({ id }) => {
-      if (jobs.has(id)) throw new Error('Interrompa a resposta antes de excluir');
+      if (jobs.has(id)) throw new UserError('Interrompa a resposta antes de excluir');
       ctx.store.state.chats = ctx.store.state.chats.filter((c) => c.id !== id);
       ctx.store.save();
       sync();
       return state();
     },
     switchProvider: ({ id, provider }) => {
-      if (jobs.has(id)) throw new Error('Aguarde a resposta terminar antes de trocar a IA');
-      if (!ctx.integrations[provider]?.installed) throw new Error('IA indisponivel. Confira as Conexoes.');
+      if (jobs.has(id)) throw new UserError('Aguarde a resposta terminar antes de trocar a IA');
+      if (!ctx.integrations[provider]?.installed) throw new UserError('IA indisponível. Confira as Conexões.');
       const c = ctx.store.chat(id);
       if (require('./conversations.cjs').switchProvider(c, provider)) {
         ctx.store.save();
@@ -85,11 +86,11 @@ function createMethods(ctx) {
       return state();
     },
     updateChat: ({ id, model, mode }) => {
-      if (jobs.has(id)) throw new Error('Aguarde a resposta terminar para trocar o modelo');
+      if (jobs.has(id)) throw new UserError('Aguarde a resposta terminar para trocar o modelo');
       const c = ctx.store.chat(id);
       if (model !== undefined) c.model = bounded(model, 120).trim();
       if (c.provider === 'drael' && mode === 'ask')
-        throw new Error('Use Consultar, Acesso completo ou o terminal nativo do Drael');
+        throw new UserError('Use Consultar, Acesso completo ou o terminal nativo do Drael');
       if (mode !== undefined) c.mode = providers.MODES.includes(mode) ? mode : 'edit';
       ctx.store.save();
       sync();
@@ -124,12 +125,12 @@ function createMethods(ctx) {
     stopTask: ({ chatId, taskId }) => {
       const run = jobs.get(chatId)?.run;
       if (!run?.stopTask || !run.stopTask(String(taskId || '')))
-        throw new Error('Esta tarefa não pode mais ser interrompida');
+        throw new UserError('Esta tarefa não pode mais ser interrompida');
       return true;
     },
     answerPermission: ({ id, decision }) => {
-      if (!['once', 'always', 'deny'].includes(decision)) throw new Error('Resposta inválida');
-      if (!permissions.answer(id, decision)) throw new Error('Este pedido já foi respondido ou expirou');
+      if (!['once', 'always', 'deny'].includes(decision)) throw new UserError('Resposta inválida');
+      if (!permissions.answer(id, decision)) throw new UserError('Este pedido já foi respondido ou expirou');
       return true;
     },
     addProject: async () => {
@@ -155,7 +156,7 @@ function createMethods(ctx) {
       if (['ember', 'violet', 'mint', 'amber', 'rose'].includes(input.accent)) s.accent = input.accent;
       if (['none', 'ember', 'rain', 'stream'].includes(input.background)) s.background = input.background;
       if (Number.isFinite(input.fontScale)) s.fontScale = clampFontScale(input.fontScale);
-      for (const key of ['memoryEnabled', 'capture', 'memoryTools'])
+      for (const key of ['memoryEnabled', 'capture', 'memoryTools', 'mascot'])
         if (typeof input[key] === 'boolean') s[key] = input[key];
       ctx.store.save();
       sync();
@@ -191,8 +192,8 @@ function createMethods(ctx) {
         createdAt: existing?.createdAt || Date.now(),
         updatedAt: Date.now(),
       };
-      if (!note.title || !note.body.trim()) throw new Error('Preencha título e conteúdo');
-      if (note.projectId && !project(note.projectId)) throw new Error('Projeto inválido');
+      if (!note.title || !note.body.trim()) throw new UserError('Preencha título e conteúdo');
+      if (note.projectId && !project(note.projectId)) throw new UserError('Projeto inválido');
       await ctx.memory.write(note);
       ctx.store.state.memories = ctx.store.state.memories.filter((n) => n.id !== id);
       ctx.store.state.memories.unshift(note);
@@ -232,18 +233,18 @@ function createMethods(ctx) {
     },
     openProject: ({ id }) => {
       const p = project(id);
-      if (!p) throw new Error('Projeto inválido');
+      if (!p) throw new UserError('Projeto inválido');
       return ctx.shell.openPath(p.path);
     },
     openInstructions: async ({ projectId, file }) => {
       const allowed = await inspectProject(ctx, projectId);
-      if (!allowed.some((x) => x.path === file)) throw new Error('Arquivo não autorizado');
+      if (!allowed.some((x) => x.path === file)) throw new UserError('Arquivo não autorizado');
       return ctx.shell.openPath(file);
     },
     openData: () => ctx.shell.openPath(ctx.app.getPath('userData')),
     openLink: ({ url }) => {
       const target = new URL(bounded(url, 3000));
-      if (!['https:', 'http:'].includes(target.protocol)) throw new Error('Link não suportado');
+      if (!['https:', 'http:'].includes(target.protocol)) throw new UserError('Link não suportado');
       return ctx.shell.openExternal(target.href);
     },
     openTerminal: (args) => openTerminal(ctx, args),

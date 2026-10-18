@@ -25,6 +25,13 @@ async function tile(sharp, art, size) {
   const sharp = require('sharp'),
     ico = (await import('png-to-ico')).default;
   fs.writeFileSync(path.join(assets, 'vesta.png'), await tile(sharp, 'full', 512));
+  // Small copy for the in-app brand mark (the 512px PNG is only for the window and the installer).
+  fs.writeFileSync(
+    path.join(assets, 'mascot', 'mark-128.webp'),
+    await sharp(await tile(sharp, 'full', 128))
+      .webp({ quality: 88 })
+      .toBuffer()
+  );
   const sizes = [16, 24, 32, 48, 64, 128, 256];
   const images = await Promise.all(sizes.map((size) => tile(sharp, size <= 32 ? 'face' : 'full', size)));
   fs.writeFileSync(path.join(assets, 'vesta.ico'), await ico(images));

@@ -41,7 +41,9 @@ export function QuestsScreen({ quests, projects, onOpen, onCreate }) {
           })}
         </ul>
       ) : (
-        <Empty title="Nenhuma quest">Uma quest reúne várias IAs trabalhando juntas em um objetivo.</Empty>
+        <Empty mascot title="Nenhuma quest">
+          Uma quest reúne várias IAs trabalhando juntas em um objetivo.
+        </Empty>
       )}
       <button className="fab" onClick={() => setCreating(true)} aria-label="Nova quest">
         <Plus size={26} />

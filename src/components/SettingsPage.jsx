@@ -1,4 +1,4 @@
-import { Brain, Folder, Check, RefreshCw, Palette, HardDrive, Minus, Plus } from 'lucide-react';
+import { Brain, Folder, Check, RefreshCw, Palette, HardDrive, Minus, Plus, Info } from 'lucide-react';
 import { THEME_NAMES } from '../lib/constants';
 import { BACKDROPS } from './Backdrop';
 import { SettingToggle } from './SettingToggle';
@@ -6,7 +6,7 @@ import { RemoteSettings } from './RemoteSettings';
 import { action } from '../lib/api';
 import { Mark, Wordmark } from './Brand';
 import { SCALE_MIN, SCALE_MAX, scalePercent } from '../lib/zoom';
-export function SettingsPage({ data, setting, call, notify, fontScale, stepFontScale }) {
+export function SettingsPage({ data, setting, call, notify, fontScale, stepFontScale, onAbout }) {
   return (
     <div className="content-page settings-page">
       <div className="page-heading">
@@ -131,6 +131,12 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
             ))}
           </div>
         </div>
+        <SettingToggle
+          title="Mostrar a mascote"
+          description="Vesta aparece na barra lateral, na tela Atividade e nas telas vazias, e muda de pose conforme o que as IAs estão fazendo."
+          checked={data.settings.mascot !== false}
+          onChange={() => setting({ mascot: data.settings.mascot === false })}
+        />
       </section>
       <section className="settings-section">
         <div className="settings-label">
@@ -203,6 +209,10 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
         </strong>
         <span>{data.appVersion || ''} beta</span>
         <p>O fogo no centro de tudo: agentes, projetos e memória.</p>
+        <button className="secondary-button" data-action="about" onClick={onAbout}>
+          <Info size={15} />
+          Sobre a VeSTA
+        </button>
       </div>
     </div>
   );

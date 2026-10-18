@@ -110,7 +110,7 @@ export function ChatView({ chat, running, waiting, done, integrations, call, onB
         <button className="icon-btn" onClick={onBack} aria-label="Voltar">
           <ArrowLeft size={22} />
         </button>
-        <Mascot mood={mood} size={34} />
+        <Mascot mood={mood} size={34} face />
         <div className="topbar-title">
           <strong className="truncate">{chat.title}</strong>
           <span className="truncate muted">

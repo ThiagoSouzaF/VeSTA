@@ -111,7 +111,7 @@ test('pendingPermissions lists newest first across chats', async () => {
 });
 
 test('mascot moods follow what the AIs are doing', async () => {
-  const { chatMood, appMood } = await lib();
+  const { chatMood } = await lib();
   const now = 10_000_000;
   const thinking = chat('t', [msg('u', 'user'), msg('a', 'assistant', { text: '', status: 'running' })]);
   const working = chat('w', [msg('u', 'user'), msg('a', 'assistant', { text: 'x', status: 'running' })]);
@@ -127,13 +127,6 @@ test('mascot moods follow what the AIs are doing', async () => {
   const failed = chat('e', [msg('a', 'assistant', { status: 'error', createdAt: now - 1000 })]);
   assert.equal(chatMood(failed, { now }), 'error');
   assert.equal(chatMood(chat('x'), { now }), 'idle');
-  const base = { online: true, chats: [done], running: [], pending: 0, done: {}, now };
-  assert.equal(appMood({ ...base, online: false }), 'sleeping');
-  assert.equal(appMood({ ...base, pending: 1 }), 'thinking');
-  assert.equal(appMood({ ...base, running: ['w'] }), 'working');
-  assert.equal(appMood({ ...base, chats: [failed, done] }), 'error');
-  assert.equal(appMood(base), 'success');
-  assert.equal(appMood({ ...base, chats: [] }), 'idle');
 });
 
 test('router and pairing fragment parsing', async () => {
