@@ -1,13 +1,7 @@
 const { test } = require('node:test'),
   assert = require('node:assert/strict');
-const fs = require('node:fs'),
-  path = require('node:path');
-// The renderer module is ESM inside a CommonJS package; load its source through a data: URL.
-const load = async () =>
-  import(
-    'data:text/javascript;base64,' +
-      Buffer.from(fs.readFileSync(path.join(__dirname, '../src/lib/messages.js'))).toString('base64')
-  );
+// The renderer module is ESM inside a CommonJS package (it imports the shared electron/tasks.cjs).
+const load = () => import('../src/lib/messages.js');
 
 test('text events append to the message text', async () => {
   const { patchMessage } = await load();

@@ -33,6 +33,7 @@ export function ChatPage({
   currentProjectId,
   setPage,
   instructions,
+  focus,
 }) {
   return (
     <div className="chat-layout">
@@ -46,7 +47,7 @@ export function ChatPage({
               call={call}
               running={running}
             />
-            <MessageList chat={chat} call={call} notify={notify} setModal={setModal} />
+            <MessageList chat={chat} call={call} notify={notify} setModal={setModal} running={running} focus={focus} />
           </>
         ) : (
           <Welcome

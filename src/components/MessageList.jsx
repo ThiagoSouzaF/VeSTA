@@ -3,7 +3,8 @@ import { ProviderIcon } from './ProviderIcon';
 import { PROVIDERS } from '../lib/constants';
 import { Message } from './Message';
 import { useAutoScroll } from '../hooks/useAutoScroll';
-export function MessageList({ chat, call, notify, setModal }) {
+import { useCallback, useEffect } from 'react';
+export function MessageList({ chat, call, notify, setModal, running, focus }) {
   const last = chat.messages.at(-1);
   const { scroller, content, atBottom, unread, onScroll, onWheel, goEnd } = useAutoScroll({
     chatId: chat.id,
@@ -11,6 +12,18 @@ export function MessageList({ chat, call, notify, setModal }) {
     activity: (last?.activities?.length || 0) + (last?.subagents?.length || 0),
     sent: chat.messages.filter((m) => m.role === 'user').length,
   });
+  const onStopTask = useCallback(
+    (t) => call('stopTask', { chatId: t.chatId, taskId: t.taskId }).catch(() => {}),
+    [call]
+  );
+  // Coming from the Activity screen: bring the message the task belongs to into view.
+  useEffect(() => {
+    if (!focus || focus.chatId !== chat.id) return;
+    const t = setTimeout(() => {
+      document.getElementById('msg-' + focus.messageId)?.scrollIntoView({ block: 'center' });
+    }, 120);
+    return () => clearTimeout(t);
+  }, [focus, chat.id]);
   return (
     <div className="messages-wrap">
       <div className="messages" ref={scroller} onScroll={onScroll} onWheel={onWheel}>
@@ -26,6 +39,9 @@ export function MessageList({ chat, call, notify, setModal }) {
             <Message
               key={m.id}
               m={m}
+              chat={chat}
+              live={running && m === last}
+              onStopTask={onStopTask}
               provider={chat.provider}
               title={chat.title}
               projectId={chat.projectId}

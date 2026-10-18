@@ -26,7 +26,9 @@ const { app } = require('electron');
 const { methods, getState } = require('../electron/main.cjs');
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const marker = 'vesta-bg-' + Date.now().toString(36);
-// Processes whose command line carries the marker (the long-running background command).
+// A duration unique to this run: the marker only reaches the bash wrapper, this also reaches the sleep itself.
+const seconds = 600 + Math.floor(Math.random() * 300);
+// Processes left running by the background command (its wrapper and the sleep).
 const survivors = () => {
   try {
     return execFileSync(
@@ -34,9 +36,11 @@ const survivors = () => {
       [
         '-NoProfile',
         '-Command',
-        "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match '" +
+        "Get-CimInstance Win32_Process | Where-Object { $_.Name -ne 'powershell.exe' -and ($_.CommandLine -match '" +
           marker +
-          "' -and $_.Name -ne 'powershell.exe' } | ForEach-Object { $_.ProcessId }",
+          "' -or ($_.Name -eq 'sleep.exe' -and $_.CommandLine -match ' " +
+          seconds +
+          "$')) } | ForEach-Object { $_.ProcessId }",
       ],
       { encoding: 'utf8' }
     )
@@ -45,6 +49,11 @@ const survivors = () => {
   } catch {
     return [];
   }
+};
+const end = (pid) => {
+  try {
+    execFileSync('taskkill.exe', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore' });
+  } catch {}
 };
 app.whenReady().then(async () => {
   try {
@@ -55,7 +64,9 @@ app.whenReady().then(async () => {
     await methods.send({
       chatId: chat.id,
       text:
-        'Tarefa de teste. Use a ferramenta Bash com run_in_background=true para rodar exatamente: sleep 600 # ' +
+        'Tarefa de teste. Use a ferramenta Bash com run_in_background=true para rodar exatamente: sleep ' +
+        seconds +
+        ' # ' +
         marker +
         ' . Não espere ele terminar e não verifique a saída. Responda só INICIADO.',
     });
@@ -77,18 +88,12 @@ app.whenReady().then(async () => {
     assert.ok(!getState().running.includes(chat.id), 'o chat continuou travado');
     assert.equal(msg.status, 'done', msg.error);
     assert.ok(alive.length > 0, 'o comando em segundo plano foi encerrado junto');
-    for (const pid of alive)
-      try {
-        process.kill(Number(pid));
-      } catch {}
+    for (const pid of alive) end(pid);
     console.log('PASS: o turno termina e o comando em segundo plano continua rodando');
   } catch (e) {
     console.error('FAIL:', e.message);
     process.exitCode = 1;
-    for (const pid of survivors())
-      try {
-        process.kill(Number(pid));
-      } catch {}
+    for (const pid of survivors()) end(pid);
   } finally {
     app.quit();
   }

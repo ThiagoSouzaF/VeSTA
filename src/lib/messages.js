@@ -1,3 +1,5 @@
+import tasks from '../../electron/tasks.cjs';
+
 export function patchMessage(m, e) {
   if (e.type === 'text') return { ...m, text: m.text + e.text };
   if (e.type === 'permission') {
@@ -16,9 +18,19 @@ export function patchMessage(m, e) {
     return { ...m, activities: list };
   }
   const list = [...(m.subagents || [])],
-    s = e.subagent,
-    i = list.findIndex((x) => x.toolUseId === s.toolUseId);
-  if (i >= 0) list[i] = { ...list[i], ...s };
-  else list.push(s);
+    { step, ...fields } = e.subagent,
+    i = list.findIndex((x) => x.toolUseId === fields.toolUseId);
+  let rec = i >= 0 ? { ...list[i], ...fields } : fields;
+  // A subagent event carries only the step that changed; the steps already shown are kept.
+  if (step) {
+    const steps = [...(rec.steps || [])],
+      j = steps.findIndex((x) => x.id === step.id);
+    if (j >= 0) steps[j] = { ...steps[j], ...step };
+    else steps.push(step);
+    const dropped = tasks.capList(steps, tasks.MAX_STEPS);
+    rec = { ...rec, steps, ...(dropped ? { stepsDropped: (rec.stepsDropped || 0) + dropped } : {}) };
+  }
+  if (i >= 0) list[i] = rec;
+  else list.push(rec);
   return { ...m, subagents: list };
 }

@@ -3,15 +3,26 @@ import { ProviderIcon } from './ProviderIcon';
 import { PROVIDERS } from '../lib/constants';
 import { Brain, Copy, AlertCircle, Pin } from 'lucide-react';
 import { Permissions } from './Permissions';
-import { Activities } from './Activities';
+import { TaskSummary } from './TaskSummary';
 import { Subagents } from './Subagents';
 import { Markdown } from './Markdown';
 import { IconButton } from './IconButton';
 import { action } from '../lib/api';
 // Props are stable between frames (primitives + stable callbacks), so only the message that changed re-renders.
-export const Message = memo(function Message({ m, provider, title, projectId, call, notify, setModal }) {
+export const Message = memo(function Message({
+  m,
+  chat,
+  live,
+  provider,
+  title,
+  projectId,
+  call,
+  notify,
+  setModal,
+  onStopTask,
+}) {
   return (
-    <article className={'message ' + m.role}>
+    <article className={'message ' + m.role} id={'msg-' + m.id} data-message-id={m.id}>
       <div className="message-avatar">
         {m.role === 'user' ? <span>V</span> : <ProviderIcon id={m.provider || provider} small />}
       </div>
@@ -35,7 +46,7 @@ export const Message = memo(function Message({ m, provider, title, projectId, ca
           providerName={PROVIDERS[m.provider || provider].name}
           onAnswer={(id, decision) => call('answerPermission', { id, decision })}
         />
-        <Activities activities={m.activities} />
+        {m.role === 'assistant' && <TaskSummary chat={chat} m={m} live={live} onStopTask={onStopTask} />}
         <Subagents subagents={m.subagents} />
         {m.text && <Markdown text={m.text} />}
         {m.status === 'running' && !m.text && (

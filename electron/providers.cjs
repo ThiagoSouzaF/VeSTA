@@ -4,6 +4,7 @@ const { plainCommand } = require('./permissions.cjs');
 const { codexRateLimits } = require('./usage.cjs');
 const path = require('node:path');
 const os = require('node:os');
+const { capList, taskStatus, MAX_STEPS, MAX_ACTIVITIES } = require('./tasks.cjs');
 function locate(name) {
   if (name === 'drael') return require('./drael.cjs').locate();
   const home = os.homedir(),
@@ -191,6 +192,7 @@ function command(chat, exe, endpoint) {
     resume: chat.sessionId || null,
   };
 }
+const detailOf = (i) => i.command || i.file_path || i.path || i.pattern || i.url || i.query || i.description || '';
 const clip = (v, n) => String(v == null ? '' : v).slice(0, n);
 const num = (v) => {
   const n = Number(v);
@@ -201,6 +203,7 @@ function toolKind(name) {
   const n = String(name || '').toLowerCase();
   if (n.includes(MEMORY_SERVER) || n.includes('vesta_memory')) return 'memory';
   if (n.startsWith('mcp__') || n.startsWith('mcp_')) return 'mcp';
+  if (n === 'monitor') return 'monitor';
   if (/^(bash|shell|powershell|command|exec|run$)/.test(n)) return 'command';
   if (/^(read|write|edit|multiedit|notebookedit|patch|apply_patch|file)/.test(n)) return 'file';
   if (/^(grep|glob|list|ls|find|search|toolsearch)/.test(n)) return 'search';
@@ -288,6 +291,7 @@ function codexItem(it, done) {
       detail: plainCommand(it.command),
       kind: 'command',
       status,
+      ...(done && it.aggregatedOutput ? { result: clip(it.aggregatedOutput, 600) } : {}),
     };
   if (it.type === 'fileChange')
     return {
@@ -326,6 +330,8 @@ function parser(provider, emit) {
   const activity = (label, detail, extra = {}) =>
     emit({ type: 'activity', label, detail: clip(detail, 3000), kind: 'tool', ...extra });
   const subagent = (o) => emit({ type: 'subagent', provider, ...o });
+  // Partial update of an activity already announced (merged by id): status, result, background flags.
+  const activityUpdate = (id, o) => emit({ type: 'activity', id, ...o });
   const cost = (o) =>
     emit({
       type: 'cost',
@@ -360,6 +366,71 @@ function parser(provider, emit) {
   // Claude: tool_use id -> the subagent card it runs under, so a permission request can say who is asking.
   const toolOwner = new Map(),
     background = new Set();
+  // Claude activities: tool_use ids announced as activities; tool_use ids that run as background tasks; task_id -> tool_use id.
+  const toolIds = new Set(),
+    bgTools = new Set(),
+    taskTool = new Map();
+  const taskStats = (u) =>
+    u ? { toolUses: num(u.tool_uses), tokens: num(u.total_tokens), durationMs: num(u.duration_ms) } : undefined;
+  // Claude `system` task events: subagents and background commands/monitors share task_id <-> tool_use_id.
+  const claudeTask = (event) => {
+    const id = event.tool_use_id || taskTool.get(event.task_id);
+    if (event.subtype === 'task_started') {
+      if (!id) return;
+      taskTool.set(event.task_id, id);
+      if (event.task_type === 'local_agent' || subs.has(id)) {
+        if (!subs.has(id))
+          startSub(
+            id,
+            { description: event.description, prompt: event.prompt, subagent_type: event.subagent_type },
+            'running'
+          );
+        if (event.is_backgrounded) background.add(id);
+        subagent({
+          toolUseId: id,
+          taskId: event.task_id,
+          ...(event.is_backgrounded ? { background: true } : {}),
+        });
+      } else {
+        bgTools.add(id);
+        if (!toolIds.has(id)) {
+          toolIds.add(id);
+          activity('Segundo plano', event.description || '', { kind: 'command', id, status: 'running' });
+        }
+        activityUpdate(id, {
+          background: true,
+          taskId: event.task_id,
+          status: 'running',
+          ...(event.description ? { title: clip(event.description, 160) } : {}),
+        });
+      }
+      return;
+    }
+    if (!id) return;
+    const sub = subs.has(id);
+    if (event.subtype === 'task_progress' && sub) {
+      subagent({
+        toolUseId: id,
+        stats: { ...taskStats(event.usage), ...(event.last_tool_name ? { lastTool: event.last_tool_name } : {}) },
+      });
+    }
+    if (event.subtype === 'task_updated') {
+      const status = taskStatus(event.patch?.status);
+      if (status === 'running') return;
+      const endedAt = num(event.patch?.end_time) || undefined;
+      if (sub) subagent({ toolUseId: id, status, endedAt });
+      else if (toolIds.has(id)) activityUpdate(id, { status, endedAt });
+    }
+    if (event.subtype === 'task_notification') {
+      const st = taskStatus(event.status),
+        status = st === 'running' ? 'error' : st,
+        summary = clip(event.summary || '', 4000) || undefined;
+      if (sub) {
+        background.delete(id);
+        subagent({ toolUseId: id, status, result: summary, stats: taskStats(event.usage) });
+      } else if (toolIds.has(id)) activityUpdate(id, { status, ...(summary ? { result: summary } : {}) });
+    }
+  };
   return {
     get text() {
       return text;
@@ -394,13 +465,14 @@ function parser(provider, emit) {
               kind: toolKind(event.name),
               status: 'running',
               toolUseId: id,
+              id,
             });
         }
         if (event.type === 'result') {
           const id = draelTools.get(event.name)?.shift() || 'drael-' + ++draelToolId,
             status = event.error ? 'error' : 'done';
           if (event.name === 'task') subagent({ toolUseId: id, status, result: clip(event.text, 12000) });
-          else activity(event.name, event.text, { kind: toolKind(event.name), status, toolUseId: id });
+          else activityUpdate(id, { status, kind: toolKind(event.name), result: clip(event.text, 600) });
         }
         if (event.type === 'end') {
           cost({
@@ -449,7 +521,14 @@ function parser(provider, emit) {
           if (s)
             subagent({
               toolUseId: owner,
-              step: { id: it.id, kind: s.kind, label: s.label, detail: clip(s.detail, 300), status: s.status },
+              step: {
+                id: it.id,
+                kind: s.kind,
+                label: s.label,
+                detail: clip(s.detail, 300),
+                status: s.status,
+                ...(s.result ? { result: s.result } : {}),
+              },
             });
           return;
         }
@@ -480,7 +559,7 @@ function parser(provider, emit) {
               startSub(key, { subagent_type: 'agent', description: threadLabel.get(key) }, 'running');
             if (it.kind === 'completed' && subs.has(key)) subagent({ toolUseId: key, status: 'done' });
             if (['failed', 'errored', 'interrupted'].includes(it.kind) && subs.has(key))
-              subagent({ toolUseId: key, status: 'error' });
+              subagent({ toolUseId: key, status: taskStatus(it.kind) });
           } else if (it.type === 'collabAgentToolCall') {
             if (it.tool === 'spawnAgent') {
               for (const t of it.receiverThreadIds || []) threadOwner.set(t, it.id);
@@ -501,13 +580,19 @@ function parser(provider, emit) {
               if (owner && ['completed', 'errored', 'shutdown', 'interrupted', 'notFound'].includes(st?.status))
                 subagent({
                   toolUseId: owner,
-                  status: st.status === 'completed' || st.status === 'shutdown' ? 'done' : 'error',
+                  status: taskStatus(st.status),
                   ...(st.message ? { result: clip(st.message, 4000) } : {}),
                 });
             }
           } else {
             const s = codexItem(it, done);
-            if (s) activity(s.label, s.detail, { kind: s.kind, id: it.id, status: s.status });
+            if (s)
+              activity(s.label, s.detail, {
+                kind: s.kind,
+                id: it.id,
+                status: s.status,
+                ...(s.result ? { result: s.result } : {}),
+              });
           }
         }
         if (m === 'thread/tokenUsage/updated' && tid === mainThread) {
@@ -539,10 +624,8 @@ function parser(provider, emit) {
                   id: block.id,
                   kind: toolKind(block.name),
                   label: toolLabel(block.name),
-                  detail: clip(
-                    i.command || i.file_path || i.path || i.pattern || i.url || i.query || i.description || '',
-                    300
-                  ),
+                  detail: clip(detailOf(i), 300),
+                  ...(i.description && i.description !== detailOf(i) ? { title: clip(i.description, 160) } : {}),
                   status: 'running',
                 });
               }
@@ -558,7 +641,11 @@ function parser(provider, emit) {
           if (event.type === 'user' && Array.isArray(event.message?.content))
             for (const block of event.message.content)
               if (block?.type === 'tool_result')
-                step({ id: block.tool_use_id, status: block.is_error ? 'error' : 'done' });
+                step({
+                  id: block.tool_use_id,
+                  status: block.is_error ? 'error' : 'done',
+                  result: clip(textOf(block.content), 400),
+                });
           return;
         }
         if (
@@ -577,17 +664,37 @@ function parser(provider, emit) {
               if (block.name === 'Agent' || block.name === 'Task') {
                 if (!subs.has(block.id)) startSub(block.id, block.input, 'running');
               } else {
-                const i = block.input || {};
-                activity(
-                  toolLabel(block.name),
-                  i.command || i.file_path || i.path || i.pattern || i.url || i.query || i.description || '',
-                  { kind: toolKind(block.name), id: block.id, status: 'running' }
-                );
+                const i = block.input || {},
+                  detail = detailOf(i);
+                toolIds.add(block.id);
+                if (i.run_in_background || block.name === 'Monitor') bgTools.add(block.id);
+                activity(toolLabel(block.name), detail, {
+                  kind: toolKind(block.name),
+                  id: block.id,
+                  status: 'running',
+                  ...(i.description && i.description !== detail ? { title: clip(i.description, 160) } : {}),
+                  ...(i.run_in_background ? { background: true } : {}),
+                });
               }
             }
           }
         if (event.type === 'user' && Array.isArray(event.message?.content))
           for (const block of event.message.content) {
+            if (block?.type === 'tool_result' && toolIds.has(block.tool_use_id)) {
+              // A tool launched in the background only acknowledges here; task_updated/task_notification ends it.
+              const r = event.tool_use_result,
+                taskId = r && typeof r === 'object' ? r.backgroundTaskId || r.taskId : '',
+                id = block.tool_use_id;
+              if (!block.is_error && (taskId || bgTools.has(id))) {
+                bgTools.add(id);
+                if (taskId) taskTool.set(taskId, id);
+                activityUpdate(id, { background: true, ...(taskId ? { taskId } : {}) });
+              } else
+                activityUpdate(id, {
+                  status: block.is_error ? 'error' : 'done',
+                  result: clip(textOf(block.content), 600),
+                });
+            }
             if (block?.type === 'tool_result' && subs.has(block.tool_use_id)) {
               // A backgrounded subagent only acknowledges its launch here; task_notification closes it later.
               const body = textOf(block.content);
@@ -602,26 +709,7 @@ function parser(provider, emit) {
                 });
             }
           }
-        if (event.type === 'system' && subs.has(event.tool_use_id)) {
-          const stats = event.usage
-            ? {
-                toolUses: num(event.usage.tool_uses),
-                tokens: num(event.usage.total_tokens),
-                durationMs: num(event.usage.duration_ms),
-              }
-            : undefined;
-          if (event.subtype === 'task_progress') subagent({ toolUseId: event.tool_use_id, stats });
-          if (event.subtype === 'task_notification') {
-            background.delete(event.tool_use_id);
-          }
-          if (event.subtype === 'task_notification')
-            subagent({
-              toolUseId: event.tool_use_id,
-              status: event.status === 'completed' ? 'done' : 'error',
-              result: clip(event.summary || '', 4000) || undefined,
-              stats,
-            });
-        }
+        if (event.type === 'system') claudeTask(event);
         // A second turn (after a background task) starts a new message: keep paragraphs apart.
         if (event.type === 'stream_event' && event.event?.type === 'message_start' && text) gap = true;
         if (event.type === 'rate_limit_event') {
@@ -681,6 +769,9 @@ function parser(provider, emit) {
                 kind: toolKind(part.tool),
                 id: id || undefined,
                 status: st.status === 'completed' ? 'done' : st.status === 'error' ? 'error' : 'running',
+                ...(st.status === 'completed' || st.status === 'error'
+                  ? { result: clip(textOf(st.output || st.error), 600) }
+                  : {}),
               }
             );
         }
@@ -703,6 +794,7 @@ function parser(provider, emit) {
   };
 }
 // Merges a subagent event into a message's list (upsert by toolUseId), stamping start/end times.
+// Steps carry their own startedAt/endedAt; old steps beyond MAX_STEPS are folded into `stepsDropped`.
 function upsertSubagent(list, ev, now = Date.now()) {
   const { type, step, ...fields } = ev;
   for (const k of Object.keys(fields)) if (fields[k] === undefined) delete fields[k];
@@ -715,27 +807,57 @@ function upsertSubagent(list, ev, now = Date.now()) {
   if (step) {
     rec.steps = rec.steps || [];
     const i = rec.steps.findIndex((x) => x.id === step.id);
-    if (i >= 0) rec.steps[i] = { ...rec.steps[i], ...step };
-    else rec.steps.push({ at: now, ...step });
-    rec.steps = rec.steps.slice(-40);
+    if (i >= 0) rec.steps[i] = stamp({ ...rec.steps[i], ...step }, now);
+    else rec.steps.push(stamp({ at: now, startedAt: now, ...step }, now));
+    const dropped = capList(rec.steps, MAX_STEPS);
+    if (dropped) rec.stepsDropped = (rec.stepsDropped || 0) + dropped;
   }
   if (rec.status !== 'running' && !rec.endedAt) rec.endedAt = now;
+  if (rec.status === 'running') delete rec.endedAt;
   return rec;
 }
+// Start/end bookkeeping shared by activities and steps.
+function stamp(a, now) {
+  if (a.status && a.status !== 'running') a.endedAt = a.endedAt || now;
+  else if (a.status === 'running') delete a.endedAt;
+  return a;
+}
 // Same for generic activities carrying an id (codex emits started/completed for the same item).
-function upsertActivity(list, ev) {
+function upsertActivity(list, ev, now = Date.now()) {
   const { type, ...a } = ev;
+  for (const k of Object.keys(a)) if (a[k] === undefined) delete a[k];
   if (a.id) {
     const i = list.findIndex((x) => x.id === a.id);
     if (i >= 0) {
-      list[i] = { ...list[i], ...a };
+      list[i] = stamp({ ...list[i], ...a }, now);
       return list[i];
     }
   }
-  list.push(a);
-  return a;
+  const rec = stamp({ startedAt: now, ...a }, now);
+  list.push(rec);
+  return rec;
+}
+// Applies an activity/subagent parser event to a stored assistant message and returns the stream event to send
+// to the renderer (or null for other event types). Long runs keep every running task; only old finished ones are
+// folded into "+N anteriores". A subagent event carries only the step that changed.
+function applyToMessage(message, event, now = Date.now()) {
+  if (event.type === 'activity') {
+    message.activities = message.activities || [];
+    const activity = upsertActivity(message.activities, event, now);
+    message.activitiesDropped = (message.activitiesDropped || 0) + capList(message.activities, MAX_ACTIVITIES);
+    return { type: 'activity', messageId: message.id, activity };
+  }
+  if (event.type === 'subagent') {
+    message.subagents = message.subagents || [];
+    const rec = upsertSubagent(message.subagents, event, now),
+      { steps, ...fields } = rec,
+      step = event.step && (steps || []).find((x) => x.id === event.step.id);
+    return { type: 'subagent', messageId: message.id, subagent: { ...fields, ...(step ? { step } : {}) } };
+  }
+  return null;
 }
 module.exports = {
+  applyToMessage,
   MODES,
   modeOf,
   locate,

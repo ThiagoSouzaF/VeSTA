@@ -311,9 +311,267 @@ async function seededPhase() {
   }
 }
 
+// ---- Phase 3: Activity screen with live work across 3 chats / 3 AIs ------------------------------------------
+// Synthetic state injected through the same event the app uses for snapshots (nothing is sent to an AI).
+function activityState(base) {
+  const now = Date.now();
+  const chat = (id, title, provider, projectId, messages) => ({
+    id,
+    title,
+    provider,
+    model: '',
+    agent: '',
+    projectId,
+    mode: 'edit',
+    messages,
+    sessionId: null,
+    createdAt: now - 600000,
+    updatedAt: now,
+    memory: false,
+  });
+  const user = (id) => ({ id, role: 'user', text: 'faça o trabalho', createdAt: now - 60000 });
+  const asst = (id, provider, status, extra) => ({
+    id,
+    role: 'assistant',
+    text: status === 'running' ? '' : 'Pronto.',
+    createdAt: now - 50000,
+    status,
+    provider,
+    model: '',
+    activities: [],
+    subagents: [],
+    ...extra,
+  });
+  const act = (id, kind, label, detail, status, ago, extra = {}) => ({
+    id,
+    kind,
+    label,
+    detail,
+    status,
+    startedAt: now - ago,
+    ...(status === 'running' ? {} : { endedAt: now - ago + 1500 }),
+    ...extra,
+  });
+  return {
+    ...base,
+    projects: [{ id: 'p1', name: 'meu-projeto', path: 'C:\\meu-projeto', createdAt: now }],
+    running: ['act-claude', 'act-opencode'],
+    chats: [
+      chat('act-claude', 'Refatorar o backend', 'claude', 'p1', [
+        user('u1'),
+        asst('m-claude', 'claude', 'running', {
+          activities: [
+            act('b1', 'command', 'Usando Bash', 'npm run dev', 'running', 40000, {
+              background: true,
+              taskId: 'tb1',
+              title: 'Servidor de desenvolvimento',
+            }),
+            act('c1', 'command', 'Usando Bash', 'git status', 'done', 45000),
+            act('f1', 'file', 'Usando Read', 'src/app.js', 'done', 44000),
+          ],
+          subagents: [
+            {
+              toolUseId: 'sa1',
+              subagentType: 'Explore',
+              label: 'Mapear rotas da API',
+              prompt: 'Liste as rotas',
+              status: 'running',
+              background: true,
+              taskId: 'ta1',
+              startedAt: now - 30000,
+              steps: [
+                {
+                  id: 's1',
+                  kind: 'command',
+                  label: 'Usando Bash',
+                  detail: 'grep -rn route',
+                  status: 'running',
+                  startedAt: now - 5000,
+                },
+                {
+                  id: 's2',
+                  kind: 'file',
+                  label: 'Usando Read',
+                  detail: 'routes.js',
+                  status: 'done',
+                  startedAt: now - 20000,
+                  endedAt: now - 19000,
+                },
+              ],
+            },
+          ],
+        }),
+      ]),
+      chat('act-codex', 'Corrigir testes', 'codex', null, [
+        user('u2'),
+        asst('m-codex', 'codex', 'done', {
+          endedAt: now - 300000,
+          createdAt: now - 400000,
+          activities: [
+            act('x1', 'command', 'Comando concluído', 'npm test', 'done', 380000),
+            act('x2', 'command', 'Comando concluído', 'npm run lint', 'error', 370000),
+          ],
+        }),
+      ]),
+      chat('act-opencode', 'Buscar documentação', 'opencode', null, [
+        user('u3'),
+        asst('m-opencode', 'opencode', 'running', {
+          activities: [
+            act('o1', 'mcp', 'Consultando ferramenta', 'docs · search', 'running', 8000),
+            act('o2', 'web', 'Usando webfetch', 'https://example.com', 'done', 12000),
+          ],
+        }),
+      ]),
+    ],
+  };
+}
+async function activityPhase() {
+  const dataDir = scratch('ui-smoke-activity');
+  const app = await launch(dataDir);
+  const problems = [];
+  try {
+    const page = await app.firstWindow();
+    page.on('console', (m) => m.type() === 'error' && problems.push('console: ' + m.text()));
+    page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
+    const nav = (name) => page.locator('nav .nav-item', { hasText: name });
+    const inject = (ev) =>
+      app.evaluate(({ BrowserWindow }, e) => BrowserWindow.getAllWindows()[0].webContents.send('vesta:event', e), ev);
+    const chip = (kind) => page.locator('.activity-chip[data-kind="' + kind + '"] strong');
+    const groupIds = () => page.locator('.activity-group').evaluateAll((els) => els.map((e) => e.dataset.chat));
+    const chipIs = (kind, n) =>
+      page.waitForFunction(
+        ([k, v]) => document.querySelector('.activity-chip[data-kind="' + k + '"] strong')?.textContent === v,
+        [kind, String(n)]
+      );
+    await page.waitForSelector('.loading', { state: 'detached' });
+    const boot = await page.evaluate(() => window.vesta.call('bootstrap'));
+    await inject({ type: 'state', state: activityState(boot.state) });
+
+    await step('sidebar shows the running-task counter and a badge on chats with running tasks', async () => {
+      await page.waitForFunction(() => document.querySelectorAll('.chat-list-item').length === 3);
+      // claude: background command + subagent + its running step = 3; opencode: 1 MCP call
+      await page.waitForFunction(() => document.querySelector('nav .count.live')?.textContent === '4');
+      const item = page.locator('.chat-list-item', { hasText: 'Refatorar o backend' });
+      assert.equal(await item.locator('.task-badge').innerText(), '3');
+      assert.equal(
+        await page.locator('.chat-list-item', { hasText: 'Corrigir testes' }).locator('.task-badge').count(),
+        0
+      );
+    });
+    await step('Atividade lists the live chats with summary counters', async () => {
+      await nav('Atividade').click();
+      await page.locator('h1', { hasText: 'O que está acontecendo.' }).waitFor();
+      assert.deepEqual((await groupIds()).sort(), ['act-claude', 'act-opencode']);
+      assert.equal(await chip('working').innerText(), '2');
+      assert.equal(await chip('subagents').innerText(), '1');
+      assert.equal(await chip('commands').innerText(), '1');
+      assert.equal(await chip('background').innerText(), '1');
+    });
+    await step('the tree nests turn -> subagent -> step and shows live state and elapsed time', async () => {
+      const g = page.locator('.activity-group[data-chat="act-claude"]');
+      assert.match(await g.innerText(), /meu-projeto/);
+      assert.match(await g.innerText(), /Claude/);
+      assert.equal(await g.locator('.task-node[data-kind="subagent"][data-status="running"]').count(), 1);
+      assert.equal(await g.locator('.task-node[data-kind="background"][data-status="running"]').count(), 1);
+      assert.equal(
+        await g.locator('.task-node[data-kind="subagent"] .task-node[data-kind="command"]').count(),
+        1,
+        'step inside subagent'
+      );
+      assert.match(
+        await g.locator('.task-node[data-kind="background"] .task-time').first().innerText(),
+        /^\d+s$|^\d+m/
+      );
+      assert.ok((await g.locator('.spin').count()) >= 3, 'animated spinners on running tasks');
+    });
+    await step('clicking a task expands its details (command, prompt)', async () => {
+      const g = page.locator('.activity-group[data-chat="act-claude"]');
+      await g.locator('.task-node[data-kind="background"] .task-main').click();
+      assert.match(await g.locator('.task-detail').first().innerText(), /npm run dev/);
+      await g.locator('.task-node[data-kind="subagent"] > .task-row .task-main').click();
+      assert.match(await g.locator('.task-detail', { hasText: 'Liste as rotas' }).innerText(), /PROMPT/);
+    });
+    await step('stop is offered per live chat and per trackable Claude task only', async () => {
+      assert.equal(await page.locator('.activity-stop').count(), 2);
+      const g = page.locator('.activity-group[data-chat="act-claude"]');
+      assert.equal(await g.locator('.task-stop').count(), 2, 'background command and subagent have task ids');
+      assert.equal(
+        await page.locator('.activity-group[data-chat="act-opencode"] .task-stop').count(),
+        0,
+        'OpenCode tasks cannot be stopped one by one'
+      );
+    });
+    await step('Tudo adds the recent finished chat; the AI filter narrows groups', async () => {
+      await page.getByRole('tab', { name: 'Tudo' }).click();
+      assert.deepEqual((await groupIds()).sort(), ['act-claude', 'act-codex', 'act-opencode']);
+      assert.equal(
+        await page.locator('.activity-group[data-chat="act-codex"] .task-node[data-status="error"]').count(),
+        1
+      );
+      await page.getByRole('tab', { name: 'ChatGPT' }).click();
+      assert.deepEqual(await groupIds(), ['act-codex']);
+      await page.getByRole('tab', { name: 'Todas as IAs' }).click();
+      await page.getByRole('tab', { name: 'Rodando' }).click();
+      assert.equal((await groupIds()).length, 2);
+    });
+    await step('live events update the screen: the background command ends and counters drop', async () => {
+      await inject({
+        type: 'activity',
+        chatId: 'act-claude',
+        messageId: 'm-claude',
+        activity: { id: 'b1', status: 'done', endedAt: Date.now() },
+      });
+      await chipIs('background', 0);
+      assert.equal(
+        await page
+          .locator('.activity-group[data-chat="act-claude"] .task-node[data-kind="background"][data-status="done"]')
+          .count(),
+        1
+      );
+      await page.waitForFunction(() => document.querySelector('nav .count.live')?.textContent === '3');
+      await inject({
+        type: 'subagent',
+        chatId: 'act-claude',
+        messageId: 'm-claude',
+        subagent: {
+          toolUseId: 'sa1',
+          status: 'done',
+          endedAt: Date.now(),
+          step: { id: 's1', status: 'done', endedAt: Date.now() },
+        },
+      });
+      await chipIs('subagents', 0);
+      assert.equal(await chip('working').innerText(), '2', 'the turn itself is still running');
+    });
+    await step('clicking a group opens the chat; the message shows the summary line and the same tree', async () => {
+      await page.locator('.activity-group[data-chat="act-claude"] .activity-group-title').click();
+      await page.waitForSelector('.chat-heading h2');
+      assert.equal(await page.locator('.chat-heading h2').innerText(), 'Refatorar o backend');
+      const line = page.locator('.task-summary-line');
+      assert.match(await line.innerText(), /1 subagente · 2 comandos · 1 em segundo plano · 2 ferramentas/);
+      await line.click();
+      assert.ok((await page.locator('.task-summary .task-node').count()) >= 4);
+    });
+    await step('a chat that was running when the app closed shows as stopped, not live', async () => {
+      const st = activityState((await page.evaluate(() => window.vesta.call('bootstrap'))).state);
+      st.running = [];
+      await inject({ type: 'state', state: st });
+      await page.waitForFunction(() => !document.querySelector('nav .count.live'));
+      await nav('Atividade').click();
+      await page.locator('.activity-empty').waitFor();
+    });
+    await wait(400);
+    assert.deepEqual(problems, [], 'renderer reported errors:\n' + problems.join('\n'));
+  } finally {
+    await app.close().catch(() => {});
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+}
+
 (async () => {
   await emptyStorePhase();
   await seededPhase();
+  await activityPhase();
   console.log('PASS ' + results.length + ' steps, no console errors');
 })().catch((e) => {
   console.error('FAIL', e.message);

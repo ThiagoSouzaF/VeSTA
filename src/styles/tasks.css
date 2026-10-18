@@ -1,0 +1,409 @@
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+/* ---- task tree (Activity screen and per-message summary) ---- */
+.task-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.task-node {
+  display: flex;
+  flex-direction: column;
+}
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  border-radius: 7px;
+  padding-right: 6px;
+}
+.task-row:hover {
+  background: var(--hover);
+}
+.task-chev {
+  width: 18px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  flex: none;
+}
+.task-chev svg {
+  transition: transform 0.12s;
+}
+.task-chev.open svg {
+  transform: rotate(90deg);
+}
+.task-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 3px 0;
+}
+.task-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-bg);
+  color: var(--accent);
+  flex: none;
+}
+.task-node.command > .task-row .task-icon,
+.task-node.background > .task-row .task-icon,
+.task-node.monitor > .task-row .task-icon {
+  background: #2a2a2f;
+  color: var(--green);
+}
+.task-node.file > .task-row .task-icon {
+  color: var(--orange);
+}
+.task-node.running > .task-row .task-icon {
+  animation: blink 1.4s ease-in-out infinite;
+}
+.task-text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.task-text strong {
+  font-size: calc(11px * var(--font-scale));
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  max-width: 55%;
+}
+.task-text code {
+  font-family: Consolas, monospace;
+  font-size: calc(9.5px * var(--font-scale));
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.task-tag {
+  font-size: calc(8px * var(--font-scale));
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  flex: none;
+}
+.task-tag.muted {
+  color: var(--muted);
+  background: var(--surface);
+}
+.task-state {
+  flex: none;
+  color: var(--muted);
+}
+.task-state.running {
+  color: var(--accent);
+}
+.task-state.ok {
+  color: var(--green);
+}
+.task-state.err {
+  color: #e07a7a;
+}
+.task-state.stopped {
+  color: var(--orange);
+}
+.task-time {
+  flex: none;
+  min-width: 46px;
+  text-align: right;
+  font-size: calc(9.5px * var(--font-scale));
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.task-stop,
+.task-open {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--muted);
+}
+.task-stop {
+  color: #e07a7a;
+  background: #e07a7a1c;
+}
+.task-stop:hover,
+.task-open:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+.task-omitted {
+  font-size: calc(9px * var(--font-scale));
+  color: var(--faint);
+  padding: 3px 0 3px 34px;
+}
+.task-detail {
+  margin: 2px 0 6px 52px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: calc(10px * var(--font-scale));
+}
+.task-detail dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0;
+  color: var(--muted);
+}
+.task-detail dt {
+  color: var(--faint);
+}
+.task-detail dd {
+  margin: 0;
+}
+.task-detail-label {
+  margin: 8px 0 3px;
+  font-size: calc(8px * var(--font-scale));
+  letter-spacing: 0.1em;
+  color: var(--faint);
+  font-weight: 600;
+}
+.task-detail pre {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: Consolas, monospace;
+  font-size: calc(9.5px * var(--font-scale));
+  color: var(--text);
+}
+.task-note {
+  margin: 8px 0 0;
+  color: var(--orange);
+}
+/* ---- per-message summary line ---- */
+.task-summary {
+  margin: 0 0 10px;
+}
+.task-summary-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: calc(10px * var(--font-scale));
+}
+.task-summary-line:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+.task-summary-running {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+}
+.task-summary-chev {
+  transition: transform 0.12s;
+}
+.task-summary.open .task-summary-chev {
+  transform: rotate(180deg);
+}
+.task-summary .task-tree {
+  margin-top: 8px;
+  border-left: 1px solid var(--border);
+  padding-left: 6px;
+}
+/* ---- Activity screen ---- */
+.activity-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.activity-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+}
+.activity-chip strong {
+  font-size: 18px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.activity-chip.hot {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.activity-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.segmented button {
+  padding: 5px 11px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.segmented button:hover {
+  color: var(--text);
+}
+.segmented button.on {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.activity-detached {
+  font-size: 10px;
+  color: var(--orange);
+}
+.activity-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.activity-group {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 10px 12px 12px;
+}
+.activity-group.live {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-bg);
+}
+.activity-group > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.activity-group-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  min-width: 0;
+  flex: 1;
+}
+.activity-group-title:hover strong {
+  color: var(--accent);
+}
+.activity-group-title strong {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.activity-group-title span {
+  font-size: 10px;
+  color: var(--faint);
+}
+.activity-group-counts {
+  display: flex;
+  gap: 10px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.activity-group-counts .muted {
+  color: var(--faint);
+}
+.activity-live {
+  color: var(--accent);
+}
+.activity-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  font-size: 10px;
+  color: #e07a7a;
+  background: #e07a7a1c;
+}
+.activity-stop:hover {
+  background: #e07a7a33;
+}
+.activity-none {
+  margin: 4px 0 0 4px;
+  font-size: 10px;
+  color: var(--faint);
+}
+.activity-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 50px 10px;
+  color: var(--faint);
+  font-size: 11px;
+  text-align: center;
+}
+.activity-empty strong {
+  color: var(--muted);
+  font-size: 13px;
+}
+.task-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 600;
+  animation: permission-pulse 1.6s ease-in-out infinite;
+}
+.count.live {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .task-badge,
+  .task-node.running > .task-row .task-icon {
+    animation: none;
+  }
+}

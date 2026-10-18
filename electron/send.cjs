@@ -3,6 +3,7 @@ const providers = require('./providers.cjs');
 const usage = require('./usage.cjs');
 const { redact } = require('./memory.cjs');
 const drivers = require('./drivers.cjs');
+const tasks = require('./tasks.cjs');
 // One conversation turn. `ctx` carries store, jobs, bus, memory, permissions, integrations and the shared helpers.
 async function send(ctx, { chatId, text }) {
   const { store, jobs, memory, permissions, app, bounded, emit, sync, state } = ctx;
@@ -99,16 +100,8 @@ async function send(ctx, { chatId, text }) {
           assistant.text += event.text;
           emit({ type: 'text', chatId, messageId: assistant.id, text: event.text });
         }
-        if (event.type === 'activity') {
-          const a = providers.upsertActivity(assistant.activities, event);
-          assistant.activities = assistant.activities.slice(-50);
-          emit({ type: 'activity', chatId, messageId: assistant.id, activity: a });
-        }
-        if (event.type === 'subagent') {
-          assistant.subagents = assistant.subagents || [];
-          const rec = providers.upsertSubagent(assistant.subagents, event);
-          emit({ type: 'subagent', chatId, messageId: assistant.id, subagent: rec });
-        }
+        if (event.type === 'activity' || event.type === 'subagent')
+          emit({ ...providers.applyToMessage(assistant, event), chatId });
         if (event.type === 'usage' && usage.recordRateLimit(store.state.usage, event)) {
           store.save();
           sync();
@@ -130,15 +123,7 @@ async function send(ctx, { chatId, text }) {
       const { code: exit, stderr } = await run.done;
       permissions.cancelChat(chatId, 'expired');
       assistant.text = parse.text;
-      const settled = task.cancelled || exit !== 0 ? 'error' : 'done';
-      for (const s of assistant.subagents || []) {
-        if (s.status === 'running') {
-          s.status = settled;
-          s.endedAt = Date.now();
-        }
-        for (const st of s.steps || []) if (st.status === 'running') st.status = settled;
-      }
-      for (const a of assistant.activities) if (a.status === 'running') a.status = settled;
+      tasks.settleMessage(assistant, task.cancelled ? 'stopped' : exit !== 0 ? 'error' : 'done');
       if (task.cancelled) {
         assistant.status = 'cancelled';
       } else if (exit !== 0 || providerError) {
@@ -178,6 +163,7 @@ async function send(ctx, { chatId, text }) {
     } catch (e) {
       if (chat.handoffPending) chat.sessionId = null;
       assistant.status = task.cancelled ? 'cancelled' : 'error';
+      tasks.settleMessage(assistant, task.cancelled ? 'stopped' : 'error');
       assistant.error = bounded(redact(e.message), 4000);
     } finally {
       if (chat.handoffPending && assistant.status !== 'done') chat.sessionId = null;

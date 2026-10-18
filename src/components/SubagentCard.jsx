@@ -2,7 +2,7 @@ import { useNow } from '../hooks/useNow';
 import { ChevronDown, Check, LoaderCircle, AlertCircle, Bot } from 'lucide-react';
 import { fmtTokens, formatElapsed } from '../lib/format';
 import { ActivityRow } from './ActivityRow';
-const SUBAGENT_STATUS = { running: 'Rodando', done: 'Concluído', error: 'Falhou' };
+const SUBAGENT_STATUS = { running: 'Rodando', done: 'Concluído', error: 'Falhou', stopped: 'Parado' };
 export function SubagentCard({ s }) {
   const running = s.status === 'running',
     now = useNow(running),

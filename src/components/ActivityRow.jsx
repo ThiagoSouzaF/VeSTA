@@ -11,6 +11,8 @@ import {
   Plug,
   ListChecks,
   Wrench,
+  Ban,
+  Eye,
 } from 'lucide-react';
 const ACTIVITY_ICONS = {
   command: Terminal,
@@ -22,6 +24,7 @@ const ACTIVITY_ICONS = {
   memory: Brain,
   text: MessageSquare,
   tool: Wrench,
+  monitor: Eye,
 };
 export function ActivityRow({ a }) {
   const Icon = ACTIVITY_ICONS[a.kind] || Wrench;
@@ -36,6 +39,8 @@ export function ActivityRow({ a }) {
       </div>
       {a.status === 'running' ? (
         <LoaderCircle size={12} className="spin activity-state" />
+      ) : a.status === 'stopped' ? (
+        <Ban size={12} className="activity-state" />
       ) : a.status === 'error' ? (
         <AlertCircle size={12} className="activity-state err" />
       ) : (

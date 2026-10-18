@@ -13,6 +13,7 @@ import {
   HardDrive,
   BarChart3,
   ShieldAlert,
+  Activity,
 } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { action } from '../lib/api';
@@ -33,6 +34,7 @@ export function Sidebar({
   setSearch,
   active,
   goChat,
+  taskCounts,
 }) {
   return (
     <aside className="sidebar">
@@ -54,6 +56,7 @@ export function Sidebar({
       <nav>
         {[
           { id: 'chat', name: 'Conversas', icon: MessageSquare },
+          { id: 'activity', name: 'Atividade', icon: Activity },
           { id: 'memory', name: 'Memória', icon: Brain },
           { id: 'usage', name: 'Uso', icon: BarChart3 },
           { id: 'connections', name: 'Conexões', icon: Layers },
@@ -62,6 +65,11 @@ export function Sidebar({
             <n.icon size={18} />
             {n.name}
             {n.id === 'memory' && data.memories.length > 0 && <span className="count">{data.memories.length}</span>}
+            {n.id === 'activity' && taskCounts.total > 0 && (
+              <span className="count live" title="Tarefas rodando agora">
+                {taskCounts.total}
+              </span>
+            )}
           </button>
         ))}
       </nav>
@@ -132,6 +140,15 @@ export function Sidebar({
             {c.messages.some((m) => m.permissions?.some((x) => x.status === 'pending')) ? (
               <span className="permission-dot" title="Aguardando sua permissão">
                 <ShieldAlert size={12} />
+              </span>
+            ) : taskCounts.byChat[c.id] ? (
+              <span
+                className="task-badge"
+                title={
+                  taskCounts.byChat[c.id] + (taskCounts.byChat[c.id] === 1 ? ' tarefa rodando' : ' tarefas rodando')
+                }
+              >
+                {taskCounts.byChat[c.id]}
               </span>
             ) : (
               data.running.includes(c.id) && <span className="pulse-dot" />

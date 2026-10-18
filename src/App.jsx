@@ -18,6 +18,8 @@ import { SettingsPage } from './components/SettingsPage';
 import { Toast } from './components/Toast';
 import { Modal } from './components/modals/Modal';
 import { FloatingTerminal } from './components/FloatingTerminal';
+import { ActivityPage } from './components/ActivityPage';
+import { activityGroups, runningCounts } from './lib/activity';
 export function App() {
   const [data, setData] = useState(empty),
     [integrations, setIntegrations] = useState({}),
@@ -35,6 +37,7 @@ export function App() {
     [memorySearch, setMemorySearch] = useState(''),
     [memoryFilter, setMemoryFilter] = useState('all'),
     [queryResult, setQueryResult] = useState(null),
+    [focus, setFocus] = useState(null),
     [busy, setBusy] = useState(false);
   const { drafts, setDraft } = useDrafts({ chats: data.chats, loading });
   const { toast, notify } = useToast();
@@ -190,10 +193,21 @@ export function App() {
       replaceData(await call('saveSettings', input));
     } catch {}
   }
-  const goChat = (c) => {
+  const goChat = (c, messageId) => {
     setActive(c.id);
     setPage('chat');
+    setFocus(messageId ? { chatId: c.id, messageId, nonce: Date.now() } : null);
   };
+  // Derived per chat/message with memoization: a text delta only recomputes the message it touched.
+  const groups = useMemo(() => activityGroups(data.chats, data.running), [data.chats, data.running]);
+  const counts = useMemo(() => runningCounts(groups), [groups]);
+  const openFromActivity = useCallback(
+    (chatId, messageId) => {
+      const c = data.chats.find((x) => x.id === chatId);
+      if (c) goChat(c, messageId);
+    },
+    [data.chats]
+  );
   const filteredChats = data.chats.filter(
     (c) => (!projectId || c.projectId === projectId) && c.title.toLowerCase().includes(search.toLowerCase())
   );
@@ -226,6 +240,7 @@ export function App() {
           setSearch={setSearch}
           active={active}
           goChat={goChat}
+          taskCounts={counts}
         />
         <main className="main">
           <Backdrop
@@ -277,7 +292,10 @@ export function App() {
               currentProjectId={currentProjectId}
               setPage={setPage}
               instructions={instructions}
+              focus={focus}
             />
+          ) : page === 'activity' ? (
+            <ActivityPage groups={groups} projects={data.projects} call={call} onOpen={openFromActivity} />
           ) : page === 'memory' ? (
             <MemoryPage
               newMemory={newMemory}

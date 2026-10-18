@@ -123,6 +123,13 @@ function createMethods(ctx) {
       }
       return true;
     },
+    // Ends one background task of a running chat. Only Claude exposes this, and only while its process is alive.
+    stopTask: ({ chatId, taskId }) => {
+      const run = jobs.get(chatId)?.run;
+      if (!run?.stopTask || !run.stopTask(String(taskId || '')))
+        throw new Error('Esta tarefa não pode mais ser interrompida');
+      return true;
+    },
     answerPermission: ({ id, decision }) => {
       if (!['once', 'always', 'deny'].includes(decision)) throw new Error('Resposta inválida');
       if (!permissions.answer(id, decision)) throw new Error('Este pedido já foi respondido ou expirou');

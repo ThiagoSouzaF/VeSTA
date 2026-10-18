@@ -155,6 +155,16 @@ function runClaude(spec, ctx) {
       finish();
       kill(child);
     },
+    // Asks Claude to end one background task (command, monitor or subagent). Only while the process is alive.
+    stopTask(taskId) {
+      if (closed || settled || !taskId) return false;
+      write({
+        type: 'control_request',
+        request_id: 'vesta-stop-' + taskId,
+        request: { subtype: 'stop_task', task_id: taskId },
+      });
+      return true;
+    },
   };
 }
 
