@@ -1,10 +1,11 @@
-import { Brain, Folder, Check, RefreshCw, Palette, HardDrive } from 'lucide-react';
+import { Brain, Folder, Check, RefreshCw, Palette, HardDrive, Minus, Plus } from 'lucide-react';
 import { THEME_NAMES } from '../lib/constants';
 import { BACKDROPS } from './Backdrop';
 import { SettingToggle } from './SettingToggle';
 import { action } from '../lib/api';
 import { Mark, Wordmark } from './Brand';
-export function SettingsPage({ data, setting, call, notify }) {
+import { SCALE_MIN, SCALE_MAX, scalePercent } from '../lib/zoom';
+export function SettingsPage({ data, setting, call, notify, fontScale, stepFontScale }) {
   return (
     <div className="content-page settings-page">
       <div className="page-heading">
@@ -72,6 +73,36 @@ export function SettingsPage({ data, setting, call, notify }) {
                 <span>{b.description}</span>
               </button>
             ))}
+          </div>
+        </div>
+        <div className="zoom-setting">
+          <div>
+            <strong>Tamanho do texto</strong>
+            <span>Conversa, mensagem e atividades. Atalhos: Ctrl + / Ctrl - / Ctrl 0 ou Ctrl + roda do mouse.</span>
+          </div>
+          <div className="zoom-controls" role="group" aria-label="Tamanho do texto">
+            <button
+              className="zoom-step"
+              aria-label="Diminuir texto"
+              disabled={fontScale <= SCALE_MIN}
+              onClick={() => stepFontScale(-1)}
+            >
+              <Minus size={14} />
+            </button>
+            <output className="zoom-value" aria-live="polite">
+              {scalePercent(fontScale)}
+            </output>
+            <button
+              className="zoom-step"
+              aria-label="Aumentar texto"
+              disabled={fontScale >= SCALE_MAX}
+              onClick={() => stepFontScale(1)}
+            >
+              <Plus size={14} />
+            </button>
+            <button className="zoom-reset" disabled={fontScale === 1} onClick={() => stepFontScale(0)}>
+              Restaurar
+            </button>
           </div>
         </div>
         <div className="accent-setting">

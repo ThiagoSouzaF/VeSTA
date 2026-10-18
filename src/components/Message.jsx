@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ProviderIcon } from './ProviderIcon';
 import { PROVIDERS } from '../lib/constants';
 import { Brain, Copy, AlertCircle, Pin } from 'lucide-react';
@@ -7,15 +8,16 @@ import { Subagents } from './Subagents';
 import { Markdown } from './Markdown';
 import { IconButton } from './IconButton';
 import { action } from '../lib/api';
-export function Message({ m, chat, call, notify, setModal }) {
+// Props are stable between frames (primitives + stable callbacks), so only the message that changed re-renders.
+export const Message = memo(function Message({ m, provider, title, projectId, call, notify, setModal }) {
   return (
     <article className={'message ' + m.role}>
       <div className="message-avatar">
-        {m.role === 'user' ? <span>V</span> : <ProviderIcon id={m.provider || chat.provider} small />}
+        {m.role === 'user' ? <span>V</span> : <ProviderIcon id={m.provider || provider} small />}
       </div>
       <div className="message-body">
         <div className="message-author">
-          <strong>{m.role === 'user' ? 'Você' : PROVIDERS[m.provider || chat.provider].name}</strong>
+          <strong>{m.role === 'user' ? 'Você' : PROVIDERS[m.provider || provider].name}</strong>
           <time>
             {new Date(m.createdAt).toLocaleTimeString('pt-BR', {
               hour: '2-digit',
@@ -30,7 +32,7 @@ export function Message({ m, chat, call, notify, setModal }) {
         </div>
         <Permissions
           permissions={m.permissions}
-          providerName={PROVIDERS[m.provider || chat.provider].name}
+          providerName={PROVIDERS[m.provider || provider].name}
           onAnswer={(id, decision) => call('answerPermission', { id, decision })}
         />
         <Activities activities={m.activities} />
@@ -65,10 +67,10 @@ export function Message({ m, chat, call, notify, setModal }) {
               onClick={() =>
                 setModal({
                   type: 'memory',
-                  title: chat.title,
+                  title,
                   body: m.text,
                   kind: 'note',
-                  projectId: chat.projectId || '',
+                  projectId: projectId || '',
                 })
               }
             >
@@ -80,4 +82,4 @@ export function Message({ m, chat, call, notify, setModal }) {
       </div>
     </article>
   );
-}
+});

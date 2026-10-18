@@ -188,14 +188,16 @@ test('usage accumulates per day/provider and store merges old state', () => {
   });
   usage.recordRateLimit(u, { fiveHour: { utilization: 0.5, resetsAt: 1 } }, t);
   usage.recordRateLimit(u, { sevenDay: { utilization: 0.1, resetsAt: 2 } }, t);
-  assert.equal(u.rateLimit.fiveHour.utilization, 0.5);
-  assert.equal(u.rateLimit.sevenDay.utilization, 0.1);
+  const win = (id) => u.rateLimit.claude.windows.find((w) => w.id === id);
+  assert.equal(win('five_hour').utilization, 0.5);
+  assert.equal(win('seven_day').utilization, 0.1);
+  assert.equal(u.rateLimit.claude.updatedAt, t);
   assert.equal(usage.summary(u, t).today.claude.turns, 2);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-usage-'));
   fs.writeFileSync(path.join(dir, 'vesta.json'), JSON.stringify({ version: 1, chats: [] }));
   const s = new Store(dir);
   assert.deepEqual(s.state.usage.daily, {});
-  assert.equal(s.state.usage.rateLimit.fiveHour, null);
+  assert.deepEqual(s.state.usage.rateLimit, {});
 });
 test('claude subagent inner events become live steps, never main text', () => {
   const out = run('claude', [

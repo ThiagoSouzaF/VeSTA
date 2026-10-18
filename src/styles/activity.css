@@ -3,7 +3,7 @@
   border: 1px solid var(--border-soft);
   border-radius: 8px;
   padding: 0 6px;
-  font-size: 8px;
+  font-size: calc(8px * var(--font-scale));
 }
 .activity-list {
   display: flex;
@@ -28,14 +28,14 @@
 }
 .activity-row strong {
   display: block;
-  font-size: 9px;
+  font-size: calc(9px * var(--font-scale));
   font-weight: 600;
   color: var(--text);
 }
 .activity-row code {
   display: block;
   color: var(--faint);
-  font-size: 9px;
+  font-size: calc(9px * var(--font-scale));
   font-family: Consolas, monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;

@@ -19,7 +19,7 @@
   border: 0;
   width: 100%;
   outline: none;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   line-height: 1.7;
   min-height: 53px;
   max-height: 160px;
@@ -43,7 +43,7 @@
   align-items: center;
   gap: 10px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px * var(--font-scale));
   min-width: 0;
 }
 .composer-provider {
@@ -98,7 +98,7 @@
   justify-content: space-between;
   gap: 10px;
   color: var(--faint);
-  font-size: 8px;
+  font-size: calc(8px * var(--font-scale));
   margin-top: 10px;
 }
 .keyboard-dot {

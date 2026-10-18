@@ -1,5 +1,5 @@
 .markdown {
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   line-height: 1.9;
   color: var(--text);
   overflow-wrap: anywhere;
@@ -8,6 +8,16 @@
   margin: 0 0 13px;
 }
 .markdown p:last-child {
+  margin-bottom: 0;
+}
+/* Each top-level block lives in its own wrapper (see Markdown.jsx): the wrapper must not change the layout. */
+.markdown .md-block {
+  display: contents;
+}
+.markdown > .md-block > p:last-child {
+  margin-bottom: 13px;
+}
+.markdown > .md-block:last-child > p:last-child {
   margin-bottom: 0;
 }
 .markdown h1,
@@ -19,13 +29,13 @@
   letter-spacing: 0;
 }
 .markdown h1 {
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale));
 }
 .markdown h2 {
-  font-size: 17px;
+  font-size: calc(17px * var(--font-scale));
 }
 .markdown h3 {
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
 }
 .markdown ul,
 .markdown ol {
@@ -36,7 +46,7 @@
   margin: 5px 0;
 }
 .markdown pre {
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -48,7 +58,7 @@
 }
 .markdown code {
   font-family: Consolas, monospace;
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   background: var(--surface);
   padding: 2px 4px;
   border-radius: 3px;
@@ -67,7 +77,7 @@
 }
 .markdown table {
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   max-width: 100%;
   display: block;
   overflow: auto;

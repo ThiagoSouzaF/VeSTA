@@ -1,8 +1,8 @@
 .usage-bars {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 14px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 .usage-bar-card {
   border: 1px solid var(--border);
@@ -93,4 +93,44 @@
   .usage-bars {
     grid-template-columns: 1fr;
   }
+}
+.usage-provider {
+  margin-bottom: 30px;
+  padding-bottom: 6px;
+}
+.usage-provider-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.usage-provider-head h2 {
+  font-size: 15px;
+  font-weight: 550;
+}
+.usage-provider-head small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.usage-chip {
+  margin-left: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 10px;
+  text-transform: capitalize;
+}
+.usage-source {
+  display: block;
+  color: var(--faint);
+  font-size: 10px;
+  margin-bottom: 12px;
+}
+.usage-empty {
+  font-size: 11px;
+  margin: 0 0 12px;
+}
+.usage-totals .usage-row .muted {
+  font-weight: 400;
 }

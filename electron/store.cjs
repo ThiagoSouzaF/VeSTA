@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { emptyUsage } = require('./usage.cjs');
+const { emptyUsage, migrate } = require('./usage.cjs');
 const defaults = () => ({
   version: 2,
   settings: {
@@ -12,6 +12,7 @@ const defaults = () => ({
     capture: true,
     memoryTools: true,
     density: 'comfortable',
+    fontScale: 1,
   },
   projects: [],
   chats: [],
@@ -31,12 +32,7 @@ class Store {
           ...this.state,
           ...saved,
           settings: { ...this.state.settings, ...saved.settings },
-          usage: {
-            ...this.state.usage,
-            ...saved.usage,
-            rateLimit: { ...this.state.usage.rateLimit, ...saved.usage?.rateLimit },
-            daily: { ...saved.usage?.daily },
-          },
+          usage: migrate({ ...this.state.usage, ...saved.usage, daily: { ...saved.usage?.daily } }),
           version: Math.max(2, saved.version || 1),
         };
         if ((saved.version || 1) < 2) {

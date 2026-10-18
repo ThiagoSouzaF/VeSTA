@@ -49,14 +49,14 @@
   gap: 1px;
 }
 .subagent-title strong {
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .subagent-type {
-  font-size: 8px;
+  font-size: calc(8px * var(--font-scale));
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent);
@@ -65,7 +65,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 9px;
+  font-size: calc(9px * var(--font-scale));
   color: var(--muted);
   flex: none;
 }
@@ -95,7 +95,7 @@
   padding: 10px 12px;
 }
 .subagent-label {
-  font-size: 8px;
+  font-size: calc(8px * var(--font-scale));
   letter-spacing: 0.1em;
   color: var(--faint);
   margin: 8px 0 4px;
@@ -115,7 +115,7 @@
   color: var(--muted);
 }
 .subagent-wait {
-  font-size: 9px;
+  font-size: calc(9px * var(--font-scale));
   color: var(--faint);
   margin: 8px 0 0;
 }

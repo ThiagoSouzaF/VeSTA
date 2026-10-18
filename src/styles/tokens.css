@@ -1,6 +1,7 @@
 :root {
   font-family: 'Segoe UI Variable', 'Segoe UI', sans-serif;
   color-scheme: dark;
+  --font-scale: 1;
   --bg: #111115;
   --side: #151519;
   --panel: #151519;

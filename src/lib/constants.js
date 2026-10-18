@@ -30,7 +30,14 @@ export const PROVIDERS = {
 };
 export const THEME_NAMES = { obsidian: 'Obsidiana', aurora: 'Aurora', paper: 'Papel' };
 export const empty = {
-  settings: { theme: 'obsidian', accent: 'violet', background: 'rain', memoryEnabled: true, capture: true },
+  settings: {
+    theme: 'obsidian',
+    accent: 'violet',
+    background: 'rain',
+    memoryEnabled: true,
+    capture: true,
+    fontScale: 1,
+  },
   projects: [],
   chats: [],
   memories: [],

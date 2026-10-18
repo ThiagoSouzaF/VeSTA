@@ -1,6 +1,7 @@
 const { spawn, execFile } = require('node:child_process');
 const fs = require('node:fs');
 const { plainCommand } = require('./permissions.cjs');
+const { codexRateLimits } = require('./usage.cjs');
 const path = require('node:path');
 const os = require('node:os');
 function locate(name) {
@@ -419,6 +420,13 @@ function parser(provider, emit) {
           p = event.params || {},
           it = p.item,
           tid = p.threadId || p.thread?.id;
+        // Rate limits arrive as a notification (account/rateLimits/updated) and as the read response (replace = full list).
+        if (m === 'account/rateLimits/updated' || m === 'account/rateLimits/read') {
+          const r = codexRateLimits(m === 'account/rateLimits/read' ? p : { rateLimits: p.rateLimits });
+          if (r.windows.length)
+            emit({ type: 'usage', provider: 'codex', ...r, replace: m === 'account/rateLimits/read' });
+          return;
+        }
         if (m === 'thread/started' && !mainThread) mainThread = p.thread?.id;
         // A subagent's own thread names it (nickname/role), even before its spawn call reports the thread id.
         if (m === 'thread/started' && p.thread?.parentThreadId && p.thread.id !== mainThread)

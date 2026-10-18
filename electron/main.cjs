@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const fs = require('node:fs'),
   path = require('node:path');
 const { Store } = require('./store.cjs');
@@ -96,6 +96,8 @@ app.whenReady().then(() => {
     app.quit();
     return;
   }
+  // The text zoom (Ctrl+= / Ctrl+- / Ctrl+0 / Ctrl+wheel) belongs to the app: the default menu's native zoom accelerators would add to it.
+  Menu.setApplicationMenu(null);
   const store = (ctx.store = new Store(app.getPath('userData')));
   // Mark interrupted responses after a crash, without discarding the partial transcript.
   for (const chat of store.state.chats)
@@ -137,6 +139,12 @@ app.whenReady().then(() => {
     win.show();
     if (process.env.VESTA_NO_UPDATE !== '1') setTimeout(() => checkForUpdate().catch(() => {}), 4000);
   });
+  win.webContents.setVisualZoomLevelLimits(1, 1);
+  if (process.env.VESTA_DEV === '1')
+    win.webContents.on('before-input-event', (e, i) => {
+      if (i.type === 'keyDown' && (i.key === 'F12' || (i.control && i.shift && i.key.toLowerCase() === 'i')))
+        win.webContents.toggleDevTools();
+    });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e, url) => {
     if (!url.startsWith('file://') && !url.startsWith('http://127.0.0.1:5173')) e.preventDefault();

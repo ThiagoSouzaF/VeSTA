@@ -271,6 +271,10 @@ function runCodex(spec, ctx) {
       capabilities: null,
     });
     send({ jsonrpc: '2.0', method: 'initialized' });
+    // The plan's usage windows, without waiting for the first turn; later changes arrive as notifications.
+    request('account/rateLimits/read')
+      .then((r) => ctx.parse.accept({ method: 'account/rateLimits/read', params: r }))
+      .catch(() => {});
     const params = { cwd: ctx.cwd, ...spec.thread };
     let started = null;
     if (spec.resume) {
@@ -481,4 +485,4 @@ function start(provider, spec, ctx) {
         ? runCodex(spec, ctx)
         : runOpenCode(spec, ctx);
 }
-module.exports = { start, claudeDetail };
+module.exports = { start, claudeDetail, lines, json };

@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { empty } from './lib/constants';
 import { useDrafts } from './hooks/useDrafts';
 import { useToast } from './hooks/useToast';
 import { makeCall, api } from './lib/api';
-import { patchMessage } from './lib/messages';
+import { applyEvents, createEventBuffer } from './lib/streamBuffer';
+import { useFontScale } from './hooks/useFontScale';
 import { Titlebar } from './components/Titlebar';
 import { Sidebar } from './components/Sidebar';
 import { Backdrop } from './components/Backdrop';
@@ -37,8 +38,7 @@ export function App() {
     [busy, setBusy] = useState(false);
   const { drafts, setDraft } = useDrafts({ chats: data.chats, loading });
   const { toast, notify } = useToast();
-  const bottom = useRef(),
-    textarea = useRef();
+  const textarea = useRef();
   const chat = data.chats.find((c) => c.id === active),
     currentProvider = chat?.provider || provider,
     currentProjectId = chat?.projectId || projectId,
@@ -48,7 +48,25 @@ export function App() {
     input = drafts[draftKey] || '';
   const activeRef = useRef(active);
   activeRef.current = page === 'chat' ? active : null;
-  const call = makeCall(notify);
+  const call = useMemo(() => makeCall(notify), [notify]);
+  // Stream events are applied once per frame; a full state snapshot already contains whatever was still queued.
+  const events = useMemo(
+    () =>
+      createEventBuffer((batch) =>
+        setData((d) => {
+          const chats = applyEvents(d.chats, batch);
+          return chats === d.chats ? d : { ...d, chats };
+        })
+      ),
+    []
+  );
+  const replaceData = useCallback(
+    (next) => {
+      events.discard();
+      setData(next);
+    },
+    [events]
+  );
   useEffect(() => {
     if (!api) {
       setLoading(false);
@@ -57,7 +75,7 @@ export function App() {
     api
       .call('bootstrap')
       .then((r) => {
-        setData(r.state);
+        replaceData(r.state);
         setIntegrations(r.integrations);
         setLoading(false);
       })
@@ -70,25 +88,19 @@ export function App() {
       .then(setMemoryStatus)
       .catch((e) => setMemoryStatus({ connected: false, error: e.message }));
     return api.onEvent((e) => {
-      if (e.type === 'state') setData(e.state);
+      if (e.type === 'state') replaceData(e.state);
       if (e.type === 'update' && e.message) notify(e.message);
       if (e.type === 'permission' && e.permission?.status === 'pending' && e.chatId !== activeRef.current)
         notify('Uma IA pede permissão em outra conversa');
       if (e.type === 'text' || e.type === 'activity' || e.type === 'subagent' || e.type === 'permission')
-        setData((d) => ({
-          ...d,
-          chats: d.chats.map((c) =>
-            c.id !== e.chatId
-              ? c
-              : { ...c, messages: c.messages.map((m) => (m.id !== e.messageId ? m : patchMessage(m, e))) }
-          ),
-        }));
+        events.push(e);
     });
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = data.settings.theme;
     document.documentElement.dataset.accent = data.settings.accent;
   }, [data.settings.theme, data.settings.accent]);
+  const [fontScale, stepFontScale] = useFontScale(data.settings.fontScale, (fontScale) => setting({ fontScale }));
   useEffect(() => {
     if (!currentProjectId) {
       setInstructions([]);
@@ -102,9 +114,6 @@ export function App() {
       alive = false;
     };
   }, [currentProjectId]);
-  useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [active, chat?.messages.at(-1)?.text, chat?.messages.at(-1)?.status]);
   useEffect(() => {
     const listener = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
@@ -137,7 +146,7 @@ export function App() {
   async function createChat(options) {
     const result = await call('createChat', options);
     const c = result.chats[0];
-    setData(result);
+    replaceData(result);
     setActive(c.id);
     setPage('chat');
     setProvider(c.provider);
@@ -161,7 +170,7 @@ export function App() {
       setNewModel(null);
       setDraft(c.id, '');
       if (!chat) setDraft('new', '');
-      setData(await call('send', { chatId: c.id, text }));
+      replaceData(await call('send', { chatId: c.id, text }));
     } catch {
     } finally {
       setBusy(false);
@@ -178,7 +187,7 @@ export function App() {
   }
   async function setting(input) {
     try {
-      setData(await call('saveSettings', input));
+      replaceData(await call('saveSettings', input));
     } catch {}
   }
   const goChat = (c) => {
@@ -245,7 +254,6 @@ export function App() {
               call={call}
               running={running}
               notify={notify}
-              bottom={bottom}
               provider={provider}
               setProvider={setProvider}
               integrations={integrations}
@@ -256,7 +264,7 @@ export function App() {
               input={input}
               send={send}
               busy={busy}
-              setData={setData}
+              setData={replaceData}
               setNewModel={setNewModel}
               newModel={newModel}
               data={data}
@@ -300,7 +308,14 @@ export function App() {
               setMemoryStatus={setMemoryStatus}
             />
           ) : (
-            <SettingsPage data={data} setting={setting} call={call} notify={notify} />
+            <SettingsPage
+              data={data}
+              setting={setting}
+              call={call}
+              notify={notify}
+              fontScale={fontScale}
+              stepFontScale={stepFontScale}
+            />
           )}
         </main>
       </div>
@@ -315,7 +330,7 @@ export function App() {
           createChat={createChat}
           busy={busy}
           setBusy={setBusy}
-          setData={setData}
+          setData={replaceData}
           call={call}
           notify={notify}
           setActive={setActive}

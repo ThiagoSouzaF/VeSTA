@@ -10,7 +10,6 @@ export function ChatPage({
   call,
   running,
   notify,
-  bottom,
   provider,
   setProvider,
   integrations,
@@ -47,7 +46,7 @@ export function ChatPage({
               call={call}
               running={running}
             />
-            <MessageList chat={chat} call={call} notify={notify} setModal={setModal} bottom={bottom} />
+            <MessageList chat={chat} call={call} notify={notify} setModal={setModal} />
           </>
         ) : (
           <Welcome

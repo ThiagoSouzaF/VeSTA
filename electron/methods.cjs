@@ -7,7 +7,10 @@ const usage = require('./usage.cjs');
 const { redact } = require('./memory.cjs');
 const { discover } = require('./integrations.cjs');
 const { send } = require('./send.cjs');
+const { readCodexRateLimits } = require('./rate-limits.cjs');
 const { openTerminal } = require('./terminal.cjs');
+// Text zoom: 80%..160% in steps of 10%.
+const clampFontScale = (v) => Math.min(1.6, Math.max(0.8, Math.round(v * 10) / 10));
 async function inspectProject(ctx, id) {
   const p = ctx.project(id);
   if (!p) return [];
@@ -43,6 +46,7 @@ async function inspectProject(ctx, id) {
 // Every renderer-callable operation. The IPC handler (and, later, a remote server) dispatches into this object.
 function createMethods(ctx) {
   const { jobs, permissions, bounded, project, sync, state } = ctx;
+  let lastCodexRead = 0;
   return {
     bootstrap: async () => ({
       state: state(),
@@ -92,6 +96,24 @@ function createMethods(ctx) {
     },
     send: (args) => send(ctx, args),
     usage: () => usage.summary(ctx.store.state.usage),
+    // Reads what the CLIs can report without a chat turn (today: the Codex plan windows), then returns the summary.
+    refreshUsage: async ({ force } = {}) => {
+      const result = usage.summary(ctx.store.state.usage);
+      const exe = ctx.integrations.codex?.exe || providers.locate('codex');
+      if (process.env.VESTA_NO_USAGE_REFRESH === '1' || !exe || (!force && Date.now() - lastCodexRead < 15000))
+        return result;
+      lastCodexRead = Date.now();
+      try {
+        const r = await readCodexRateLimits(exe);
+        if (usage.recordRateLimit(ctx.store.state.usage, { provider: 'codex', ...r, replace: true })) {
+          ctx.store.save();
+          sync();
+        }
+        return usage.summary(ctx.store.state.usage);
+      } catch (e) {
+        return { ...result, refreshError: { codex: redact(e.message).split(/\r?\n/)[0] } };
+      }
+    },
     stop: ({ chatId }) => {
       const task = jobs.get(chatId);
       if (task) {
@@ -128,6 +150,7 @@ function createMethods(ctx) {
       if (['obsidian', 'aurora', 'paper'].includes(input.theme)) s.theme = input.theme;
       if (['ember', 'violet', 'mint', 'amber', 'rose'].includes(input.accent)) s.accent = input.accent;
       if (['none', 'ember', 'rain', 'stream'].includes(input.background)) s.background = input.background;
+      if (Number.isFinite(input.fontScale)) s.fontScale = clampFontScale(input.fontScale);
       for (const key of ['memoryEnabled', 'capture', 'memoryTools'])
         if (typeof input[key] === 'boolean') s[key] = input[key];
       ctx.store.save();
@@ -228,4 +251,4 @@ function createMethods(ctx) {
     },
   };
 }
-module.exports = { createMethods };
+module.exports = { createMethods, clampFontScale };
