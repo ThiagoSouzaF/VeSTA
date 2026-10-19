@@ -135,7 +135,7 @@ const MODES = ['ask', 'edit', 'read'];
 const modeOf = (chat) => (MODES.includes(chat.mode) ? chat.mode : 'edit');
 // How each CLI is launched. Claude speaks stream-json both ways (its permission requests arrive on stdout and are
 // answered on stdin); Codex runs its app-server (JSON-RPC with approval requests); OpenCode runs its HTTP server.
-function command(chat, exe, endpoint) {
+function command(chat, exe, endpoint, { attachDir = null } = {}) {
   if (chat.provider === 'drael') return require('./drael.cjs').command(chat, exe, endpoint);
   const mode = modeOf(chat),
     mem = memoryTools(chat.provider, endpoint);
@@ -170,6 +170,8 @@ function command(chat, exe, endpoint) {
         '--include-partial-messages',
         ...permission,
         ...mem.args,
+        // The chat's attachments live outside the project folder: let Claude read them without asking.
+        ...(attachDir && require('node:fs').existsSync(attachDir) ? ['--add-dir', attachDir] : []),
         ...(chat.model ? ['--model', chat.model] : []),
         ...(chat.sessionId ? ['--resume', chat.sessionId] : []),
       ],
@@ -182,6 +184,9 @@ function command(chat, exe, endpoint) {
       : mode === 'ask'
         ? { edit: 'ask', bash: 'ask', webfetch: 'ask', external_directory: 'ask', question: 'deny' }
         : { edit: 'allow', bash: 'allow', webfetch: 'allow', question: 'deny' };
+  // The chat's attachments live outside the project: the agent may read exactly that folder without asking.
+  if (attachDir && require('node:fs').existsSync(attachDir))
+    permission.external_directory = { '*': 'ask', [attachDir.replaceAll('\\', '/') + '/*']: 'allow' };
   const slash = chat.model ? chat.model.indexOf('/') : -1;
   return {
     exe,

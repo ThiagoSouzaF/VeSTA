@@ -4,7 +4,8 @@ import { ModelPicker } from './ModelPicker';
 import { modelLabel } from '../lib/format';
 import { ModeChip } from './ModeChip';
 import { MODES, modeOf } from '../lib/modes';
-import { ArrowUp, Brain, Folder, Square, LoaderCircle } from 'lucide-react';
+import { ArrowUp, Brain, Folder, Square, LoaderCircle, Paperclip } from 'lucide-react';
+import { AttachmentChips } from './AttachmentChips';
 import { action } from '../lib/api';
 export function Composer({
   running,
@@ -26,10 +27,15 @@ export function Composer({
   data,
   currentProject,
   active,
+  attachments = [],
+  onPick,
+  onFiles,
+  onRemoveAttachment,
 }) {
   return (
     <div className="composer-wrap">
       <div className={'composer ' + (running ? 'is-running' : '')}>
+        <AttachmentChips items={attachments} onRemove={onRemoveAttachment} disabled={running || busy} />
         <textarea
           ref={textarea}
           aria-label="Mensagem"
@@ -38,6 +44,13 @@ export function Composer({
           }
           value={input}
           onChange={(e) => setDraft(draftKey, e.target.value)}
+          onPaste={(e) => {
+            // Ctrl+V with files (a screenshot, a copied image or file) attaches them; plain text pastes as usual.
+            const files = [...(e.clipboardData?.files || [])];
+            if (!files.length) return;
+            e.preventDefault();
+            onFiles?.(files);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
@@ -49,6 +62,16 @@ export function Composer({
         />
         <div className="composer-bottom">
           <div className="composer-options">
+            <button
+              type="button"
+              className="attach-button"
+              aria-label="Anexar arquivos"
+              title="Anexar imagens e documentos (ou arraste e solte, ou cole com Ctrl+V)"
+              disabled={running || busy}
+              onClick={onPick}
+            >
+              <Paperclip size={15} />
+            </button>
             <ProviderPicker
               value={currentProvider}
               integrations={integrations}
@@ -117,7 +140,7 @@ export function Composer({
             <button
               className="send-button"
               aria-label="Enviar mensagem"
-              disabled={!input.trim() || busy}
+              disabled={(!input.trim() && !attachments.length) || busy}
               onClick={() => send()}
             >
               {busy ? <LoaderCircle size={18} className="spin" /> : <ArrowUp size={19} />}

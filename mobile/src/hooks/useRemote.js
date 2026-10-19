@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { makeCall, connectSocket, AuthError } from '../lib/client';
+import { makeCall, makeUpload, connectSocket, AuthError } from '../lib/client';
 import { emptyState, reduceEvents, pendingPermissions } from '../lib/state';
 import { createEventBuffer } from '../../../src/lib/streamBuffer';
 import { notifyPermission } from '../lib/notify';
@@ -27,6 +27,17 @@ export function useRemote(token, onAuthFail) {
     return async (method, args) => {
       try {
         return await raw(method, args);
+      } catch (e) {
+        if (e instanceof AuthError) onAuthFail(e.code === 'expired' ? e.message : undefined);
+        throw e;
+      }
+    };
+  }, [token]);
+  const upload = useMemo(() => {
+    const raw = makeUpload(token);
+    return async (file) => {
+      try {
+        return await raw(file);
       } catch (e) {
         if (e instanceof AuthError) onAuthFail(e.code === 'expired' ? e.message : undefined);
         throw e;
@@ -85,5 +96,5 @@ export function useRemote(token, onAuthFail) {
         if (document.hidden) notifyPermission(permission, chat.title);
       }
   }, [data.state.chats, data.loaded]);
-  return { ...data, online, error, call, reload: bootstrap };
+  return { ...data, online, error, call, upload, reload: bootstrap };
 }

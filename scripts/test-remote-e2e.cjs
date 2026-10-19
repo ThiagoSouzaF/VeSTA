@@ -461,6 +461,71 @@ async function main() {
       await page.waitForSelector('.chat-list');
     });
 
+    // Attachments from the phone: upload (authenticated, validated like the desktop), send, thumbnail via attachmentData.
+    await step(
+      'phone: attaches an image and a document, sends, sees the thumbnail and the card (fake provider)',
+      async () => {
+        const { makePng, makeTxt } = require('./att-fixtures.cjs');
+        const dir = scratch('remote-att');
+        const png = await makePng(path.join(dir, 'foto.png')),
+          txt = makeTxt(path.join(dir, 'nota.txt'));
+        await app.evaluate(() => {
+          const main = Object.values(process.mainModule.constructor._cache).find((m) =>
+            /electron[\/\\]main.cjs$/.test(m.filename)
+          ).exports;
+          const drivers = Object.values(process.mainModule.constructor._cache).find((m) =>
+            /electron[\/\\]drivers.cjs$/.test(m.filename)
+          ).exports;
+          main.ctx.integrations.claude = { installed: true, exe: 'fake-claude.exe' };
+          globalThis.__phoneTurns = [];
+          drivers.start = (provider, spec, c) => {
+            globalThis.__phoneTurns.push({ prompt: c.prompt, attachments: c.attachments });
+            c.parse.accept({ type: 'assistant', message: { content: [{ type: 'text', text: 'Anexos recebidos.' }] } });
+            c.parse.accept({ type: 'result', result: 'Anexos recebidos.', num_turns: 1 });
+            return { done: Promise.resolve({ code: 0, stderr: '' }), stop() {} };
+          };
+        });
+        const created = await dcall('createChat', { provider: 'claude', memory: false });
+        const chatId = created.chats[0].id;
+        await page.waitForFunction((id) => document.querySelector('.chat-row'), chatId);
+        await page.locator('.chat-row', { hasText: 'Novo chat' }).first().click();
+        await page.waitForSelector('.chat-view');
+        await page.locator('[data-testid=file-input]').setInputFiles([png, txt]);
+        await page.waitForFunction(() => document.querySelectorAll('.m-chip').length === 2);
+        assert.equal(await page.locator('.m-chip img').count(), 1, 'the image chip has a preview');
+        await shot('mobile-attach-chips');
+        await page.getByRole('button', { name: 'Enviar' }).click();
+        await page.locator('.msg.user .m-att-thumb img').waitFor();
+        await page.locator('.msg.user .m-att-card').waitFor();
+        await page.locator('.msg.assistant', { hasText: 'Anexos recebidos.' }).waitFor();
+        assert.equal(await page.locator('.m-chip').count(), 0, 'chips are cleared after sending');
+        assert.match(await page.locator('.m-att-thumb img').getAttribute('src'), /^data:image\/png;base64,/);
+        await shot('mobile-attach-message');
+        await page.locator('.m-att-thumb').click();
+        await page.locator('.m-viewer img').waitFor();
+        await page.locator('.m-viewer-close').click();
+        const turn = await app.evaluate(() => globalThis.__phoneTurns[0]);
+        assert.equal(turn.attachments.length, 2);
+        assert.match(turn.prompt, /nota\.txt/);
+        // the phone's view of the chat carries no paths
+        const boot = await api(token, 'bootstrap');
+        const mine = boot.body.result.state.chats.find((c) => c.id === chatId);
+        assert.equal(mine.messages[0].attachments.length, 2);
+        assert.equal(JSON.stringify(mine).includes('attachments' + path.sep), false);
+        assert.equal('path' in mine.messages[0].attachments[0], false);
+        // forbidden: a file the phone never uploaded cannot be attached, nor read through another chat
+        const bad = await api(token, 'send', { chatId, text: 'x', attachments: ['ffffffffffff'] });
+        assert.equal(bad.status, 422);
+        const other = await api(token, 'attachmentData', {
+          chatId: 'chat-work',
+          id: mine.messages[0].attachments[0].id,
+        });
+        assert.equal(other.status, 422);
+        await page.goBack();
+        await page.waitForSelector('.chat-list');
+      }
+    );
+
     // Simulated live turn with a pending permission request, as the desktop's own tests do.
     await step(
       'phone: Atividade shows the live turn; the permission request appears and Permitir answers it',

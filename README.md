@@ -26,6 +26,7 @@ A mascote é a própria Vesta, em mangá preto e branco: guardiã da chama, com 
 - **Atividade**: todo o trabalho em paralelo de todas as IAs, ao vivo e em árvore (turno → subagentes → comandos, ferramentas, tarefas em segundo plano e Monitor), com tempos, detalhes, filtros e Parar (por chat; por tarefa no Claude). A barra lateral mostra quantas tarefas rodam em cada chat.
 - **Quests**: dê um objetivo e as IAs trabalham juntas. Uma IA planeja (ou você monta o plano), cada etapa vai para a IA escolhida num chat próprio, os resultados passam de uma etapa para a seguinte e ficam no AI Memory, e o quadro mostra Pendentes, Rodando, Concluídas e Problemas.
 - **Uso por IA**: janelas oficiais do plano do Claude (5 h e semanal) e do Codex (lidas do `codex app-server`), além de tokens e custo por dia de cada IA.
+- **Anexos** de imagens e documentos nos chats (desktop e celular): clipe, arrastar e soltar, Ctrl+V; veja a seção Anexos.
 - **Leitura confortável**: zoom do texto de 80% a 160% (**Ctrl +**, **Ctrl −**, **Ctrl 0** ou Ctrl+roda); a conversa só rola sozinha se você estiver no fim, com botão para descer até o fim.
 
 ## Primeiro uso
@@ -50,7 +51,26 @@ As mensagens e o contexto recuperado são enviados ao provedor selecionado usand
 
 ## Modos de trabalho
 
-**Consulta** usa sandbox de leitura no Codex, modo plan no Claude e plan com edição e comandos negados no OpenCode. **Pedir permissão** deixa a IA trabalhar, mas cada comando ou alteração de arquivo passa por você na conversa. **Acesso completo** deixa a IA editar arquivos e rodar comandos sem perguntar (sem sandbox no Codex, permissões ignoradas no Claude, edição e comandos liberados no OpenCode); use só em projetos em que confia. O botão de terminal abre a sessão nativa no mesmo modo do chat. Não há navegador embutido, controle visual do PC, voz ou anexos nesta versão.
+**Consulta** usa sandbox de leitura no Codex, modo plan no Claude e plan com edição e comandos negados no OpenCode. **Pedir permissão** deixa a IA trabalhar, mas cada comando ou alteração de arquivo passa por você na conversa. **Acesso completo** deixa a IA editar arquivos e rodar comandos sem perguntar (sem sandbox no Codex, permissões ignoradas no Claude, edição e comandos liberados no OpenCode); use só em projetos em que confia. O botão de terminal abre a sessão nativa no mesmo modo do chat. Não há navegador embutido, controle visual do PC ou voz nesta versão.
+
+## Anexos
+
+Imagens (png, jpg, gif, webp, até 20 MB) e documentos (pdf, txt, md, csv, json, xml, yaml, log, html, código-fonte comum e Office docx/xlsx/pptx, até 30 MB), no máximo 10 por mensagem. O tipo é conferido pelo conteúdo (assinatura do arquivo), não só pela extensão. Os arquivos são **copiados** para `<dados>/attachments/<chat>/<id>-<nome>` (o original nunca é referenciado; o nome é saneado) e apagados junto com o chat. Mensagens antigas, sem anexos, continuam iguais (`message.attachments` é um campo novo e opcional).
+
+Na interface: clipe no composer (diálogo nativo com filtros), arrastar sobre a conversa (com destaque) e colar imagem com Ctrl+V; chips com miniatura ou ícone antes de enviar (o rascunho de cada chat guarda os anexos pendentes); na conversa, miniaturas (clique abre o visualizador em tela cheia) e cartões de documento (abrem no programa padrão, só dentro da pasta de anexos). As imagens são exibidas pelo protocolo `vesta-attachment://`, restrito à pasta de anexos (sem `file://`, com `webSecurity` ligado). No celular: o botão de clipe envia pelo `POST /api/upload` (autenticado, só `application/octet-stream`, até 30 MB, mesma validação e armazenamento do desktop) e as miniaturas vêm por `attachmentData`; documentos aparecem como cartões (abrem no desktop).
+
+**O que cada provedor aceita (testado com os programas instalados, no modo que o VeSTA usa):**
+
+| Provedor | Imagem | PDF | Demais documentos | Leitura da pasta de anexos |
+|---|---|---|---|---|
+| Claude (stream-json) | bloco `image` base64 (png/jpg/gif/webp); aceitou 8,4 MB, o VeSTA envia até 8 MB e o resto por caminho | bloco `document` base64 (até 20 MB) | caminho + texto pequeno inline (até 100 KB) | `--add-dir <pasta do chat>`: lê sem pedir permissão, até no modo Pedir permissão |
+| Codex (`app-server`) | item de input `localImage {path}` (o schema também tem `image {url}`) | sem tipo nativo: caminho | caminho + texto pequeno inline | o sandbox read-only lê fora do projeto (só bloqueia escrita) |
+| OpenCode (`serve`) | parte `file` com `data:` URL (precisa de modelo com visão; `drael/drael-v1` aceita) | o modelo não lê PDF nativo: caminho (o agente extrai o texto) | caminho + texto pequeno inline | `external_directory` liberado só para a pasta do chat |
+| Drael (`-p`) | sem flag de anexo; `read_file` abre PNG e PDF dentro da pasta de trabalho | idem | idem | `read_file` não sai da pasta de trabalho: durante o turno os anexos são copiados para `.vesta-anexos/<chat>/` e removidos ao final |
+
+O que não vai nativo entra no prompt numa seção "Anexos" com o caminho absoluto (relativo no Drael) e a instrução de ler com as ferramentas. Código em `electron/attachments.cjs` (regras e montagem por provedor), `attachment-store.cjs` (disco) e `attachment-methods.cjs` (operações da interface).
+
+**Limitações.** Imagens maiores que o limite nativo do provedor vão por caminho (a IA precisa ter ferramenta para ler imagem). O Drael só enxerga os anexos da mensagem atual (os de mensagens anteriores não são recopiados). Documentos Office são só referenciados por caminho. Não há pré-visualização de documentos, nem no desktop nem no celular. A miniatura em arquivo só existe para png/jpg (gif/webp mostram o original).
 
 ## Controle remoto pelo celular
 
@@ -105,6 +125,7 @@ npx electron scripts/test-claude-background.cjs
 npx electron scripts/test-claude-stale-task.cjs
 npx electron scripts/test-memory-agent.cjs claude
 node scripts/test-remote-e2e.cjs
+node scripts/test-attachments-e2e.cjs [claude] [codex] [opencode] [drael]
 node scripts/test-splash-e2e.cjs
 npm run dist
 npm run installer

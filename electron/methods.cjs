@@ -11,6 +11,7 @@ const { send } = require('./send.cjs');
 const { readCodexRateLimits } = require('./rate-limits.cjs');
 const { openTerminal } = require('./terminal.cjs');
 const { questMethods } = require('./quest-methods.cjs');
+const { attachmentMethods } = require('./attachment-methods.cjs');
 const { THEMES } = require('./store.cjs');
 // Text zoom: 80%..160% in steps of 10%.
 const clampFontScale = (v) => Math.min(1.6, Math.max(0.8, Math.round(v * 10) / 10));
@@ -74,6 +75,7 @@ function createMethods(ctx) {
       if (jobs.has(id)) throw new UserError('Interrompa a resposta antes de excluir');
       ctx.store.state.chats = ctx.store.state.chats.filter((c) => c.id !== id);
       ctx.store.save();
+      ctx.attachments?.removeChat(id);
       sync();
       return state();
     },
@@ -123,6 +125,7 @@ function createMethods(ctx) {
       return true;
     },
     ...questMethods(ctx),
+    ...attachmentMethods(ctx),
     // Ends one background task of a running chat. Only Claude exposes this, and only while its process is alive.
     stopTask: ({ chatId, taskId }) => {
       const run = jobs.get(chatId)?.run;

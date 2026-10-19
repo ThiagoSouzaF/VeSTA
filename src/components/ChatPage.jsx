@@ -3,6 +3,9 @@ import { MessageList } from './MessageList';
 import { Welcome } from './Welcome';
 import { Composer } from './Composer';
 import { ContextPanel } from './ContextPanel';
+import { useState } from 'react';
+import { Paperclip } from 'lucide-react';
+import { hasFiles } from '../lib/attachments';
 export function ChatPage({
   chat,
   currentProject,
@@ -34,10 +37,34 @@ export function ChatPage({
   setPage,
   instructions,
   focus,
+  attachments,
+  onPick,
+  onFiles,
+  onRemoveAttachment,
 }) {
+  const [dropping, setDropping] = useState(false);
+  // Dropping files anywhere over the conversation attaches them (the highlight follows the pointer).
+  const drag = {
+    onDragEnter: (e) => hasFiles(e) && !running && (e.preventDefault(), setDropping(true)),
+    onDragOver: (e) => hasFiles(e) && (e.preventDefault(), (e.dataTransfer.dropEffect = running ? 'none' : 'copy')),
+    onDragLeave: (e) => !e.currentTarget.contains(e.relatedTarget) && setDropping(false),
+    onDrop: (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      setDropping(false);
+      if (!running) onFiles([...e.dataTransfer.files]);
+    },
+  };
   return (
     <div className="chat-layout">
-      <section className="conversation">
+      <section className={'conversation' + (dropping ? ' is-dropping' : '')} {...drag}>
+        {dropping && (
+          <div className="drop-overlay" data-testid="drop-overlay">
+            <Paperclip size={26} />
+            <strong>Solte para anexar</strong>
+            <span>Imagens, PDF, texto, código e documentos Office</span>
+          </div>
+        )}
         {chat ? (
           <>
             <ChatHeading
@@ -79,6 +106,10 @@ export function ChatPage({
           data={data}
           currentProject={currentProject}
           active={active}
+          attachments={attachments}
+          onPick={onPick}
+          onFiles={onFiles}
+          onRemoveAttachment={onRemoveAttachment}
         />
       </section>
       {inspector && (

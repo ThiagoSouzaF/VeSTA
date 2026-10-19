@@ -919,8 +919,243 @@ async function questPhase() {
   }
 }
 
+// ---- Phase 5: attachments (button, drop, paste, chips, draft, send with a fake provider, thumbnails, viewer) --------
+async function attachmentsPhase() {
+  const dataDir = scratch('ui-smoke-att'),
+    files = scratch('ui-smoke-files');
+  const { makePng, makePdf, makeTxt } = require('./att-fixtures.cjs');
+  const png = await makePng(path.join(files, 'quadrado.png')),
+    pdf = makePdf(path.join(files, 'relatorio.pdf')),
+    txt = makeTxt(path.join(files, 'nota.txt'));
+  const app = await launch(dataDir);
+  const problems = [];
+  let probing = false; // the protocol probes below provoke expected 404 lines in the console
+  const attShot = async (page, name) => {
+    if (!process.env.VESTA_SHOTS) return;
+    fs.mkdirSync(process.env.VESTA_SHOTS, { recursive: true });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: path.join(process.env.VESTA_SHOTS, 'att-' + name + '.png') });
+  };
+  try {
+    const page = await mainWindow(app);
+    page.on(
+      'console',
+      (m) => m.type() === 'error' && !(probing && /404/.test(m.text())) && problems.push('console: ' + m.text())
+    );
+    page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
+    await page.waitForSelector('.loading', { state: 'detached' });
+    // No real AI: the driver is replaced by one that records what it would have received and answers.
+    await app.evaluate(
+      ({ dialog, shell }, { picks, electronDir }) => {
+        const req = (f) => process.mainModule.require(electronDir + '/' + f);
+        const main = req('main.cjs'),
+          drivers = req('drivers.cjs');
+        main.ctx.integrations.claude = { installed: true, exe: 'fake-claude.exe' };
+        globalThis.__turns = [];
+        globalThis.__opened = [];
+        drivers.start = (provider, spec, ctx) => {
+          globalThis.__turns.push({ provider, prompt: ctx.prompt, attachments: ctx.attachments, args: spec.args });
+          ctx.parse.accept({ type: 'assistant', message: { content: [{ type: 'text', text: 'Recebi os anexos.' }] } });
+          ctx.parse.accept({ type: 'result', result: 'Recebi os anexos.', num_turns: 1 });
+          return { done: Promise.resolve({ code: 0, stderr: '' }), stop() {} };
+        };
+        dialog.showOpenDialog = async () => ({ canceled: false, filePaths: picks });
+        shell.openPath = async (p) => (globalThis.__opened.push(p), '');
+      },
+      { picks: [png, pdf], electronDir: path.join(root, 'electron').split(String.fromCharCode(92)).join('/') }
+    );
+    const created = await page.evaluate(() => window.vesta.call('createChat', { provider: 'claude', memory: false }));
+    const chatId = created.chats[0].id;
+    await page.locator('.chat-list-item').first().click();
+    await page.waitForSelector('textarea[aria-label="Mensagem"]');
+    const chips = page.locator('[data-testid=attachment-chip]');
+    const stagedCount = () =>
+      fs.readdirSync(path.join(dataDir, 'attachments', '_staging')).filter((f) => !f.includes('.thumb.')).length;
+
+    await step(
+      'clip button opens the file dialog and shows a chip per file (thumbnail for the image, icon for the PDF)',
+      async () => {
+        await page.getByRole('button', { name: 'Anexar arquivos' }).click();
+        await chips.nth(1).waitFor();
+        assert.equal(await chips.count(), 2);
+        await page.waitForFunction(() => document.querySelector('.attachment-chip img')?.naturalWidth > 0);
+        const src = await page.locator('.attachment-chip img').getAttribute('src');
+        assert.match(src, /^vesta-attachment:\/\/f\/_staging\/[a-f0-9]{12}-quadrado\.png\?t=1$/);
+        assert.equal(await page.locator('.attachment-chip.document > svg').count(), 1);
+        assert.match(await chips.nth(1).innerText(), /relatorio\.pdf[\s\S]*PDF · \d+ (B|KB)/);
+        assert.equal(stagedCount(), 2);
+      }
+    );
+    await step('dropping files over the conversation highlights it and attaches them', async () => {
+      const drag = (type, name) =>
+        page.evaluate(
+          ([type, name]) => {
+            const dt = new DataTransfer();
+            if (name)
+              dt.items.add(
+                new File(
+                  [
+                    Uint8Array.from(atob('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='), (c) =>
+                      c.charCodeAt(0)
+                    ),
+                  ],
+                  name,
+                  {
+                    type: 'image/gif',
+                  }
+                )
+              );
+            else dt.items.add(new File(['x'], 'x.txt'));
+            document
+              .querySelector('.conversation')
+              .dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt }));
+          },
+          [type, name]
+        );
+      await drag('dragenter', 'solto.gif');
+      await page.locator('[data-testid=drop-overlay]').waitFor();
+      await attShot(page, 'drop');
+      await drag('drop', 'solto.gif');
+      await page.locator('[data-testid=drop-overlay]').waitFor({ state: 'detached' });
+      await chips.nth(2).waitFor();
+      assert.equal(await chips.count(), 3);
+    });
+    await step('Ctrl+V with an image attaches it; a refused file only shows a message', async () => {
+      await page.evaluate(() => {
+        const dt = new DataTransfer();
+        dt.items.add(
+          new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0])], 'image.png', {
+            type: 'image/png',
+          })
+        );
+        document
+          .querySelector('textarea[aria-label="Mensagem"]')
+          .dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt }));
+      });
+      await chips.nth(3).waitFor();
+      assert.equal(await chips.count(), 4);
+      await page.evaluate(() => {
+        const dt = new DataTransfer();
+        dt.items.add(new File(['MZ\u0000\u0000'], 'programa.exe'));
+        document
+          .querySelector('textarea[aria-label="Mensagem"]')
+          .dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt }));
+      });
+      await page.locator('.toast', { hasText: 'não suportado' }).waitFor();
+      assert.equal(await chips.count(), 4);
+    });
+    await step('removing a chip deletes the staged copy', async () => {
+      assert.equal(stagedCount(), 4);
+      await page.getByRole('button', { name: 'Remover anexo image.png' }).click();
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid=attachment-chip]').length === 3);
+      await wait(200);
+      assert.equal(stagedCount(), 3);
+    });
+    await step('pending attachments are a per-chat draft: they survive switching chats and reloading', async () => {
+      await page.evaluate(() => window.vesta.call('createChat', { provider: 'claude', memory: false }));
+      await page.locator('.chat-list-item').first().click();
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid=attachment-chip]').length === 0);
+      await page.locator('.chat-list-item').nth(1).click();
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid=attachment-chip]').length === 3);
+      await wait(600); // the draft is saved shortly after the change
+      await page.reload();
+      await page.waitForSelector('.loading', { state: 'detached' });
+      await page.locator('.chat-list-item').nth(1).click();
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid=attachment-chip]').length === 3);
+      await attShot(page, 'composer-chips');
+    });
+    await step('sending attaches the files to the message: thumbnails, document cards, chips cleared', async () => {
+      await page.locator('textarea[aria-label="Mensagem"]').fill('Veja estes arquivos');
+      await page.getByRole('button', { name: 'Enviar mensagem' }).click();
+      await page.locator('.message.user .attachment-thumb').first().waitFor();
+      await page.locator('.message.assistant', { hasText: 'Recebi os anexos.' }).waitFor();
+      assert.equal(await page.locator('.message.user .attachment-thumb').count(), 2);
+      assert.equal(await page.locator('.message.user .attachment-card').count(), 1);
+      assert.equal(await chips.count(), 0);
+      await page.waitForFunction(() =>
+        [...document.querySelectorAll('.attachment-thumb img')].every((i) => i.complete && i.naturalWidth > 0)
+      );
+      const w = await page
+        .locator('.attachment-thumb img')
+        .first()
+        .evaluate((i) => i.naturalWidth);
+      assert.ok(w <= 320, 'the conversation shows the small thumbnail (' + w + 'px)');
+      const turn = await app.evaluate(() => globalThis.__turns[0]);
+      assert.equal(turn.attachments.length, 3);
+      assert.match(turn.prompt, /Veja estes arquivos/);
+      assert.match(turn.prompt, /Anexos do usuário/);
+      assert.match(turn.prompt, /relatorio\.pdf[^\n]*\n {2}Caminho: .*attachments.*relatorio\.pdf/);
+      assert.match(
+        turn.args[turn.args.indexOf('--add-dir') + 1],
+        /attachments[\\/]/,
+        'Claude may read the chat attachment folder'
+      );
+      assert.equal(stagedCount(), 0);
+      await attShot(page, 'conversation');
+    });
+    await step(
+      'clicking a thumbnail opens the viewer (Esc closes); a document card opens in the default program',
+      async () => {
+        await page.locator('.attachment-thumb').first().click();
+        const viewer = page.locator('.image-viewer');
+        await viewer.waitFor();
+        await page.waitForFunction(() => document.querySelector('.image-viewer img')?.naturalWidth === 640);
+        assert.match(await viewer.innerText(), /quadrado\.png/i);
+        await attShot(page, 'viewer');
+        await page.keyboard.press('Escape');
+        await viewer.waitFor({ state: 'detached' });
+        await page.locator('.attachment-card').click();
+        await wait(200);
+        const opened = await app.evaluate(() => globalThis.__opened);
+        assert.equal(opened.length, 1);
+        assert.match(opened[0], /attachments[\\/][\w-]+[\\/][a-f0-9]{12}-relatorio\.pdf$/);
+      }
+    );
+    await step('the protocol serves only images from the attachments folder', async () => {
+      probing = true;
+      const state = (await page.evaluate(() => window.vesta.call('bootstrap'))).state;
+      const chat = state.chats.find((c) => c.messages.some((m) => m.attachments));
+      // The page's CSP only allows the protocol for images, so the probe loads it as an <img>.
+      const probe = (u) =>
+        page.evaluate(
+          (u) =>
+            new Promise((resolve) => {
+              const i = new Image();
+              i.onload = () => resolve(200);
+              i.onerror = () => resolve(404);
+              i.src = u;
+            }),
+          u
+        );
+      const f = (a) => 'vesta-attachment://f/' + chat.id + '/' + a.id + '-' + a.name;
+      const imgAtt = chat.messages[0].attachments.find((a) => a.kind === 'image');
+      const docAtt = chat.messages[0].attachments.find((a) => a.kind === 'document');
+      assert.equal(await probe(f(imgAtt)), 200);
+      assert.equal(await probe(f(docAtt)), 404, 'documents are never rendered by the app');
+      assert.equal(await probe('vesta-attachment://f/' + chat.id + '/..%2F..%2Fvesta.json'), 404);
+      assert.equal(await probe('vesta-attachment://f/' + chat.id + '/%2e%2e%2f%2e%2e%2fvesta.json'), 404);
+      assert.equal(await probe('vesta-attachment://f/..%2Fvesta.json/x.png'), 404);
+    });
+    await step('deleting the chat deletes its attachment folder', async () => {
+      const state = (await page.evaluate(() => window.vesta.call('bootstrap'))).state;
+      const chat = state.chats.find((c) => c.messages.some((m) => m.attachments));
+      const dir = path.join(dataDir, 'attachments', chat.id);
+      assert.ok(fs.existsSync(dir));
+      await page.evaluate((id) => window.vesta.call('deleteChat', { id }), chat.id);
+      assert.equal(fs.existsSync(dir), false);
+    });
+    await wait(300);
+    assert.deepEqual(problems, [], 'renderer reported errors:\n' + problems.join('\n'));
+  } finally {
+    await app.close().catch(() => {});
+    fs.rmSync(dataDir, { recursive: true, force: true });
+    fs.rmSync(files, { recursive: true, force: true });
+  }
+}
+
 (async () => {
   await emptyStorePhase();
+  await attachmentsPhase();
   await seededPhase();
   await activityPhase();
   await questPhase();

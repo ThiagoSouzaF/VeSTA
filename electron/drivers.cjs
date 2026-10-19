@@ -6,6 +6,7 @@ const { spawn } = require('node:child_process');
 const net = require('node:net');
 const { randomBytes } = require('node:crypto');
 const { kill } = require('./providers.cjs');
+const A = require('./attachments.cjs');
 const clip = (v, n) => String(v == null ? '' : v).slice(0, n);
 const freePort = () =>
   new Promise((resolve, reject) => {
@@ -141,7 +142,11 @@ function runClaude(spec, ctx) {
     // turn (num_turns 0, no result text); the answer to this prompt comes after it, so that one must not settle.
     if (e.type === 'result' && !(e.num_turns === 0 && !e.result) && !ctx.parse.backgroundRunning()) settle();
   });
-  write({ type: 'user', message: { role: 'user', content: ctx.prompt } });
+  let content = ctx.prompt;
+  try {
+    content = A.claudeContent(ctx.prompt, ctx.attachments);
+  } catch {}
+  write({ type: 'user', message: { role: 'user', content } });
   const done = new Promise((resolve) => {
     child.on('error', (err) => resolve({ code: -1, stderr: err.message }));
     child.on('close', (code) => {
@@ -299,7 +304,7 @@ function runCodex(spec, ctx) {
     threadId = started.thread.id;
     ctx.parse.setMainThread(threadId);
     ctx.parse.accept({ method: 'thread/started', params: { thread: { id: threadId } } });
-    await request('turn/start', { threadId, input: [{ type: 'text', text: ctx.prompt, text_elements: [] }] });
+    await request('turn/start', { threadId, input: A.codexInput(ctx.prompt, ctx.attachments) });
   })().catch((err) => {
     ctx.parse.accept({ method: 'error', params: { error: { message: err.message || String(err) } } });
     end();
@@ -440,10 +445,17 @@ function runOpenCode(spec, ctx) {
       headers: { authorization: auth, accept: 'text/event-stream' },
       signal: abort.signal,
     });
+    const opencodeParts = () => {
+      try {
+        return A.opencodeParts(ctx.prompt, ctx.attachments);
+      } catch {
+        return [{ type: 'text', text: ctx.prompt }];
+      }
+    };
     const reader = events.body.getReader(),
       decoder = new TextDecoder();
     await api('POST', '/session/' + sessionId + '/prompt_async', {
-      parts: [{ type: 'text', text: ctx.prompt }],
+      parts: opencodeParts(),
       agent: spec.agent,
       ...(spec.model ? { model: spec.model } : {}),
     });

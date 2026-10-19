@@ -167,6 +167,7 @@ test('coalescer: urgent events flush the queue at once, in order; the source eve
 test('allowlist contains exactly the intended operations', () => {
   assert.deepEqual(Object.keys(ALLOWED).sort(), [
     'answerPermission',
+    'attachmentData',
     'bootstrap',
     'cancelQuest',
     'createChat',

@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, protocol, net, nativeImage } = require('electron');
+const { pathToFileURL } = require('node:url');
 const fs = require('node:fs'),
   path = require('node:path');
 const { Store } = require('./store.cjs');
@@ -14,9 +15,17 @@ const { createConfirmer } = require('./remote/confirm.cjs');
 const { createBoot, mayReveal, STAGES, BOOT_TIMEOUT_MS } = require('./boot.cjs');
 const { createSplash } = require('./splash.cjs');
 const { discover } = require('./integrations.cjs');
+const { createAttachmentStore } = require('./attachment-store.cjs');
+const { IMAGE_EXT } = require('./attachments.cjs');
+const bg = require('./background-mode.cjs');
 app.setName('VeSTA');
 app.commandLine.appendSwitch('force-renderer-accessibility');
+bg.configureBackgroundMode();
 if (process.env.VESTA_DATA_DIR) app.setPath('userData', process.env.VESTA_DATA_DIR);
+// Attachments are shown through this scheme only: it resolves inside <userData>/attachments and nowhere else.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'vesta-attachment', privileges: { standard: true, secure: true, supportFetchAPI: true } },
+]);
 const bus = createBus();
 const ctx = createContext({ app, dialog, shell, bus });
 const { jobs, emit } = ctx;
@@ -38,7 +47,13 @@ ctx.permissions = new Permissions({
     }
     emit({ type: 'permission', chatId, messageId: msg?.id, permission: { ...record } });
     // Someone has to answer: draw attention when the window is in the background.
-    if (record.status === 'pending' && ctx.win && !ctx.win.isDestroyed() && !ctx.win.isFocused())
+    if (
+      record.status === 'pending' &&
+      ctx.win &&
+      !ctx.win.isDestroyed() &&
+      !ctx.win.isFocused() &&
+      !bg.backgroundMode()
+    )
       ctx.win.flashFrame(true);
     if (record.status === 'always') ctx.store.save();
   },
@@ -111,7 +126,9 @@ const createMainWindow = () =>
     backgroundColor: '#000000',
     show: false,
     autoHideMenuBar: true,
+    ...bg.backgroundWindowOptions(),
     webPreferences: {
+      ...bg.backgroundWebPreferences(),
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
@@ -126,6 +143,17 @@ app.whenReady().then(() => {
   }
   // The text zoom (Ctrl+= / Ctrl+- / Ctrl+0 / Ctrl+wheel) belongs to the app: the default menu's native zoom accelerators would add to it.
   Menu.setApplicationMenu(null);
+  protocol.handle('vesta-attachment', async (request) => {
+    const file = ctx.attachments?.resolve(request.url);
+    const mime =
+      file && (path.extname(file) === '.png' ? 'image/png' : IMAGE_EXT[path.extname(file).slice(1).toLowerCase()]);
+    // Only images are served (documents open in the default program); anything else is a 404.
+    if (!mime || !fs.existsSync(file)) return new Response('', { status: 404 });
+    const r = await net.fetch(pathToFileURL(file).href);
+    return new Response(r.body, {
+      headers: { 'content-type': mime, 'x-content-type-options': 'nosniff', 'cache-control': 'private, max-age=3600' },
+    });
+  });
   const useSplash = process.env.VESTA_SERVICE_TEST !== '1';
   // The main window is created first (hidden): automation that asks for the first window gets this one, not the splash.
   const win = (ctx.win = createMainWindow());
@@ -145,7 +173,7 @@ app.whenReady().then(() => {
     revealed = true;
     clearTimeout(watchdog);
     win.setOpacity(0);
-    win.show();
+    bg.reveal(win);
     for (let i = 1; i <= 8; i++) {
       win.setOpacity(i / 8);
       await sleep(25);
@@ -168,7 +196,7 @@ app.whenReady().then(() => {
     mainReady = true;
     if (process.env.VESTA_SERVICE_TEST === '1') return;
     if (splash) return maybeReveal();
-    win.show();
+    bg.reveal(win);
     if (process.env.VESTA_NO_UPDATE !== '1') setTimeout(() => checkForUpdate().catch(() => {}), 4000);
   });
   win.webContents.on('did-fail-load', (e, code, description, url, isMainFrame) => {
@@ -235,6 +263,11 @@ app.whenReady().then(() => {
       ctx.quests.recover();
       bus.subscribe((event) => event.type === 'chat-done' && ctx.quests.onChatDone(event));
       store.save();
+      // Chat attachments: copies kept under userData; leftovers of unsent drafts and deleted chats are cleaned at start.
+      ctx.nativeImage = nativeImage;
+      ctx.attachments = createAttachmentStore({ root: path.join(app.getPath('userData'), 'attachments'), nativeImage });
+      ctx.attachments.sweep();
+      ctx.attachments.prune(store.state.chats.map((c) => c.id));
       // Remote control (phone): off unless the user turned it on in Preferências.
       // Native dialogs approve new devices and full access (the test-only auto answer is ignored when packaged).
       const confirmer = createConfirmer({ dialog, getWindow: () => ctx.win, isPackaged: app.isPackaged });

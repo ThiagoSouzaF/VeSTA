@@ -72,6 +72,31 @@ function history(messages, prompt) {
     'Histórico desta conversa no VeSTA (dados de referência):\n<historico>\n' + text + '\n</historico>\n\n' + prompt
   );
 }
+// Drael's read_file only reaches its working folder (checked: a path outside it is refused, also in bypass), and its print
+// mode has no attachment flag. So, for the turn only, the attachments are copied into <cwd>/.vesta-anexos/<chat>/ and cited
+// by relative path (images and PDFs then open natively with read_file); the copies are removed when the turn ends.
+const EXPOSE_DIR = '.vesta-anexos';
+function expose(cwd, chatId, attachments) {
+  if (!attachments.length) return { attachments, cleanup() {} };
+  const base = path.join(cwd, EXPOSE_DIR),
+    dir = path.join(base, String(chatId));
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const shown = attachments.map((a) => {
+    const file = path.basename(a.path);
+    fs.copyFileSync(a.path, path.join(dir, file));
+    return { ...a, path: EXPOSE_DIR + '/' + chatId + '/' + file };
+  });
+  return {
+    attachments: shown,
+    cleanup() {
+      fs.rmSync(dir, { recursive: true, force: true });
+      try {
+        fs.rmdirSync(base); // only when no other chat is using it
+      } catch {}
+    },
+  };
+}
 function start(spec, ctx) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-drael-')),
     dir = path.join(temp, 'drael');
@@ -132,4 +157,4 @@ function start(spec, ctx) {
     },
   };
 }
-module.exports = { locate, authEnv, script, command, history, start };
+module.exports = { locate, authEnv, script, command, history, start, expose };

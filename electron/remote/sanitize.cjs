@@ -2,7 +2,10 @@
 // none of that leaves the machine. Also builds the incremental "state" events (only chats that changed).
 const MAX_MESSAGES = 80;
 
+const { publicAttachment } = require('../attachments.cjs');
 const SETTINGS = ['theme', 'accent', 'fontScale'];
+// Attachments reach the phone without their filesystem paths.
+const phoneMessage = (m) => (m.attachments ? { ...m, attachments: m.attachments.map(publicAttachment) } : m);
 function sanitizeChat(chat, { maxMessages = MAX_MESSAGES } = {}) {
   const messages = chat.messages || [];
   const cut = Math.max(0, messages.length - maxMessages);
@@ -17,7 +20,7 @@ function sanitizeChat(chat, { maxMessages = MAX_MESSAGES } = {}) {
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
     hiddenMessages: cut,
-    messages: cut ? messages.slice(cut) : messages,
+    messages: (cut ? messages.slice(cut) : messages).map(phoneMessage),
   };
 }
 // Fields every state event carries (small); chats travel apart because they are the heavy part.

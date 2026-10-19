@@ -67,7 +67,7 @@ export function App() {
 
 function Signed({ token, onSignOut }) {
   const remote = useRemote(token, onSignOut);
-  const { state, done, integrations, online, loaded, call } = remote;
+  const { state, done, integrations, online, loaded, call, upload } = remote;
   const route = useRoute();
   const [toast, setToast] = useState('');
   const [menu, setMenu] = useState(false);
@@ -112,6 +112,7 @@ function Signed({ token, onSignOut }) {
               done={done[chat.id]}
               integrations={integrations}
               call={call}
+              upload={upload}
               notify={notify}
               onBack={() => history.back()}
               onOpenActivity={() => go('#/atividade')}

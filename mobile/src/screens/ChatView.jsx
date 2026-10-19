@@ -1,5 +1,15 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowUp, LoaderCircle, Settings2, Square, ShieldAlert, ShieldCheck, ShieldX } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowUp,
+  LoaderCircle,
+  Paperclip,
+  Settings2,
+  Square,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldX,
+} from 'lucide-react';
 import tasks from '../../../electron/tasks.cjs';
 import { Mascot, Sheet } from '../components/ui';
 import { Markdown } from '../components/Markdown';
@@ -10,6 +20,7 @@ import { messageActivity } from '../../../src/lib/activity';
 import { modelLabel } from '../../../src/lib/format';
 import { chatMood } from '../lib/state';
 import { modeLabel } from '../lib/modes';
+import { MessageAttachments, PendingAttachments, previewOf } from '../components/Attachments';
 
 const PERM_TEXT = {
   allowed: 'Permitido',
@@ -19,11 +30,14 @@ const PERM_TEXT = {
   expired: 'Expirou',
   cancelled: 'Cancelado',
 };
-const Message = memo(function Message({ chat, m, live, onOpenActivity }) {
+const Message = memo(function Message({ chat, m, live, call, onOpenActivity }) {
   if (m.role === 'user')
     return (
       <div className="msg user" data-message={m.id}>
-        <div className="bubble">{m.text}</div>
+        <div className="user-stack">
+          <MessageAttachments call={call} chatId={chat.id} attachments={m.attachments} />
+          {m.text && <div className="bubble">{m.text}</div>}
+        </div>
       </div>
     );
   const act = m.activities?.length || m.subagents?.length ? messageActivity(chat, m, live) : null;
@@ -61,8 +75,10 @@ const Message = memo(function Message({ chat, m, live, onOpenActivity }) {
   );
 });
 
-export function ChatView({ chat, running, waiting, done, integrations, call, onBack, onOpenActivity, notify }) {
+export function ChatView({ chat, running, waiting, done, integrations, call, upload, onBack, onOpenActivity, notify }) {
   const [text, setText] = useState(''),
+    [files, setFiles] = useState([]), // uploaded, not sent yet: [{ att, preview }]
+    [uploading, setUploading] = useState(false),
     [busy, setBusy] = useState(false),
     [settings, setSettings] = useState(false);
   const list = useRef(null),
@@ -82,18 +98,46 @@ export function ChatView({ chat, running, waiting, done, integrations, call, onB
     stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   };
   async function send() {
-    const value = text.trim();
-    if (!value || busy || running) return;
+    const value = text.trim(),
+      sending = files;
+    if ((!value && !sending.length) || busy || running || uploading) return;
     setBusy(true);
     setText('');
+    setFiles([]);
     stick.current = true;
     try {
-      await call('send', { chatId: chat.id, text: value });
+      await call('send', {
+        chatId: chat.id,
+        text: value,
+        ...(sending.length ? { attachments: sending.map((f) => f.att.id) } : {}),
+      });
     } catch (e) {
       setText(value);
+      setFiles(sending);
       notify(e.message);
     } finally {
       setBusy(false);
+    }
+  }
+  // Uploads each picked file right away (same type and size checks as the desktop); refusals show as a message.
+  async function pick(list) {
+    const room = 10 - files.length;
+    if (room <= 0) return notify('No máximo 10 anexos por mensagem');
+    setUploading(true);
+    try {
+      for (const file of list.slice(0, room)) {
+        try {
+          const att = await upload(file);
+          setFiles((f) => [...f, { att, preview: '' }]);
+          previewOf(file).then(
+            (preview) => preview && setFiles((f) => f.map((x) => (x.att.id === att.id ? { ...x, preview } : x)))
+          );
+        } catch (e) {
+          notify(e.message);
+        }
+      }
+    } finally {
+      setUploading(false);
     }
   }
   const grow = (el) => {
@@ -126,10 +170,15 @@ export function ChatView({ chat, running, waiting, done, integrations, call, onB
           <p className="muted center small">{chat.hiddenMessages} mensagens anteriores ficam só no desktop.</p>
         )}
         {chat.messages.map((m) => (
-          <Message key={m.id} chat={chat} m={m} live={m.id === liveId} onOpenActivity={onOpenActivity} />
+          <Message key={m.id} chat={chat} m={m} live={m.id === liveId} call={call} onOpenActivity={onOpenActivity} />
         ))}
         {!chat.messages.length && <p className="muted center">Escreva a primeira mensagem.</p>}
       </div>
+      <PendingAttachments
+        items={files}
+        disabled={busy}
+        onRemove={(id) => setFiles((f) => f.filter((x) => x.att.id !== id))}
+      />
       <form
         className="composer"
         onSubmit={(e) => {
@@ -137,6 +186,22 @@ export function ChatView({ chat, running, waiting, done, integrations, call, onB
           send();
         }}
       >
+        <label className={'attach' + (uploading ? ' busy' : '')} aria-label="Anexar arquivo">
+          {uploading ? <LoaderCircle size={20} className="spin" /> : <Paperclip size={20} />}
+          <input
+            type="file"
+            multiple
+            hidden
+            data-testid="file-input"
+            accept="image/*,.pdf,.txt,.md,.csv,.json,.xml,.yaml,.yml,.log,.html,.docx,.xlsx,.pptx,.js,.ts,.py,.go,.java,.cs"
+            disabled={running || busy || uploading}
+            onChange={(e) => {
+              const list = [...e.target.files];
+              e.target.value = '';
+              pick(list);
+            }}
+          />
+        </label>
         <textarea
           ref={input}
           rows={1}
@@ -158,7 +223,7 @@ export function ChatView({ chat, running, waiting, done, integrations, call, onB
             <Square size={18} />
           </button>
         ) : (
-          <button className="send" aria-label="Enviar" disabled={!text.trim() || busy}>
+          <button className="send" aria-label="Enviar" disabled={(!text.trim() && !files.length) || busy || uploading}>
             <ArrowUp size={20} />
           </button>
         )}

@@ -5,19 +5,29 @@ const usage = require('./usage.cjs');
 const { redact } = require('./memory.cjs');
 const drivers = require('./drivers.cjs');
 const tasks = require('./tasks.cjs');
+const A = require('./attachments.cjs');
 // One conversation turn. `ctx` carries store, jobs, bus, memory, permissions, integrations and the shared helpers.
-async function send(ctx, { chatId, text }) {
+async function send(ctx, { chatId, text, attachments: ids }) {
   const { store, jobs, memory, permissions, app, bounded, emit, sync, state } = ctx;
   const chat = store.chat(chatId);
   text = bounded(text, 50000).trim();
-  if (!text) throw new UserError('Digite uma mensagem');
+  ids = (Array.isArray(ids) ? ids : []).map((a) => String(a?.id ?? a));
+  if (!text && !ids.length) throw new UserError('Digite uma mensagem');
   if (jobs.has(chatId)) throw new UserError('Este chat já está respondendo');
   const exe = ctx.integrations[chat.provider]?.exe || providers.locate(chat.provider);
   if (!exe) throw new UserError('Instale ou configure ' + chat.provider + ' na tela Conexões');
   const cwd = ctx.workdir(chat);
+  // Staged files move into this chat's folder only now that the turn will really start.
+  const atts = ids.length ? ctx.attachments.commit(chatId, ids) : [];
   const task = { run: null, cancelled: false, assistant: null };
   jobs.set(chatId, task);
-  const user = { id: randomUUID(), role: 'user', text, createdAt: Date.now() };
+  const user = {
+    id: randomUUID(),
+    role: 'user',
+    text,
+    createdAt: Date.now(),
+    ...(atts.length ? { attachments: atts } : {}),
+  };
   const assistant = {
     id: randomUUID(),
     role: 'assistant',
@@ -31,13 +41,14 @@ async function send(ctx, { chatId, text }) {
   };
   task.assistant = assistant;
   chat.messages.push(user, assistant);
-  if (chat.title === 'Novo chat') chat.title = text.replace(/\s+/g, ' ').slice(0, 55);
+  if (chat.title === 'Novo chat') chat.title = (text || atts[0]?.name || 'Anexos').replace(/\s+/g, ' ').slice(0, 55);
   chat.updatedAt = Date.now();
   store.save();
   sync();
   // The renderer gets a response immediately; each chat owns its subprocess and native session id.
   (async () => {
-    let context = '',
+    let cleanup = () => {},
+      context = '',
       memoryWarning = '';
     try {
       if (store.state.settings.memoryEnabled && chat.memory) {
@@ -88,10 +99,18 @@ async function send(ctx, { chatId, text }) {
       ]
         .filter(Boolean)
         .join('\n\n');
-      let prompt = preamble ? preamble + '\n\nMensagem do usuário:\n' + text : text;
+      let shown = atts;
+      if (chat.provider === 'drael' && atts.length) {
+        const ex = require('./drael.cjs').expose(cwd, chatId, atts);
+        shown = ex.attachments;
+        cleanup = ex.cleanup;
+      }
+      const body = A.promptWith(chat.provider, text || 'Veja os anexos desta mensagem.', shown);
+      let prompt = preamble ? preamble + '\n\nMensagem do usuário:\n' + body : body;
       if (chat.provider === 'drael') prompt = require('./drael.cjs').history(chat.messages, prompt);
       else if (chat.handoffPending) prompt = require('./conversations.cjs').handoff(chat.messages.slice(0, -2), prompt);
-      const spec = providers.command(chat, exe, endpoint);
+      const attachDir = ctx.attachments?.dirOf(chatId) || null;
+      const spec = providers.command(chat, exe, endpoint, { attachDir });
       const env = { ...process.env, ...spec.env };
       delete env.ELECTRON_RUN_AS_NODE;
       let providerError = '';
@@ -115,6 +134,7 @@ async function send(ctx, { chatId, text }) {
         cwd,
         env,
         prompt,
+        attachments: atts,
         parse,
         version: app.getVersion(),
         ask: (request) => permissions.ask(chatId, request),
@@ -168,6 +188,7 @@ async function send(ctx, { chatId, text }) {
       assistant.error = bounded(redact(e.message), 4000);
     } finally {
       if (chat.handoffPending && assistant.status !== 'done') chat.sessionId = null;
+      cleanup();
       jobs.delete(chatId);
       store.save();
       sync();

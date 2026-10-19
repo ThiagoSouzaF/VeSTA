@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { empty } from './lib/constants';
 import { useDrafts } from './hooks/useDrafts';
+import { usePendingAttachments } from './hooks/usePendingAttachments';
+import { stageFiles } from './lib/attachments';
 import { useToast } from './hooks/useToast';
 import { makeCall, api, signalReady } from './lib/api';
 import { applyEvents, createEventBuffer } from './lib/streamBuffer';
@@ -45,6 +47,7 @@ export function App() {
     [busy, setBusy] = useState(false);
   const { drafts, setDraft } = useDrafts({ chats: data.chats, loading });
   const { toast, notify } = useToast();
+  const { pending, addPending, removePending, clearPending } = usePendingAttachments({ chats: data.chats, loading });
   const textarea = useRef();
   const chat = data.chats.find((c) => c.id === active),
     currentProvider = chat?.provider || provider,
@@ -52,7 +55,8 @@ export function App() {
     currentProject = data.projects.find((p) => p.id === currentProjectId),
     running = data.running.includes(active);
   const draftKey = active ?? 'new',
-    input = drafts[draftKey] || '';
+    input = drafts[draftKey] || '',
+    attachments = pending[draftKey] || [];
   const activeRef = useRef(active);
   activeRef.current = page === 'chat' ? active : null;
   const call = useMemo(() => makeCall(notify), [notify]);
@@ -163,8 +167,23 @@ export function App() {
     setModal(null);
     return c;
   }
+  // Attach: from the file dialog, a drop or a paste. The files are copied right away, so the chips show real thumbnails.
+  async function pickFiles() {
+    try {
+      const r = await call('attachPick');
+      if (r.attachments.length) addPending(draftKey, r.attachments);
+      if (r.errors.length) notify(r.errors.join(' · '));
+    } catch {}
+  }
+  async function attachFiles(files) {
+    const room = 10 - attachments.length;
+    if (room <= 0) return notify('No máximo 10 anexos por mensagem');
+    if (files.length > room) notify('No máximo 10 anexos por mensagem: só os primeiros foram considerados');
+    const items = await stageFiles(files.slice(0, room), { call, notify });
+    if (items.length) addPending(draftKey, items);
+  }
   async function send(text = input) {
-    if (!text.trim() || busy) return;
+    if ((!text.trim() && !attachments.length) || busy) return;
     setBusy(true);
     try {
       let c = chat;
@@ -179,7 +198,8 @@ export function App() {
       setNewModel(null);
       setDraft(c.id, '');
       if (!chat) setDraft('new', '');
-      replaceData(await call('send', { chatId: c.id, text }));
+      replaceData(await call('send', { chatId: c.id, text, attachments: attachments.map((a) => a.id) }));
+      clearPending(c.id, 'new');
     } catch {
     } finally {
       setBusy(false);
@@ -313,6 +333,10 @@ export function App() {
                 setPage={setPage}
                 instructions={instructions}
                 focus={focus}
+                attachments={attachments}
+                onPick={pickFiles}
+                onFiles={attachFiles}
+                onRemoveAttachment={(id) => removePending(draftKey, id)}
               />
             ) : page === 'activity' ? (
               <ActivityPage groups={groups} projects={data.projects} call={call} onOpen={openFromActivity} />

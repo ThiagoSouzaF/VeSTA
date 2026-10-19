@@ -57,6 +57,29 @@ export async function pair(code, name) {
 }
 export const makeCall = (token) => async (method, args) => (await request('/api/call', { method, args }, token)).result;
 
+// Sends one file (raw bytes) to be staged on the desktop; resolves with the attachment descriptor.
+export const makeUpload = (token) => async (file) => {
+  const res = await fetch('/api/upload', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      Authorization: 'Bearer ' + token,
+      'X-Vesta-Name': encodeURIComponent(file.name || 'arquivo'),
+    },
+    body: file,
+    cache: 'no-store',
+  });
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {}
+  if (!res.ok) {
+    const msg = data.error || 'Erro ' + res.status;
+    throw res.status === 401 ? Object.assign(new AuthError(msg), { code: data.code }) : new Error(msg);
+  }
+  return data.result;
+};
+
 const wsUrl = () => (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
 const STALE_MS = 45_000; // the server sends a heartbeat every 20 s
 // Keeps a socket open with exponential backoff. The token travels in the first message, never in the URL.

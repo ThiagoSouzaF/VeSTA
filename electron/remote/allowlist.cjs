@@ -43,18 +43,28 @@ const T = {
       return v;
     },
 };
+// Ids of attachments the phone staged with /api/upload (at most 10 per message).
+const attachmentIds = (v, k) => {
+  if (!Array.isArray(v) || v.length > 10 || v.some((x) => typeof x !== 'string' || !/^[a-f0-9]{12}$/.test(x)))
+    throw bad('Campo inválido: ' + k);
+  return v;
+};
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const PROVIDERS = ['claude', 'codex', 'drael', 'opencode'];
 const MODES = ['edit', 'read', 'ask'];
 const nullable = (fn) => (v, k) => (v === null ? null : fn(v, k));
 
 // name -> { args: { field: [validator, required?] }, result? }
-const spec = (args = {}, result) => ({ args, result });
+const spec = (args = {}, result, check) => ({ args, result, check });
 const req = (fn) => [fn, true];
 const opt = (fn) => [fn, false];
 const ALLOWED = {
   bootstrap: spec(),
-  send: spec({ chatId: req(T.id), text: req(T.str(50_000, { min: 1 })) }),
+  // Text is required unless the message carries attachments.
+  send: spec({ chatId: req(T.id), text: opt(T.str(50_000)), attachments: opt(attachmentIds) }, undefined, (out) => {
+    if (!(out.text || '').trim() && !out.attachments?.length) throw bad('Campo obrigatório: text');
+  }),
+  attachmentData: spec({ chatId: req(T.id), id: req(T.id), full: opt(T.bool) }),
   stop: spec({ chatId: req(T.id) }),
   stopTask: spec({ chatId: req(T.id), taskId: req(T.str(200, { min: 1 })) }),
   answerPermission: spec({ id: req(T.id), decision: req(T.oneOf(['once', 'always', 'deny'])) }),
@@ -104,6 +114,7 @@ function validateArgs(name, args) {
     }
     out[field] = check(v, field);
   }
+  ALLOWED[name].check?.(out);
   return out;
 }
 module.exports = { ALLOWED, isAllowed, validateArgs, RemoteError };

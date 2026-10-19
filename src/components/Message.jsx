@@ -8,6 +8,7 @@ import { Subagents } from './Subagents';
 import { Markdown } from './Markdown';
 import { IconButton } from './IconButton';
 import { action } from '../lib/api';
+import { MessageAttachments } from './MessageAttachments';
 // Props are stable between frames (primitives + stable callbacks), so only the message that changed re-renders.
 export const Message = memo(function Message({
   m,
@@ -48,6 +49,7 @@ export const Message = memo(function Message({
         />
         {m.role === 'assistant' && <TaskSummary chat={chat} m={m} live={live} onStopTask={onStopTask} />}
         <Subagents subagents={m.subagents} />
+        <MessageAttachments chatId={chat.id} attachments={m.attachments} call={call} />
         {m.text && <Markdown text={m.text} />}
         {m.status === 'running' && !m.text && (
           <div className="thinking">

@@ -162,7 +162,7 @@ function createRemote({ ctx, methods, bus, staticRoot = path.join(__dirname, '..
       const q = ctx.store.state.quests?.[0];
       if (q && stepsToRun(q).length) approvedQuests.set(q.id, signature(q)); // approved above
     }
-    if (name === 'usage' || name === 'refreshUsage') return out;
+    if (name === 'usage' || name === 'refreshUsage' || name === 'attachmentData') return out;
     if (name === 'createChat') return { chat: sanitizeChat(out.chats[0]) };
     return { ok: true };
   }
@@ -189,6 +189,12 @@ function createRemote({ ctx, methods, bus, staticRoot = path.join(__dirname, '..
         pairing,
         hub,
         dispatch,
+        // Files from the phone are staged exactly like the ones picked on the desktop (same validation and limits).
+        upload: ({ name, data }) => {
+          if (!ctx.attachments) throw new Error('Anexos indisponíveis');
+          const { path: _path, ...att } = ctx.attachments.stageBuffer(name, data);
+          return att;
+        },
         staticRoot,
         log,
         onActivity,

@@ -473,3 +473,30 @@
     6px 6px 0 1px #3f3f46;
   transform: none;
 }
+
+/* ---- attachments ---- */
+:root[data-theme='ink'] :is(.m-att-thumb, .m-att-card, .m-chip) {
+  background: #000;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+}
+:root[data-theme='ink'] .m-chip img {
+  border-radius: 0;
+}
+:root[data-theme='ink'] .m-pending {
+  background: #000;
+}
+:root[data-theme='ink'] .m-att-card small,
+:root[data-theme='ink'] .m-chip small,
+:root[data-theme='ink'] .m-viewer-caption {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+:root[data-theme='ink'] .attach {
+  border-radius: 0;
+  color: #fff;
+}
+:root[data-theme='ink'] .m-viewer {
+  background: #000;
+}

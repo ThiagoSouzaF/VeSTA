@@ -1,9 +1,16 @@
 const { UserError } = require('./errors.cjs');
 const PROVIDERS = ['codex', 'claude', 'drael', 'opencode'];
+// Attachments of a message, as a line the next AI can read (files stay where VeSTA stored them).
+const note = (m) =>
+  m.attachments?.length ? '\n[Anexos: ' + m.attachments.map((a) => a.name + ' (' + a.path + ')').join(', ') + ']' : '';
 function transcript(messages) {
   return messages
-    .filter((m) => m.text && (m.role === 'user' || (m.role === 'assistant' && (!m.status || m.status === 'done'))))
-    .map((m) => ({ role: m.role, ...(m.provider ? { provider: m.provider } : {}), text: m.text }));
+    .filter(
+      (m) =>
+        (m.text || m.attachments?.length) &&
+        (m.role === 'user' || (m.role === 'assistant' && (!m.status || m.status === 'done')))
+    )
+    .map((m) => ({ role: m.role, ...(m.provider ? { provider: m.provider } : {}), text: (m.text || '') + note(m) }));
 }
 function handoff(messages, prompt) {
   const history = transcript(messages);

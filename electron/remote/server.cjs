@@ -17,6 +17,7 @@ const { createLimiter } = require('./limiter.cjs');
 const { createConnectionGate, normalizeIp, isLoopback } = require('./connections.cjs');
 
 const MAX_BODY = 256 * 1024;
+const MAX_UPLOAD = 30 * 1024 * 1024; // attachments from the phone (same ceiling as documents on the desktop)
 const AUTH_TIMEOUT_MS = 5000;
 const HEARTBEAT_MS = 20_000;
 const MIME = {
@@ -49,6 +50,8 @@ function createRemoteServer({
   deviceLimiter,
   gate,
   confirmPairing = async () => 'no',
+  // upload({ name, data: Buffer }, { device }) -> attachment descriptor (stored staged, like the desktop).
+  upload,
   onActivity,
   log = (...args) => console.error('[remote]', ...args),
 }) {
@@ -178,41 +181,84 @@ function createRemoteServer({
   }
   // Token first: a valid device is never held back by the failure limiter (an attacker on the same address, or behind the
   // same proxy, cannot lock the owner out). Only unknown tokens count as failures.
-  async function handleCall(req, res, ip) {
+  // Token check shared by every authenticated route. Returns the device, or null after having answered the request.
+  function authenticate(req, res, ip) {
     const { device, expired } = devices.inspect(bearer(req));
     if (!device || expired) {
       const gateCheck = authLimiter.check(ip);
       if (!gateCheck.allowed)
-        return fail(
-          req,
-          res,
-          429,
-          'Muitas tentativas. Tente de novo mais tarde.',
-          retryHeaders(gateCheck.retryAfterMs)
+        return (
+          fail(req, res, 429, 'Muitas tentativas. Tente de novo mais tarde.', retryHeaders(gateCheck.retryAfterMs)),
+          null
         );
       authLimiter.fail(ip);
-      if (expired) return json(req, res, 401, { error: EXPIRED_MESSAGE, code: 'expired' });
-      return fail(req, res, 401, 'Aparelho não autorizado');
+      if (expired) return json(req, res, 401, { error: EXPIRED_MESSAGE, code: 'expired' }), null;
+      return fail(req, res, 401, 'Aparelho não autorizado'), null;
     }
     const perDevice = deviceLimiter.check(device.id);
     if (!perDevice.allowed)
-      return fail(
-        req,
-        res,
-        429,
-        'Muitas requisições deste aparelho. Aguarde um instante.',
-        retryHeaders(perDevice.retryAfterMs)
+      return (
+        fail(
+          req,
+          res,
+          429,
+          'Muitas requisições deste aparelho. Aguarde um instante.',
+          retryHeaders(perDevice.retryAfterMs)
+        ),
+        null
       );
     deviceLimiter.fail(device.id);
     gate.authed(req.socket);
     devices.touch(device);
     onActivity?.('auth', device, { ip });
+    return device;
+  }
+  async function handleCall(req, res, ip) {
+    const device = authenticate(req, res, ip);
+    if (!device) return;
     const body = await readBody(req);
     const method = body && typeof body === 'object' ? body.method : undefined;
     if (!isAllowed(method)) return fail(req, res, 403, 'Operação não permitida no controle remoto');
     const args = validateArgs(method, body.args);
     const result = await dispatch(method, args, { device, ip });
     json(req, res, 200, { result: result === undefined ? null : result });
+  }
+
+  // POST /api/upload: raw file bytes (Content-Type application/octet-stream), name in X-Vesta-Name (URL-encoded).
+  function readRaw(req, limit) {
+    return new Promise((resolve, reject) => {
+      const declared = Number(req.headers['content-length']);
+      if (declared > limit) {
+        req.resume();
+        return reject(new RemoteError(413, 'Arquivo grande demais (máximo 30 MB)'));
+      }
+      let size = 0;
+      const chunks = [];
+      req.on('data', (c) => {
+        size += c.length;
+        if (size > limit) {
+          reject(new RemoteError(413, 'Arquivo grande demais (máximo 30 MB)'));
+          req.destroy();
+        } else chunks.push(c);
+      });
+      req.on('end', () => resolve(Buffer.concat(chunks)));
+      req.on('error', reject);
+    });
+  }
+  async function handleUpload(req, res, ip) {
+    if (!upload) return fail(req, res, 404, 'Não encontrado');
+    const device = authenticate(req, res, ip);
+    if (!device) return;
+    if (!/^application\/octet-stream\b/i.test(req.headers['content-type'] || ''))
+      return fail(req, res, 415, 'Use application/octet-stream');
+    let name = '';
+    try {
+      name = decodeURIComponent(String(req.headers['x-vesta-name'] || '')).slice(0, 200);
+    } catch {}
+    if (!name.trim()) return fail(req, res, 400, 'Informe o nome do arquivo');
+    const data = await readRaw(req, MAX_UPLOAD);
+    const attachment = await upload({ name, data }, { device, ip });
+    json(req, res, 200, { result: attachment });
   }
 
   async function serveStatic(req, res, pathname) {
@@ -271,6 +317,7 @@ function createRemoteServer({
       if (pathname.startsWith('/api/')) {
         if (pathname === '/api/health' && req.method === 'GET') return json(req, res, 200, { ok: true });
         if (req.method !== 'POST') return fail(req, res, 405, 'Método não suportado', { Allow: 'POST' });
+        if (pathname === '/api/upload') return await handleUpload(req, res, ip);
         if (!/^application\/json\b/i.test(req.headers['content-type'] || ''))
           return fail(req, res, 415, 'Use application/json');
         if (pathname === '/api/pair') return await handlePair(req, res, ip);
@@ -365,7 +412,7 @@ function createRemoteServer({
       for (const host of hosts) {
         const server = http.createServer(onRequest);
         server.headersTimeout = 15_000;
-        server.requestTimeout = 30_000;
+        server.requestTimeout = 120_000; // uploads of up to 30 MB over a mobile link
         server.keepAliveTimeout = 10_000;
         // Connection budget (per-IP pre-auth cap, reserved room for authenticated devices, quick idle cut) lives in the gate.
         server.on('connection', (socket) => gate.accept(socket));
@@ -436,4 +483,4 @@ function createRemoteServer({
     },
   };
 }
-module.exports = { createRemoteServer, MAX_BODY };
+module.exports = { createRemoteServer, MAX_BODY, MAX_UPLOAD };

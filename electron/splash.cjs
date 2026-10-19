@@ -3,6 +3,7 @@
 const path = require('node:path');
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { MIN_SPLASH_MS, splashRemaining } = require('./boot.cjs');
+const bg = require('./background-mode.cjs');
 
 const FADE_MS = 280;
 const SIZE = { width: 460, height: 660 };
@@ -17,10 +18,12 @@ function createSplash({ onQuit, onProceed }) {
     fullscreenable: false,
     center: true,
     skipTaskbar: true,
+    ...bg.backgroundWindowOptions(),
     show: false,
     backgroundColor: '#000000',
     icon: path.join(__dirname, '../assets/vesta.png'),
     webPreferences: {
+      ...bg.backgroundWebPreferences(),
       preload: path.join(__dirname, 'splash-preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
@@ -55,7 +58,7 @@ function createSplash({ onQuit, onProceed }) {
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   win.once('ready-to-show', () => {
     shownAt = Date.now();
-    win.show();
+    bg.reveal(win);
     resolveShown();
   });
   win.once('closed', () => (closed = true));

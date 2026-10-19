@@ -1364,3 +1364,40 @@
   background: #fff;
   color: #000;
 }
+
+/* ---- attachments: square, 1px lines, mono captions ---- */
+:root[data-theme='ink'] :is(.attachment-meta small, .viewer-caption, .drop-overlay span) {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+:root[data-theme='ink'] :is(.attachment-chip, .attachment-card, .attachment-thumb) {
+  background: #000;
+  border: 1px solid var(--line-strong);
+}
+:root[data-theme='ink'] :is(.attachment-thumb, .attachment-card):hover {
+  border-color: #fff;
+}
+:root[data-theme='ink'] .attach-button:hover:not(:disabled) {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+:root[data-theme='ink'] .drop-overlay {
+  background: #000e;
+  border: 1px dashed #fff;
+  outline: 1px solid var(--line-strong);
+  outline-offset: 4px;
+}
+:root[data-theme='ink'] .drop-overlay strong {
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+:root[data-theme='ink'] :is(.viewer-close, .viewer-nav) {
+  background: #000;
+  border: 1px solid #fff;
+}
+:root[data-theme='ink'] .image-viewer > img {
+  border: 1px solid var(--line-strong);
+}
