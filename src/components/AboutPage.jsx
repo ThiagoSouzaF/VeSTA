@@ -1,6 +1,7 @@
 import { ArrowLeft, Droplets, EyeOff, Flame, Scale } from 'lucide-react';
 import { MASCOT_ART } from '../lib/mascotImages';
 import { Wordmark } from './Brand';
+import { Chapter } from './Chapter';
 
 const IDEAS = [
   [
@@ -31,6 +32,7 @@ export function AboutPage({ version, onBack }) {
     <div className="content-page about-page">
       <div className="page-heading">
         <div>
+          <Chapter n={8} title="SOBRE" />
           <div className="eyebrow">SOBRE</div>
           <h1>
             Conheça a <Wordmark />.

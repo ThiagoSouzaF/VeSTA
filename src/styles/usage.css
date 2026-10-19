@@ -39,7 +39,7 @@
   background: var(--orange);
 }
 .usage-bar-card.hot .usage-fill {
-  background: #e07a7a;
+  background: var(--danger);
 }
 .usage-bar-card small {
   display: block;

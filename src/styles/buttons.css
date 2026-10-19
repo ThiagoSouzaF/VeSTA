@@ -29,12 +29,12 @@
   color: var(--text);
 }
 .danger-button {
-  color: #d88a91;
+  color: var(--danger);
 }
 .danger-button:hover {
-  background: #d88a9115;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
 }
 .danger-button.filled {
-  background: #ae4052;
+  background: var(--danger-solid);
   color: white;
 }

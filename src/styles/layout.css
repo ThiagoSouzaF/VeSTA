@@ -48,7 +48,7 @@
   background: var(--hover);
 }
 .window-controls button:last-child:hover {
-  background: #b73a4e;
+  background: var(--danger-solid);
   color: white;
 }
 .app-body {

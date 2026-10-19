@@ -1,0 +1,475 @@
+/*
+ * "Tinta Mangá" on the phone: black ink, paper white, hard edges, Space Grotesk / Space Mono (docs/DESIGN.md).
+ * Tokens, shape, markdown, task tree and usage come from src/styles/theme-ink*.css; this file is the phone's own shell.
+ */
+:root[data-theme='ink'] {
+  --danger-soft: #fff;
+  --on-accent: #000;
+  --shadow: 4px 4px 0 #27272a;
+}
+:root[data-theme='ink'] body {
+  background: #000 var(--dots);
+  font-family: var(--font-body);
+}
+:root[data-theme='ink'] :focus-visible {
+  outline: 1px solid #fff;
+  outline-offset: 3px;
+}
+/* HUD labels: Space Mono, uppercase, wide tracking. */
+:root[data-theme='ink']
+  :is(.label, .badge, .tabbar button, .chip, .segmented button, .msg-head, .board-col h3, .totals dt) {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Meta lines carry names and dates: mono, but in the original casing so they still fit. */
+:root[data-theme='ink'] .chat-row-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+/* ---- shell ---- */
+:root[data-theme='ink'] .topbar {
+  background: #000;
+  border-bottom: 1px solid var(--border);
+}
+:root[data-theme='ink'] .topbar-title strong {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+:root[data-theme='ink'] .topbar-title span {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+:root[data-theme='ink'] .icon-btn:active {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .tabbar {
+  background: #000;
+  border-top: 1px solid #fff;
+}
+:root[data-theme='ink'] .tabbar button {
+  font-size: 10px;
+}
+:root[data-theme='ink'] .tabbar button.on {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+:root[data-theme='ink'] .dot {
+  border-color: #000;
+  background: #fff;
+}
+:root[data-theme='ink'] .tabbar button.on .dot {
+  border-color: #fff;
+  background: #000;
+}
+:root[data-theme='ink'] .dot.warn {
+  background: repeating-linear-gradient(45deg, #fff 0 1px, #000 1px 3px);
+}
+:root[data-theme='ink'] .toast {
+  background: #000;
+  border: 1px solid #fff;
+  box-shadow: 4px 4px 0 #fff;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+:root[data-theme='ink'] .offline {
+  background:
+    repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 5px) 0 0 / 8px 100% no-repeat,
+    #000;
+  border: 1px solid #fff;
+  padding-left: 18px;
+}
+
+/* ---- buttons, forms ---- */
+:root[data-theme='ink'] .btn {
+  background: #000;
+  border: 1px solid var(--line-strong);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+:root[data-theme='ink'] .btn:active {
+  border-color: #fff;
+  background: var(--dots-strong);
+}
+:root[data-theme='ink'] .btn.primary {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+:root[data-theme='ink'] .btn.primary:active {
+  background: #000;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px #fff;
+  transform: translate(2px, 2px);
+}
+:root[data-theme='ink'] .btn.danger {
+  color: #fff;
+  border-color: #fff;
+  background:
+    repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 5px) 0 0 / 7px 100% no-repeat,
+    repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 5px) 100% 0 / 7px 100% no-repeat,
+    #000;
+  padding-inline: 22px;
+}
+:root[data-theme='ink'] .btn.danger::before {
+  content: '[';
+}
+:root[data-theme='ink'] .btn.danger::after {
+  content: ']';
+}
+:root[data-theme='ink'] .btn.ghost {
+  background: none;
+  border-color: transparent;
+  color: var(--muted);
+}
+:root[data-theme='ink'] .link {
+  color: #fff;
+}
+:root[data-theme='ink'] .badge {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  font-size: 9.5px;
+}
+:root[data-theme='ink'] .badge.live,
+:root[data-theme='ink'] .badge.good {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+  font-weight: 700;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+:root[data-theme='ink'] .badge.warn,
+:root[data-theme='ink'] .badge.bad {
+  background: repeating-linear-gradient(45deg, #fff 0 1px, #000 1px 4px);
+  color: #fff;
+  border-color: #fff;
+}
+:root[data-theme='ink'] .form-error,
+:root[data-theme='ink'] .msg-error {
+  position: relative;
+  padding: 10px 12px 10px 20px;
+  color: #fff;
+  border: 1px solid #fff;
+  background:
+    repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 5px) 0 0 / 7px 100% no-repeat,
+    #000;
+}
+:root[data-theme='ink'] .msg-error::after {
+  content: 'ガーン';
+  position: absolute;
+  right: 8px;
+  top: -8px;
+  padding: 0 6px;
+  background: #fff;
+  color: #000;
+  font: 700 9px/15px var(--font-mono);
+  letter-spacing: 0.06em;
+}
+:root[data-theme='ink'] .notice {
+  background: #000;
+  border: 1px solid var(--line-strong);
+}
+:root[data-theme='ink'] .label::before {
+  content: '> ';
+}
+:root[data-theme='ink'] :is(input, textarea, select) {
+  background: #000;
+  border: 1px solid var(--line-strong);
+  font-family: var(--font-body);
+}
+:root[data-theme='ink'] :is(input, textarea, select):focus {
+  border-color: #fff;
+  outline: 1px solid #fff;
+  outline-offset: 2px;
+}
+:root[data-theme='ink'] :is(input, textarea)::placeholder {
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+:root[data-theme='ink'] .choice {
+  background: #000;
+  border-color: var(--line-strong);
+}
+:root[data-theme='ink'] .choice.on {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+:root[data-theme='ink'] .choice.on small,
+:root[data-theme='ink'] .choice.on svg {
+  color: #000;
+}
+:root[data-theme='ink'] .empty strong {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 22px;
+}
+:root[data-theme='ink'] .fab {
+  background: #fff;
+  color: #000;
+  border: 1px solid #fff;
+  box-shadow: 4px 4px 0 #52525b;
+}
+:root[data-theme='ink'] .fab:active {
+  background: #000;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px #fff;
+  transform: translate(2px, 2px);
+}
+
+/* ---- sheets and permission requests ---- */
+:root[data-theme='ink'] .sheet-backdrop {
+  background: rgb(10 10 12 / 0.88) var(--dots);
+}
+:root[data-theme='ink'] .sheet {
+  background: #0a0a0c;
+  border: 1px solid #fff;
+  border-bottom: 0;
+}
+:root[data-theme='ink'] .sheet header {
+  background: #fff;
+  color: #000;
+  padding: 8px 8px 8px 18px;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+:root[data-theme='ink'] .sheet header :is(h2, button, svg) {
+  color: #000;
+}
+:root[data-theme='ink'] .sheet h2 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+:root[data-theme='ink'] .urgent .sheet {
+  border-color: #fff;
+  box-shadow:
+    0 -6px 0 #000,
+    0 -7px 0 #fff;
+}
+:root[data-theme='ink'] .perm-head {
+  color: #fff;
+}
+:root[data-theme='ink'] .perm-command {
+  background: #000;
+  border: 1px solid var(--line-strong);
+  font-family: var(--font-mono);
+}
+
+/* ---- pairing ---- */
+:root[data-theme='ink'] .pair h1 {
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  font-size: 44px;
+}
+
+/* ---- chats ---- */
+:root[data-theme='ink'] .chat-row,
+:root[data-theme='ink'] .quest-row,
+:root[data-theme='ink'] .activity-card,
+:root[data-theme='ink'] .usage-card,
+:root[data-theme='ink'] .brief,
+:root[data-theme='ink'] .step,
+:root[data-theme='ink'] .chip {
+  background: #0a0a0c;
+  border-color: var(--border);
+  position: relative;
+}
+:root[data-theme='ink'] .chat-row:active,
+:root[data-theme='ink'] .quest-row:active {
+  background: #0a0a0c var(--dots-strong);
+  border-color: #fff;
+}
+:root[data-theme='ink'] .chat-row-main strong {
+  font-weight: 700;
+}
+:root[data-theme='ink'] .chat-row.live,
+:root[data-theme='ink'] .activity-card.live,
+:root[data-theme='ink'] .step.running {
+  border-color: var(--border);
+}
+:root[data-theme='ink'] :is(.chat-row.live, .activity-card.live, .step.running)::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  pointer-events: none;
+  background: var(--marks);
+}
+:root[data-theme='ink'] .provider-icon {
+  font-variant-emoji: text;
+  filter: grayscale(1);
+}
+:root[data-theme='ink'] .provider-icon.green,
+:root[data-theme='ink'] .provider-icon.orange,
+:root[data-theme='ink'] .provider-icon.violet {
+  color: #fff;
+}
+
+/* ---- chat view: the user speaks in a balloon with a straight tail ---- */
+:root[data-theme='ink'] .bubble {
+  position: relative;
+  background: #fff;
+  color: #000;
+  border: 3px solid #000;
+  box-shadow:
+    0 0 0 1px #fff,
+    4px 4px 0 1px #52525b;
+  font-weight: 500;
+}
+:root[data-theme='ink'] .bubble::before,
+:root[data-theme='ink'] .bubble::after {
+  content: '';
+  position: absolute;
+  right: -14px;
+  top: 10px;
+  border: solid transparent;
+  border-width: 7px 0 7px 11px;
+  border-left-color: #000;
+}
+:root[data-theme='ink'] .bubble::after {
+  right: -9px;
+  top: 12px;
+  border-width: 5px 0 5px 8px;
+  border-left-color: #fff;
+}
+:root[data-theme='ink'] .msg.user {
+  padding-right: 14px;
+}
+:root[data-theme='ink'] .msg.assistant {
+  border-left: 1px solid var(--border);
+  padding-left: 12px;
+}
+:root[data-theme='ink'] .msg-head {
+  font-size: 10.5px;
+}
+:root[data-theme='ink'] .activity-pill {
+  background: #000;
+  border-color: var(--line-strong);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10.5px;
+}
+:root[data-theme='ink'] .perm-line.pending,
+:root[data-theme='ink'] .perm-line.denied {
+  color: #fff;
+}
+:root[data-theme='ink'] .perm-line code {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+}
+:root[data-theme='ink'] .composer {
+  background: #000;
+  border-top: 1px solid #fff;
+}
+:root[data-theme='ink'] .composer textarea {
+  border-radius: 0;
+}
+:root[data-theme='ink'] .send {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .send:active {
+  background: #000;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px #fff;
+}
+:root[data-theme='ink'] .send.stop {
+  background: repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 5px);
+  color: #fff;
+  outline: 1px solid #fff;
+}
+:root[data-theme='ink'] .send.stop svg {
+  background: #000;
+  padding: 2px;
+}
+
+/* ---- activity, quests, usage ---- */
+:root[data-theme='ink'] .chip strong {
+  font-weight: 700;
+}
+:root[data-theme='ink'] .chip.hot {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+:root[data-theme='ink'] .chip.hot :is(strong, svg) {
+  color: #000;
+}
+:root[data-theme='ink'] .segmented button {
+  font-size: 11px;
+}
+:root[data-theme='ink'] .section-head h2 {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 22px;
+}
+:root[data-theme='ink'] .usage-card .usage-bar-card {
+  background: #000;
+}
+:root[data-theme='ink'] .progress {
+  background: #000;
+  border: 1px solid var(--line-strong);
+  height: 11px;
+  padding: 2px;
+  border-radius: 0;
+}
+:root[data-theme='ink'] .progress i {
+  background: #fff;
+  transition: none;
+}
+:root[data-theme='ink'] .board-col h3 {
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+:root[data-theme='ink'] .board-col h3 span {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+}
+:root[data-theme='ink'] .step.error {
+  border-color: #fff;
+  background:
+    repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 5px) 0 0 / 7px 100% no-repeat,
+    #000;
+  padding-left: 20px;
+}
+:root[data-theme='ink'] .step-top strong {
+  font-weight: 700;
+}
+
+/* ---- mascot: manga panels ---- */
+:root[data-theme='ink'] .mascot.face {
+  background: #fff;
+  border: 2px solid #000;
+  box-shadow:
+    0 0 0 1px #fff,
+    3px 3px 0 1px #3f3f46;
+}
+:root[data-theme='ink'] .mascot.face,
+:root[data-theme='ink'] .mascot img {
+  border-radius: 0;
+}
+:root[data-theme='ink'] .empty-mascot .mascot {
+  border: 3px solid #000;
+  box-shadow:
+    0 0 0 1px #fff,
+    6px 6px 0 1px #3f3f46;
+  transform: none;
+}

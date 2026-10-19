@@ -4,7 +4,7 @@ const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
 const Q = require('../electron/quests.cjs');
-const { Store } = require('../electron/store.cjs');
+const { Store, STORE_VERSION } = require('../electron/store.cjs');
 const { createQuestEngine } = require('../electron/quest-engine.cjs');
 
 const mk = (id, deps = [], extra = {}) =>
@@ -264,7 +264,7 @@ test('store migration: old files get quests: [], broken quests get defaults, val
   fs.writeFileSync(path.join(dir, 'vesta.json'), JSON.stringify({ version: 2, chats: [] }));
   const old = new Store(dir);
   assert.deepEqual(old.state.quests, []);
-  assert.equal(old.state.version, 3);
+  assert.equal(old.state.version, STORE_VERSION);
   fs.writeFileSync(
     path.join(dir, 'vesta.json'),
     JSON.stringify({

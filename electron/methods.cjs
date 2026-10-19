@@ -11,6 +11,7 @@ const { send } = require('./send.cjs');
 const { readCodexRateLimits } = require('./rate-limits.cjs');
 const { openTerminal } = require('./terminal.cjs');
 const { questMethods } = require('./quest-methods.cjs');
+const { THEMES } = require('./store.cjs');
 // Text zoom: 80%..160% in steps of 10%.
 const clampFontScale = (v) => Math.min(1.6, Math.max(0.8, Math.round(v * 10) / 10));
 async function inspectProject(ctx, id) {
@@ -50,11 +51,12 @@ function createMethods(ctx) {
   const { jobs, permissions, bounded, project, sync, state } = ctx;
   let lastCodexRead = 0;
   return {
-    bootstrap: async () => ({
-      state: state(),
-      integrations: await discover(ctx),
-      dataDir: ctx.app.getPath('userData'),
-    }),
+    // The first call after the opening reuses the integrations probed while the splash was up.
+    bootstrap: async () => {
+      const probing = ctx.bootDiscovery;
+      ctx.bootDiscovery = null;
+      return { state: state(), integrations: await (probing || discover(ctx)), dataDir: ctx.app.getPath('userData') };
+    },
     refreshConnections: () => discover(ctx),
     createChat: (input) => {
       if (input.projectId && !project(input.projectId)) throw new UserError('Projeto inválido');
@@ -152,9 +154,9 @@ function createMethods(ctx) {
     inspectProject: ({ id }) => inspectProject(ctx, id),
     saveSettings: (input) => {
       const s = ctx.store.state.settings;
-      if (['obsidian', 'aurora', 'paper'].includes(input.theme)) s.theme = input.theme;
+      if (THEMES.includes(input.theme)) s.theme = input.theme;
       if (['ember', 'violet', 'mint', 'amber', 'rose'].includes(input.accent)) s.accent = input.accent;
-      if (['none', 'ember', 'rain', 'stream'].includes(input.background)) s.background = input.background;
+      if (['none', 'ember', 'rain', 'inkrain', 'stream'].includes(input.background)) s.background = input.background;
       if (Number.isFinite(input.fontScale)) s.fontScale = clampFontScale(input.fontScale);
       for (const key of ['memoryEnabled', 'capture', 'memoryTools', 'mascot'])
         if (typeof input[key] === 'boolean') s[key] = input[key];

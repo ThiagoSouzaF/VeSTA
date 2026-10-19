@@ -16,3 +16,6 @@ export const makeCall = (notify) => async (method, args) => {
     throw e;
   }
 };
+// Tells the main process (and the splash it keeps open) that the first state is loaded and painted, or why it is not.
+export const signalReady = (error) =>
+  requestAnimationFrame(() => requestAnimationFrame(() => api?.ready?.(error ? { error } : undefined)));

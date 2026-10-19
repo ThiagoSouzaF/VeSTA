@@ -13,6 +13,7 @@ const fs = require('node:fs'),
 const { _electron: electron, chromium } = require('playwright');
 const { WebSocket } = require('ws');
 const scratch = require('./test-scratch.cjs');
+const { mainWindow } = require('./test-windows.cjs');
 const { seedStore } = require('./seed-store.cjs');
 
 const root = path.join(__dirname, '..');
@@ -83,7 +84,9 @@ async function main() {
   const file = path.join(dataDir, 'vesta.json');
   const store = JSON.parse(fs.readFileSync(file, 'utf8')),
     now = Date.now();
-  store.settings = { ...store.settings, theme: 'obsidian', accent: 'ember' };
+  // Tinta Mangá is the default theme, so the phone is exercised (and photographed) in it.
+  store.version = 4;
+  store.settings = { ...store.settings, theme: 'ink', accent: 'ember' };
   store.chats.push({
     id: 'chat-work',
     title: 'Refatorar o módulo de pagamentos',
@@ -170,7 +173,7 @@ async function main() {
       VESTA_TEST_AUTO_CONFIRM: '1',
     },
   });
-  const desktop = await app.firstWindow();
+  const desktop = await mainWindow(app);
   const problems = [];
   desktop.on('pageerror', (e) => problems.push('desktop pageerror: ' + e.message));
   const browser = await launchChromium();
@@ -620,7 +623,7 @@ async function main() {
           },
         });
         try {
-          const win2 = await app2.firstWindow();
+          const win2 = await mainWindow(app2);
           const call2 = (method, args) => win2.evaluate(([m, a]) => window.vesta.call(m, a), [method, args]);
           let st = await call2('remoteStatus');
           assert.equal(st.enabled, false);

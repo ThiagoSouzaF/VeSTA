@@ -7,6 +7,7 @@ const fs = require('node:fs'),
 const { execFileSync } = require('node:child_process');
 const { _electron: electron } = require('playwright');
 const scratch = require('./test-scratch.cjs');
+const { mainWindow } = require('./test-windows.cjs');
 
 const root = path.join(__dirname, '..');
 const shots = process.argv[2] || path.join(scratch('shots'));
@@ -60,7 +61,7 @@ const killSurvivors = () => {
   const app = await electron.launch({ executablePath: require('electron'), args: [root], env });
   const problems = [];
   try {
-    const page = await app.firstWindow();
+    const page = await mainWindow(app);
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     page.on('console', (m) => m.type() === 'error' && problems.push('console: ' + m.text()));
     await page.waitForSelector('.loading', { state: 'detached' });
@@ -180,7 +181,7 @@ const killSurvivors = () => {
     console.error('FAIL:', e.message);
     process.exitCode = 1;
     try {
-      await (await app.firstWindow()).screenshot({ path: path.join(shots, 'w2-fail.png') });
+      await (await mainWindow(app)).screenshot({ path: path.join(shots, 'w2-fail.png') });
     } catch {}
   } finally {
     await app.close().catch(() => {});

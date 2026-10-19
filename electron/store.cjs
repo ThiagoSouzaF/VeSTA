@@ -5,10 +5,13 @@ const { UserError } = require('./errors.cjs');
 const { emptyUsage, migrate } = require('./usage.cjs');
 const { normalizeQuests } = require('./quests.cjs');
 const { defaultRemote, normalizeRemote } = require('./remote/index.cjs');
+// Bump when a one-time migration is added below.
+const STORE_VERSION = 4;
+const THEMES = ['ink', 'obsidian', 'aurora', 'paper'];
 const defaults = () => ({
-  version: 3,
+  version: STORE_VERSION,
   settings: {
-    theme: 'obsidian',
+    theme: 'ink',
     accent: 'ember',
     background: 'rain',
     memoryEnabled: true,
@@ -24,6 +27,12 @@ const defaults = () => ({
   usage: emptyUsage(),
   remote: defaultRemote(),
 });
+// One-time upgrades, keyed by the version a store file was saved with. Mutates and returns `state`.
+// v4: "Tinta Mangá" became the default theme, so existing installs move to it once; their later choice is respected.
+function migrateStore(state, savedVersion) {
+  if (savedVersion < 4) state.settings.theme = 'ink';
+  return state;
+}
 class Store {
   constructor(dir) {
     this.dir = dir;
@@ -40,10 +49,12 @@ class Store {
           usage: migrate({ ...this.state.usage, ...saved.usage, daily: { ...saved.usage?.daily } }),
           quests: normalizeQuests(saved.quests),
           remote: normalizeRemote(saved.remote),
-          version: Math.max(3, saved.version || 1),
+          version: STORE_VERSION,
         };
-        if ((saved.version || 1) < 2) {
-          for (const c of this.state.chats) c.mode = 'edit';
+        const from = saved.version || 1;
+        if (from < 2) for (const c of this.state.chats) c.mode = 'edit';
+        if (from < STORE_VERSION) {
+          migrateStore(this.state, from);
           this.save();
         }
       } catch (err) {
@@ -82,4 +93,4 @@ class Store {
     return c;
   }
 }
-module.exports = { Store, defaults };
+module.exports = { Store, defaults, migrateStore, STORE_VERSION, THEMES };

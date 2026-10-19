@@ -4,10 +4,12 @@ import { MODES, modeOf } from '../lib/modes';
 import { IconButton } from './IconButton';
 import { Download, Trash2, Pencil } from 'lucide-react';
 import { action } from '../lib/api';
+import { Chapter } from './Chapter';
 export function ChatHeading({ chat, currentProject, setModal, call, running }) {
   return (
     <div className="chat-heading">
       <div>
+        <Chapter n={1} title={'CONVERSA · ' + PROVIDERS[chat.provider].engine.toUpperCase()} />
         <div className="eyebrow">CONVERSA · {PROVIDERS[chat.provider].engine.toUpperCase()}</div>
         <h2>{chat.title}</h2>
         <div className="chat-meta">

@@ -72,5 +72,5 @@
   color: var(--green);
 }
 .activity-state.err {
-  color: #e07a7a;
+  color: var(--danger);
 }

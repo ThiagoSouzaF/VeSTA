@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="ink">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'none'"
+    />
+    <title>VeSTA</title>
+  </head>
+  <body data-state="loading">
+    <main class="splash">
+      <header class="top">
+        <span class="chapter">CH_00 // ABERTURA</span>
+        <span class="version" id="version"></span>
+      </header>
+      <figure class="panel">
+        <img
+          src="/assets/mascot/full.webp"
+          width="600"
+          height="900"
+          alt="Vesta, a guardiã da chama"
+          draggable="false"
+        />
+      </figure>
+      <h1 class="wordmark" aria-label="VeSTA">V<em>e</em>STA</h1>
+      <p class="tagline">O centro do seu lar digital</p>
+      <section class="loader" aria-live="polite">
+        <div class="loader-head">
+          <strong id="label">CARREGANDO DADOS</strong>
+          <span id="percent">0%</span>
+        </div>
+        <div class="bar" id="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <i id="fill"></i>
+        </div>
+        <ol class="steps" id="steps">
+          <li data-step="data">DADOS</li>
+          <li data-step="memory">MEMÓRIA</li>
+          <li data-step="ias">IAS</li>
+          <li data-step="ui">INTERFACE</li>
+        </ol>
+      </section>
+      <section class="fail" id="fail" hidden role="alert">
+        <strong>[ FALHA NA ABERTURA ]</strong>
+        <p id="message"></p>
+        <div class="fail-actions">
+          <button type="button" id="quit" class="primary">FECHAR</button>
+          <button type="button" id="proceed" class="secondary" hidden>ABRIR MESMO ASSIM</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/splash/splash.js"></script>
+  </body>
+</html>

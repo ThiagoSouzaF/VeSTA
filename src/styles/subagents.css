@@ -15,7 +15,7 @@
   box-shadow: 0 0 0 1px var(--accent-bg);
 }
 .subagent-card.error {
-  border-color: #e07a7a66;
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
 }
 .subagent-card summary {
   display: flex;
@@ -78,7 +78,7 @@
   color: var(--green);
 }
 .subagent-card.error .subagent-status svg {
-  color: #e07a7a;
+  color: var(--danger);
 }
 .subagent-card.running .subagent-status {
   color: var(--accent);

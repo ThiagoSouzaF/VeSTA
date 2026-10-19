@@ -6,6 +6,7 @@ import { NewQuestModal } from './quests/NewQuestModal';
 import { ProgressBar, QuestDetail, StatusBadge } from './quests/QuestDetail';
 import { progress, runningQuests } from '../lib/quests';
 import { formatDate } from '../lib/format';
+import { Chapter } from './Chapter';
 
 // A row of the list. Memoized on the quest's revision: snapshots that did not touch it do not re-render it.
 const QuestRow = memo(
@@ -90,6 +91,7 @@ export const QuestsPage = memo(function QuestsPage({
     <div className="content-page quests-page">
       <div className="page-heading">
         <div>
+          <Chapter n={3} title="QUESTS" />
           <h1>Dê uma quest às suas IAs.</h1>
           <p>
             Um objetivo, várias IAs: elas dividem o trabalho em etapas, passam o bastão uma para a outra e você

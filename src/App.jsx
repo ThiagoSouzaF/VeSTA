@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { empty } from './lib/constants';
 import { useDrafts } from './hooks/useDrafts';
 import { useToast } from './hooks/useToast';
-import { makeCall, api } from './lib/api';
+import { makeCall, api, signalReady } from './lib/api';
 import { applyEvents, createEventBuffer } from './lib/streamBuffer';
 import { useFontScale } from './hooks/useFontScale';
 import { Titlebar } from './components/Titlebar';
@@ -85,10 +85,12 @@ export function App() {
         replaceData(r.state);
         setIntegrations(r.integrations);
         setLoading(false);
+        signalReady();
       })
       .catch((e) => {
         notify(e.message);
         setLoading(false);
+        signalReady(e.message);
       });
     api
       .call('memoryStatus')

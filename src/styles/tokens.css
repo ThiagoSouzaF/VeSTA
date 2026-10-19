@@ -17,6 +17,8 @@
   --accent-strong: #a18ae8;
   --green: #9fcdb9;
   --orange: #d9a386;
+  --danger: #e07a7a;
+  --danger-solid: #ae4052;
   --shadow: 0 16px 60px #0006;
   --sans: 'Segoe UI Variable', 'Segoe UI', sans-serif;
 }

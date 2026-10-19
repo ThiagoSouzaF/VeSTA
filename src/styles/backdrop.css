@@ -2,7 +2,7 @@
   position: relative;
   isolation: isolate;
 }
-.main > :not(.backdrop) {
+.main > :not(.backdrop):not(.backdrop-film) {
   position: relative;
   z-index: 1;
 }
@@ -40,7 +40,7 @@
 }
 .backdrop-options {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
   margin-top: 14px;
 }
@@ -162,4 +162,158 @@
 }
 .backdrop.stream {
   opacity: 0.5;
+}
+
+/* ---- "Chuva em tinta": monochrome rain over an old film / printed manga look ---- */
+.backdrop.inkrain {
+  opacity: 0.62;
+  -webkit-mask-image: radial-gradient(ellipse 58% 56% at 50% 50%, rgba(0, 0, 0, 0.22), #000 88%);
+  mask-image: radial-gradient(ellipse 58% 56% at 50% 50%, rgba(0, 0, 0, 0.22), #000 88%);
+}
+/* Film layers: composited transforms and opacities only, so they cost almost no CPU. */
+.backdrop-film {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.backdrop-film > i {
+  position: absolute;
+  display: block;
+}
+.film-grain {
+  inset: -180px;
+  opacity: 0.17;
+  will-change: transform;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.5 -.5'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: film-jitter 0.72s steps(1) infinite;
+}
+:root[data-theme='paper'] .film-grain {
+  filter: invert(1);
+}
+.film-flicker {
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  animation: film-flicker 7s linear infinite;
+}
+.film-scratch {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  opacity: 0;
+  background: linear-gradient(transparent, rgb(255 255 255 / 0.7) 15%, rgb(255 255 255 / 0.5) 80%, transparent);
+  animation: film-scratch 14s linear infinite;
+}
+.film-vignette {
+  inset: 0;
+  background: radial-gradient(ellipse 78% 72% at 50% 50%, transparent 52%, rgb(0 0 0 / 0.72) 100%);
+}
+.backdrop-film[data-paused='true'] > i {
+  animation-play-state: paused;
+}
+@keyframes film-jitter {
+  0% {
+    transform: translate(0, 0);
+  }
+  14% {
+    transform: translate(-41px, 23px);
+  }
+  28% {
+    transform: translate(27px, -64px);
+  }
+  42% {
+    transform: translate(-93px, -17px);
+  }
+  57% {
+    transform: translate(58px, 71px);
+  }
+  71% {
+    transform: translate(-12px, 112px);
+  }
+  85% {
+    transform: translate(86px, -38px);
+  }
+}
+@keyframes film-flicker {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  9% {
+    opacity: 0.07;
+  }
+  10% {
+    opacity: 0;
+  }
+  38% {
+    opacity: 0.04;
+  }
+  41% {
+    opacity: 0;
+  }
+  73% {
+    opacity: 0.08;
+  }
+  75% {
+    opacity: 0.02;
+  }
+  76% {
+    opacity: 0;
+  }
+}
+@keyframes film-scratch {
+  0%,
+  93% {
+    opacity: 0;
+    transform: translateX(18vw);
+  }
+  94% {
+    opacity: 0.45;
+    transform: translateX(18vw);
+  }
+  95% {
+    opacity: 0.25;
+    transform: translateX(18.4vw);
+  }
+  96%,
+  98% {
+    opacity: 0;
+    transform: translateX(71vw);
+  }
+  99% {
+    opacity: 0.4;
+    transform: translateX(71.2vw);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(71.2vw);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .backdrop-film > i {
+    animation: none;
+  }
+  .film-scratch,
+  .film-flicker {
+    display: none;
+  }
+}
+
+/* Settings thumbnail of the ink rain (also what "Chuva de código" shows under the Tinta Mangá theme). */
+.backdrop-option.inkrain .backdrop-thumb::after,
+:root[data-theme='ink'] .backdrop-option.rain .backdrop-thumb::after {
+  content: 'アカ 01 サ\A タ7 ナ ハ3\A ヤ ラ0 ワン';
+  white-space: pre;
+  position: absolute;
+  inset: 4px 8px;
+  font:
+    10px/1.5 'Space Mono',
+    monospace;
+  letter-spacing: 0.6em;
+  color: var(--muted);
+  opacity: 0.75;
+  animation: vesta-fall 5s linear infinite;
 }

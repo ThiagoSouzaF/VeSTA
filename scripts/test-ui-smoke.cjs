@@ -5,6 +5,7 @@ const fs = require('node:fs'),
   path = require('node:path');
 const { _electron: electron } = require('playwright');
 const scratch = require('./test-scratch.cjs');
+const { mainWindow } = require('./test-windows.cjs');
 const { seedStore } = require('./seed-store.cjs');
 
 const root = path.join(__dirname, '..');
@@ -45,7 +46,7 @@ async function emptyStorePhase() {
   const app = await launch(dataDir);
   const problems = [];
   try {
-    const page = await app.firstWindow();
+    const page = await mainWindow(app);
     page.on('console', (m) => m.type() === 'error' && problems.push('console: ' + m.text()));
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     const heading = (text) => page.locator('h1, h2, h3', { hasText: text }).first();
@@ -187,12 +188,18 @@ async function seededPhase() {
   let app = await launch(dataDir);
   const problems = [];
   try {
-    let page = await app.firstWindow();
+    let page = await mainWindow(app);
     page.on('console', (m) => m.type() === 'error' && problems.push('console: ' + m.text()));
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     const nav = (name) => page.locator('nav .nav-item', { hasText: name });
     const inject = (ev) =>
-      app.evaluate(({ BrowserWindow }, e) => BrowserWindow.getAllWindows()[0].webContents.send('vesta:event', e), ev);
+      app.evaluate(
+        ({ BrowserWindow }, e) =>
+          BrowserWindow.getAllWindows()
+            .find((w) => w.webContents.getURL().includes('index.html'))
+            .webContents.send('vesta:event', e),
+        ev
+      );
     const metrics = () =>
       page.evaluate(() => {
         const el = document.querySelector('.messages');
@@ -320,7 +327,9 @@ async function seededPhase() {
       await page.keyboard.up('Control');
       await page.waitForFunction(() => document.documentElement.style.getPropertyValue('--font-scale') === '1.1');
       const native = await app.evaluate(({ BrowserWindow }) =>
-        BrowserWindow.getAllWindows()[0].webContents.getZoomFactor()
+        BrowserWindow.getAllWindows()
+          .find((w) => w.webContents.getURL().includes('index.html'))
+          .webContents.getZoomFactor()
       );
       assert.equal(native, 1);
       await page.keyboard.press('Control+=');
@@ -339,7 +348,7 @@ async function seededPhase() {
     await step('zoom persists after restarting the app', async () => {
       await app.close();
       app = await launch(dataDir);
-      page = await app.firstWindow();
+      page = await mainWindow(app);
       page.on('console', (m) => m.type() === 'error' && problems.push('console: ' + m.text()));
       page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
       await page.waitForSelector('.loading', { state: 'detached' });
@@ -501,12 +510,18 @@ async function activityPhase() {
   const app = await launch(dataDir);
   const problems = [];
   try {
-    const page = await app.firstWindow();
+    const page = await mainWindow(app);
     page.on('console', (m) => m.type() === 'error' && problems.push('console: ' + m.text()));
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     const nav = (name) => page.locator('nav .nav-item', { hasText: name });
     const inject = (ev) =>
-      app.evaluate(({ BrowserWindow }, e) => BrowserWindow.getAllWindows()[0].webContents.send('vesta:event', e), ev);
+      app.evaluate(
+        ({ BrowserWindow }, e) =>
+          BrowserWindow.getAllWindows()
+            .find((w) => w.webContents.getURL().includes('index.html'))
+            .webContents.send('vesta:event', e),
+        ev
+      );
     const chip = (kind) => page.locator('.activity-chip[data-kind="' + kind + '"] strong');
     const groupIds = () => page.locator('.activity-group').evaluateAll((els) => els.map((e) => e.dataset.chat));
     const chipIs = (kind, n) =>
@@ -778,12 +793,18 @@ async function questPhase() {
   const app = await launch(dataDir);
   const problems = [];
   try {
-    const page = await app.firstWindow();
+    const page = await mainWindow(app);
     page.on('console', (m) => m.type() === 'error' && problems.push('console: ' + m.text()));
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     const nav = (name) => page.locator('nav .nav-item', { hasText: name });
     const inject = (ev) =>
-      app.evaluate(({ BrowserWindow }, e) => BrowserWindow.getAllWindows()[0].webContents.send('vesta:event', e), ev);
+      app.evaluate(
+        ({ BrowserWindow }, e) =>
+          BrowserWindow.getAllWindows()
+            .find((w) => w.webContents.getURL().includes('index.html'))
+            .webContents.send('vesta:event', e),
+        ev
+      );
     const col = (id) => page.locator('.quest-col[data-col="' + id + '"]');
     await page.waitForSelector('.loading', { state: 'detached' });
 

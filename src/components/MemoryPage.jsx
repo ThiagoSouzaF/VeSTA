@@ -13,6 +13,7 @@ import {
 import { action } from '../lib/api';
 import { IconButton } from './IconButton';
 import { formatDate } from '../lib/format';
+import { Chapter } from './Chapter';
 export function MemoryPage({
   newMemory,
   data,
@@ -32,6 +33,7 @@ export function MemoryPage({
     <div className="content-page">
       <div className="page-heading">
         <div>
+          <Chapter n={4} title="MEMÓRIA" />
           <div className="eyebrow">CONTEXTO QUE CONTINUA</div>
           <h1>Vale a pena lembrar.</h1>
           <p>Uma memória compartilhada entre suas inteligências.</p>

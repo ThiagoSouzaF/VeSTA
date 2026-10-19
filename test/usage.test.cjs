@@ -5,7 +5,7 @@ const fs = require('node:fs'),
   os = require('node:os');
 const { parser, upsertSubagent, upsertActivity, rateWindows, command } = require('../electron/providers.cjs');
 const usage = require('../electron/usage.cjs');
-const { Store } = require('../electron/store.cjs');
+const { Store, STORE_VERSION } = require('../electron/store.cjs');
 const run = (provider, events) => {
   const out = [];
   const p = parser(provider, (e) => out.push(e));
@@ -336,7 +336,7 @@ test('store v1 migrates every existing chat to full edit once; new chats default
     })
   );
   let s = new Store(dir);
-  assert.equal(s.state.version, 3);
+  assert.equal(s.state.version, STORE_VERSION);
   assert.deepEqual(
     s.state.chats.map((c) => c.mode),
     ['edit', 'edit']

@@ -11,6 +11,9 @@ const { createMethods } = require('./methods.cjs');
 const { createQuestEngine } = require('./quest-engine.cjs');
 const { createRemote, remoteMethods } = require('./remote/index.cjs');
 const { createConfirmer } = require('./remote/confirm.cjs');
+const { createBoot, mayReveal, STAGES, BOOT_TIMEOUT_MS } = require('./boot.cjs');
+const { createSplash } = require('./splash.cjs');
+const { discover } = require('./integrations.cjs');
 app.setName('VeSTA');
 app.commandLine.appendSwitch('force-renderer-accessibility');
 if (process.env.VESTA_DATA_DIR) app.setPath('userData', process.env.VESTA_DATA_DIR);
@@ -94,45 +97,18 @@ async function checkForUpdate({ interactive = false } = {}) {
   }
 }
 ctx.checkForUpdate = checkForUpdate;
-app.whenReady().then(() => {
-  if (!app.requestSingleInstanceLock()) {
-    app.quit();
-    return;
-  }
-  // The text zoom (Ctrl+= / Ctrl+- / Ctrl+0 / Ctrl+wheel) belongs to the app: the default menu's native zoom accelerators would add to it.
-  Menu.setApplicationMenu(null);
-  const store = (ctx.store = new Store(app.getPath('userData')));
-  // Mark interrupted responses after a crash, without discarding the partial transcript.
-  for (const chat of store.state.chats)
-    for (const m of chat.messages)
-      if (m.status === 'running') {
-        m.status = 'cancelled';
-        m.error = 'A sessão foi interrompida ao fechar o aplicativo.';
-      }
-  // Quests: the engine reacts to finished turns; anything left "running" by a previous run is closed first.
-  ctx.quests = createQuestEngine(ctx);
-  ctx.quests.recover();
-  bus.subscribe((event) => event.type === 'chat-done' && ctx.quests.onChatDone(event));
-  store.save();
-  // Remote control (phone): off unless the user turned it on in Preferências.
-  // Native dialogs approve new devices and full access (the test-only auto answer is ignored when packaged).
-  const confirmer = createConfirmer({ dialog, getWindow: () => ctx.win, isPackaged: app.isPackaged });
-  ctx.remote = createRemote({ ctx, methods, bus, deps: { confirm: (request) => confirmer.confirm(request) } });
-  if (store.state.remote.enabled) ctx.remote.start().catch(() => {});
-  ctx.memory = new Memory(
-    app.isPackaged
-      ? path.join(process.resourcesPath, 'ai-memory.exe')
-      : path.join(__dirname, '../runtime/ai-memory.exe'),
-    path.join(app.getPath('userData'), 'memory')
-  );
-  const win = (ctx.win = new BrowserWindow({
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Test-only: lengthens every boot stage so the splash can be observed (screenshots, e2e). Progress stays real.
+const STEP_DELAY_MS = Number(process.env.VESTA_BOOT_STEP_DELAY_MS) || 0;
+const createMainWindow = () =>
+  new BrowserWindow({
     width: 1440,
     height: 950,
     minWidth: 1020,
     minHeight: 700,
     frame: false,
     icon: path.join(__dirname, '../assets/vesta.png'),
-    backgroundColor: '#101014',
+    backgroundColor: '#000000',
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
@@ -141,15 +117,72 @@ app.whenReady().then(() => {
       nodeIntegration: false,
       sandbox: true,
     },
-  }));
+  });
+// Opening sequence: store, memory, integrations and the renderer, reported to the splash as each one finishes.
+app.whenReady().then(() => {
+  if (!app.requestSingleInstanceLock()) {
+    app.quit();
+    return;
+  }
+  // The text zoom (Ctrl+= / Ctrl+- / Ctrl+0 / Ctrl+wheel) belongs to the app: the default menu's native zoom accelerators would add to it.
+  Menu.setApplicationMenu(null);
+  const useSplash = process.env.VESTA_SERVICE_TEST !== '1';
+  // The main window is created first (hidden): automation that asks for the first window gets this one, not the splash.
+  const win = (ctx.win = createMainWindow());
+  let mainReady = false,
+    revealed = false,
+    watchdog = null,
+    splash = null;
+  const boot = createBoot({
+    onChange: (state) => {
+      splash?.update(state);
+      maybeReveal();
+    },
+  });
+  // Shows the main window (fading it in) and hands over from the splash.
+  async function reveal() {
+    if (revealed) return;
+    revealed = true;
+    clearTimeout(watchdog);
+    win.setOpacity(0);
+    win.show();
+    for (let i = 1; i <= 8; i++) {
+      win.setOpacity(i / 8);
+      await sleep(25);
+    }
+    await splash?.leave();
+    if (process.env.VESTA_NO_UPDATE !== '1') setTimeout(() => checkForUpdate().catch(() => {}), 4000);
+  }
+  // Everything finished, the window painted, and the splash was up long enough.
+  function maybeReveal() {
+    if (revealed || !splash?.isOpen()) return;
+    const gate = { complete: boot.allDone(), mainReady, shownAt: splash.shownAt() };
+    if (mayReveal({ ...gate, now: Date.now() })) reveal();
+    else if (gate.complete && gate.mainReady) setTimeout(maybeReveal, Math.max(30, splash.remaining()));
+  }
   bus.subscribe((event) => {
     if (!win.isDestroyed()) win.webContents.send('vesta:event', event);
   });
   win.on('focus', () => win.flashFrame(false));
   win.once('ready-to-show', () => {
+    mainReady = true;
     if (process.env.VESTA_SERVICE_TEST === '1') return;
+    if (splash) return maybeReveal();
     win.show();
     if (process.env.VESTA_NO_UPDATE !== '1') setTimeout(() => checkForUpdate().catch(() => {}), 4000);
+  });
+  win.webContents.on('did-fail-load', (e, code, description, url, isMainFrame) => {
+    if (isMainFrame) boot.fail('Não foi possível carregar a interface: ' + description + '.');
+  });
+  win.webContents.on('render-process-gone', (e, details) =>
+    boot.fail('A interface foi encerrada inesperadamente (' + details.reason + ').')
+  );
+  // The renderer reports once its first state is loaded and painted (or that it could not start).
+  ipcMain.on('vesta:ready', (event, payload) => {
+    if (event.sender !== win.webContents || revealed) return;
+    if (payload?.error)
+      boot.fail('A interface não conseguiu iniciar: ' + String(payload.error).slice(0, 400), { canContinue: true });
+    else boot.complete('ui');
   });
   win.webContents.setVisualZoomLevelLimits(1, 1);
   if (process.env.VESTA_DEV === '1')
@@ -163,17 +196,78 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('vesta:call', async (event, method, args) => {
     if (event.sender !== win.webContents || !Object.hasOwn(methods, method)) throw new Error('Operação não permitida');
+    await ctx.ready;
     return methods[method](args || {});
   });
-  if (process.env.VESTA_DEV === '1') win.loadURL('http://127.0.0.1:5173');
-  else win.loadFile(path.join(__dirname, '../dist/index.html'));
   app.on('second-instance', () => {
+    if (!revealed && splash?.isOpen()) return splash.focus();
     if (win.isMinimized()) win.restore();
     win.show();
     win.focus();
   });
-  if (process.env.VESTA_VERIFY_PACKAGED === '1' && process.env.VESTA_SERVICE_TEST === '1') {
-    (async () => {
+  if (useSplash) {
+    splash = createSplash({ onQuit: () => app.quit(), onProceed: () => reveal() });
+    splash.update(boot.snapshot());
+    watchdog = setTimeout(() => {
+      const pending = STAGES.filter((s) => !boot.isDone(s.id)).map((s) => s.label.toLowerCase());
+      boot.fail('O VeSTA está demorando mais que o esperado para abrir (' + pending.join(', ') + ').', {
+        canContinue: true,
+      });
+    }, BOOT_TIMEOUT_MS);
+  }
+  // The splash is painted first, then everything else starts: the interface loads in parallel with the store (its
+  // first calls wait for `ctx.ready`), and memory and integrations are probed while the splash is up.
+  (async () => {
+    if (splash) await splash.whenShown;
+    if (process.env.VESTA_DEV === '1') win.loadURL('http://127.0.0.1:5173');
+    else win.loadFile(path.join(__dirname, '../dist/index.html'));
+    try {
+      const store = (ctx.store = new Store(app.getPath('userData')));
+      // Mark interrupted responses after a crash, without discarding the partial transcript.
+      for (const chat of store.state.chats)
+        for (const m of chat.messages)
+          if (m.status === 'running') {
+            m.status = 'cancelled';
+            m.error = 'A sessão foi interrompida ao fechar o aplicativo.';
+          }
+      // Quests: the engine reacts to finished turns; anything left "running" by a previous run is closed first.
+      ctx.quests = createQuestEngine(ctx);
+      ctx.quests.recover();
+      bus.subscribe((event) => event.type === 'chat-done' && ctx.quests.onChatDone(event));
+      store.save();
+      // Remote control (phone): off unless the user turned it on in Preferências.
+      // Native dialogs approve new devices and full access (the test-only auto answer is ignored when packaged).
+      const confirmer = createConfirmer({ dialog, getWindow: () => ctx.win, isPackaged: app.isPackaged });
+      ctx.remote = createRemote({ ctx, methods, bus, deps: { confirm: (request) => confirmer.confirm(request) } });
+      if (store.state.remote.enabled) ctx.remote.start().catch(() => {});
+      ctx.memory = new Memory(
+        app.isPackaged
+          ? path.join(process.resourcesPath, 'ai-memory.exe')
+          : path.join(__dirname, '../runtime/ai-memory.exe'),
+        path.join(app.getPath('userData'), 'memory')
+      );
+      ctx.markReady();
+    } catch (e) {
+      if (!useSplash) throw e;
+      return boot.fail(redact(e.message || String(e)));
+    }
+    if (STEP_DELAY_MS) await sleep(STEP_DELAY_MS);
+    boot.complete('data');
+    if (useSplash) {
+      // Warm-ups the splash waits for; the renderer's own calls reuse their results. Failures are not fatal here:
+      // the app opens and the Memória / Conexões screens explain what is wrong.
+      const stage = async (id, work, testDelay) => {
+        try {
+          await work();
+        } catch {}
+        if (STEP_DELAY_MS) await sleep(STEP_DELAY_MS * testDelay);
+        boot.complete(id);
+      };
+      ctx.bootDiscovery = discover(ctx);
+      stage('memory', () => methods.memoryStatus(), 2);
+      stage('ias', () => ctx.bootDiscovery, 3);
+    }
+    if (process.env.VESTA_VERIFY_PACKAGED === '1' && process.env.VESTA_SERVICE_TEST === '1') {
       try {
         const boot = await methods.bootstrap(),
           status = await methods.memoryStatus();
@@ -194,8 +288,8 @@ app.whenReady().then(() => {
       } finally {
         app.quit();
       }
-    })();
-  }
+    }
+  })();
 });
 app.on('window-all-closed', () => app.quit());
 let remoteDown = false;

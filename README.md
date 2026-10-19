@@ -6,7 +6,7 @@ O centro do seu lar digital: um aplicativo desktop para reunir suas IAs, projeto
 
 Instale com o `VeSTA-Setup-<versão>.exe` da [última Release](https://github.com/ThiagoSouzaF/VeSTA/releases/latest) para o seu usuário do Windows. O instalador cria o atalho **VeSTA** no menu Iniciar e registra a desinstalação nas configurações do Windows.
 
-A mascote é a própria Vesta, em mangá preto e branco: guardiã da chama, com a balança de Libra (o equilíbrio entre as IAs), o jarro de Aquário (o fluxo de dados) e vendada como a justiça. Ela muda de pose conforme o que as IAs estão fazendo (parada, pensando, trabalhando, sucesso, erro, dormindo) e pode ser escondida nas preferências; a página **Conheça a VeSTA** conta a história. Nas preferências dá para escolher o fundo da área principal: **Liso**, **Brasa** (fagulhas subindo), **Chuva de código** (caracteres caindo, bem de leve) ou **Fluxo de texto** (palavras atravessando a tela), sempre nas cores do tema e mais calmos no centro, onde se lê a conversa. Com "reduzir movimento" ligado no Windows, o fundo fica parado. Há também a cor de destaque **Brasa**.
+A mascote é a própria Vesta, em mangá preto e branco: guardiã da chama, com a balança de Libra (o equilíbrio entre as IAs), o jarro de Aquário (o fluxo de dados) e vendada como a justiça. Ela muda de pose conforme o que as IAs estão fazendo (parada, pensando, trabalhando, sucesso, erro, dormindo) e pode ser escondida nas preferências; a página **Conheça a VeSTA** conta a história. Nas preferências dá para escolher o fundo da área principal: **Liso**, **Brasa** (fagulhas subindo), **Chuva de código** (caracteres caindo, bem de leve; no tema Tinta Mangá vira uma chuva monocromática de filme antigo, com granulação, vinheta e cintilação), **Chuva em tinta** (essa mesma chuva, em qualquer tema) ou **Fluxo de texto** (palavras atravessando a tela), sempre nas cores do tema e mais calmos no centro, onde se lê a conversa. Com "reduzir movimento" ligado no Windows, o fundo fica parado. Há também a cor de destaque **Brasa**.
 
 ## O que já funciona
 
@@ -14,7 +14,8 @@ A mascote é a própria Vesta, em mangá preto e branco: guardiã da chama, com 
 - Vários chats independentes, inclusive simultâneos, com retomada da sessão nativa e histórico local.
 - Projetos vinculados a pastas, executados com o diretório de trabalho correto.
 - Uso dos arquivos de instruções nativos: AGENTS.md, CLAUDE.md e configuração do OpenCode. O aplicativo não os substitui nem os reescreve.
-- Temas Obsidiana, Aurora e Papel; quatro cores de destaque; escolhas persistentes.
+- Tema **Tinta Mangá** (padrão): preto e branco puros, cantos retos, sombras duras, hachura no lugar do vermelho, fontes Space Grotesk e Space Mono embutidas (funciona offline) e chuva de código em tinta, estilo filme antigo. Seguem disponíveis Obsidiana, Aurora e Papel, com quatro cores de destaque; escolhas persistentes.
+- Tela de abertura (splash) com a Vesta e uma barra que acompanha as etapas reais do início: dados, memória, IAs e interface.
 - Markdown, atividades das ferramentas, cancelamento, renomeação, exclusão e exportação de conversas.
 - Três modos por conversa: **Pedir permissão**, **Acesso completo** e **Consulta**. No modo Pedir permissão, quando a IA ou um dos seus subagentes precisa rodar um comando ou alterar arquivos, o pedido aparece na própria conversa com **Permitir**, **Sempre nesta conversa** (vale para o mesmo programa, como `npm …`, ou para a mesma ferramenta) e **Negar**. A lista de conversas marca as que estão esperando você, e a janela pisca se estiver em segundo plano. No Acesso completo, o Claude ainda pergunta antes de mexer em arquivos protegidos (configurações, `.git`), e esses pedidos também chegam aqui.
 - Para responder aos pedidos, o VeSTA conversa com cada programa pelo canal próprio dele: o Claude por stream-json (o mesmo protocolo do Agent SDK), o Codex pelo `codex app-server` e o OpenCode pelo `opencode serve` (HTTP só em `127.0.0.1`, com senha aleatória). Nada é gravado nas configurações globais desses programas.
@@ -104,6 +105,7 @@ npx electron scripts/test-claude-background.cjs
 npx electron scripts/test-claude-stale-task.cjs
 npx electron scripts/test-memory-agent.cjs claude
 node scripts/test-remote-e2e.cjs
+node scripts/test-splash-e2e.cjs
 npm run dist
 npm run installer
 npm run release

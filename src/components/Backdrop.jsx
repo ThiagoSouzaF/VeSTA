@@ -1,16 +1,28 @@
 import { useEffect, useRef } from 'react';
+import { RAIN, advance, dropSpeed, frameDue, nextLast, resolveScene, trailLevel } from '../lib/backdropRain';
 
 // Animated backgrounds drawn behind the main area, in the colours of the current theme.
 export const BACKDROPS = [
   { id: 'none', name: 'Liso', description: 'Só a cor do tema.' },
   { id: 'ember', name: 'Brasa', description: 'Fagulhas sobem devagar do centro.' },
   { id: 'rain', name: 'Chuva de código', description: 'Caracteres caem em colunas, bem de leve.' },
+  {
+    id: 'inkrain',
+    name: 'Chuva em tinta',
+    description: 'Filme antigo e mangá impresso: granulação, vinheta e chuva em tons de cinza.',
+  },
   { id: 'stream', name: 'Fluxo de texto', description: 'Palavras atravessam a tela devagar.' },
 ];
 const GLYPHS =
   'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン0123456789VeSTA{}<>=/*+:;'.split(
     ''
   );
+// The ink rain is monochrome and calm: katakana, digits and a few code marks, like a printed page.
+const INK_GLYPHS =
+  'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン0123456789{}<>=/+:;'.split(
+    ''
+  );
+const INK_FONT = "'Space Mono','Yu Gothic','MS Gothic',monospace";
 const WORDS = [
   'memória',
   'contexto',
@@ -101,6 +113,71 @@ const SCENES = {
       });
     },
   },
+  // Old film / printed manga: grey katakana falling at half the speed of the classic rain, on a transparent canvas
+  // (the screentone, grain, flicker and vignette are CSS layers, see Film below). Rebuilt every frame from state, so
+  // there is no ghosting and no per-frame allocation beyond four small lists.
+  inkrain: {
+    fps: RAIN.ink.fps,
+    dpr: 1,
+    setup(ctx, w, h) {
+      const profile = RAIN.ink,
+        size = 14,
+        colW = size * 1.45,
+        rows = Math.ceil(h / size),
+        cols = Math.ceil(w / colW);
+      // The conversation spans almost the whole main area, so the calm band is wide and nearly empty: rain lives at the edges.
+      const calm = (i) => Math.abs((i + 0.5) / cols - 0.5) < 0.4;
+      const drops = Array.from({ length: cols }, (_, i) => ({
+        y: rand(-rows, rows),
+        speed: dropSpeed(profile),
+        on: Math.random() < (calm(i) ? 0.06 : 0.55),
+        dim: calm(i) ? 0.35 : 1,
+        chars: Array.from({ length: 48 }, () => pick(INK_GLYPHS)),
+      }));
+      return { size, colW, rows, drops, profile, calm, last: 0, levels: [[], [], [], []] };
+    },
+    step(ctx, w, h, c, s, t) {
+      const dt = s.last ? t - s.last : 1000 / s.profile.fps;
+      s.last = t;
+      ctx.clearRect(0, 0, w, h);
+      ctx.font = `${s.size}px ${INK_FONT}`;
+      ctx.textBaseline = 'top';
+      for (const list of s.levels) list.length = 0;
+      s.drops.forEach((d, i) => {
+        if (d.on) {
+          const head = Math.floor(d.y);
+          for (let k = 0; k < s.profile.trail; k++) {
+            const row = head - k,
+              level = trailLevel(k, s.profile.trail);
+            if (row < 0 || row > s.rows || level < 0) continue;
+            s.levels[level].push(i * s.colW, row * s.size, d.chars[((row % 48) + 48) % 48], d.dim);
+          }
+          if (Math.random() < 0.06) d.chars[(Math.random() * 48) | 0] = pick(INK_GLYPHS);
+        }
+        d.y = advance(d.y, d.speed, dt);
+        if (d.y - s.profile.trail > s.rows && Math.random() < 0.05) {
+          d.y = rand(-14, 0);
+          d.speed = dropSpeed(s.profile);
+          d.on = Math.random() < (s.calm(i) ? 0.06 : 0.6);
+        }
+      });
+      // Four ink tones, drawn level by level so the fill style changes four times per frame.
+      const tones = [
+        [c.text, 0.95],
+        [c.text, 0.5],
+        [c.muted, 0.42],
+        [c.faint, 0.34],
+      ];
+      s.levels.forEach((list, level) => {
+        ctx.fillStyle = tones[level][0];
+        for (let n = 0; n < list.length; n += 4) {
+          ctx.globalAlpha = tones[level][1] * list[n + 3];
+          ctx.fillText(list[n + 2], list[n], list[n + 1]);
+        }
+      });
+      ctx.globalAlpha = 1;
+    },
+  },
   stream: {
     fps: 30,
     setup(ctx, w, h) {
@@ -169,11 +246,32 @@ const SCENES = {
   },
 };
 
-export function Backdrop({ kind, theme, accent }) {
+// Film-style layers over the ink rain: all CSS, all on the compositor (grain jumps, flicker, scratches, vignette).
+function Film() {
   const ref = useRef(null);
   useEffect(() => {
+    // Nothing animates while the window is hidden or minimised.
+    const sync = () => ref.current && (ref.current.dataset.paused = String(document.hidden));
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
+  return (
+    <div ref={ref} className="backdrop-film" aria-hidden="true">
+      <i className="film-grain" />
+      <i className="film-flicker" />
+      <i className="film-scratch" />
+      <i className="film-vignette" />
+    </div>
+  );
+}
+
+export function Backdrop({ kind, theme, accent }) {
+  const ref = useRef(null);
+  const sceneId = resolveScene(kind, theme);
+  useEffect(() => {
     const canvas = ref.current,
-      scene = SCENES[kind];
+      scene = SCENES[sceneId];
     if (!canvas || !scene) return;
     const ctx = canvas.getContext('2d');
     let colors = null;
@@ -184,7 +282,7 @@ export function Backdrop({ kind, theme, accent }) {
       raf = 0,
       last = 0;
     const resize = () => {
-      const dpr = Math.min(1.5, window.devicePixelRatio || 1),
+      const dpr = scene.dpr || Math.min(1.5, window.devicePixelRatio || 1),
         box = canvas.getBoundingClientRect();
       // Read on every (re)start: the theme attributes are set by the parent's effect, which runs after this one.
       const css = getComputedStyle(document.documentElement),
@@ -193,6 +291,8 @@ export function Backdrop({ kind, theme, accent }) {
         bg: color('--bg', '#111115'),
         accent: color('--accent', '#b3a0f5'),
         muted: color('--muted', '#95949f'),
+        faint: color('--faint', '#646370'),
+        text: color('--text', '#e9e8ec'),
         warm: color('--orange', '#d9a386'),
       };
       w = Math.max(1, box.width);
@@ -206,8 +306,8 @@ export function Backdrop({ kind, theme, accent }) {
     };
     const frame = (t) => {
       raf = requestAnimationFrame(frame);
-      if (!state || document.hidden || t - last < 1000 / scene.fps) return;
-      last = t;
+      if (!state || document.hidden || !frameDue(t, last, scene.fps)) return;
+      last = nextLast(t, last, scene.fps);
       scene.step(ctx, w, h, colors, state, t);
     };
     const observer = new ResizeObserver(() => state && resize());
@@ -221,7 +321,12 @@ export function Backdrop({ kind, theme, accent }) {
       cancelAnimationFrame(raf);
       observer.disconnect();
     };
-  }, [kind, theme, accent]);
-  if (!SCENES[kind]) return null;
-  return <canvas ref={ref} className={'backdrop ' + kind} aria-hidden="true" />;
+  }, [sceneId, theme, accent]);
+  if (!SCENES[sceneId]) return null;
+  return (
+    <>
+      <canvas ref={ref} className={'backdrop ' + sceneId} aria-hidden="true" />
+      {sceneId === 'inkrain' && <Film />}
+    </>
+  );
 }

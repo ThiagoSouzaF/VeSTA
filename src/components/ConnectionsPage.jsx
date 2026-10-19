@@ -2,6 +2,7 @@ import { action } from '../lib/api';
 import { ArrowUpRight, Brain, Check, Terminal, RefreshCw, ShieldCheck, AlertCircle } from 'lucide-react';
 import { PROVIDERS } from '../lib/constants';
 import { ProviderIcon } from './ProviderIcon';
+import { Chapter } from './Chapter';
 export function ConnectionsPage({
   setBusy,
   setIntegrations,
@@ -16,6 +17,7 @@ export function ConnectionsPage({
     <div className="content-page">
       <div className="page-heading">
         <div>
+          <Chapter n={6} title="CONEXÕES" />
           <div className="eyebrow">INTELIGÊNCIAS, REUNIDAS</div>
           <h1>Cada IA, do seu jeito.</h1>
           <p>Os logins e as configurações que você já usa, em um só lugar.</p>

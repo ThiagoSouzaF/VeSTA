@@ -7,6 +7,7 @@ const fs = require('node:fs'),
   path = require('node:path');
 const { _electron: electron } = require('playwright');
 const scratch = require('./test-scratch.cjs');
+const { mainWindow } = require('./test-windows.cjs');
 const { seedStore } = require('./seed-store.cjs');
 
 const root = path.resolve(process.argv[2] || path.join(__dirname, '..'));
@@ -24,7 +25,7 @@ async function once() {
     env: { ...process.env, VESTA_DATA_DIR: dataDir, VESTA_NO_UPDATE: '1', VESTA_NO_USAGE_REFRESH: '1' },
   });
   try {
-    const page = await app.firstWindow();
+    const page = await mainWindow(app);
     await page.waitForSelector('.loading', { state: 'detached' });
     await page.locator('.chat-list-item', { hasText: 'Conversa longa' }).click();
     await page.waitForSelector('.messages .message');
@@ -69,7 +70,7 @@ async function once() {
     await app.evaluate(
       ({ BrowserWindow }, { n, rate }) =>
         new Promise((resolve) => {
-          const win = BrowserWindow.getAllWindows()[0];
+          const win = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('index.html'));
           const start = Date.now();
           let sent = 0;
           const pump = () => {

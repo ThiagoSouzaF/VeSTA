@@ -35,3 +35,7 @@
   font-size: 12px;
   line-height: 1.8;
 }
+/* Chapter header ("CH_02 // ATIVIDADE"): shown only by the Tinta Mangá theme. */
+.chapter {
+  display: none;
+}

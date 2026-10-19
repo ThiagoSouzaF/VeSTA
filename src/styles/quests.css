@@ -93,7 +93,7 @@
 }
 .quest-status.paused,
 .quest-status.failed {
-  background: #d9a3861f;
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
   color: var(--orange);
 }
 .quest-heading {

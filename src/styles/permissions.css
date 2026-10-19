@@ -135,8 +135,8 @@
   margin-left: 4px;
 }
 .permission-actions .deny:hover {
-  border-color: #d97a7a;
-  color: #e59a9a;
+  border-color: var(--danger);
+  color: var(--danger);
 }
 .permission-line {
   display: flex;
@@ -167,7 +167,7 @@
 .permission-line.denied svg,
 .permission-line.expired svg,
 .permission-line.cancelled svg {
-  color: #d98a8a;
+  color: var(--danger);
 }
 .permission-dot {
   margin-left: auto;

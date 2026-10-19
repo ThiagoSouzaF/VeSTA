@@ -3,8 +3,12 @@ const fs = require('node:fs'),
   path = require('node:path');
 // Shared state of the main process. `store`, `memory` and `win` are filled in once the app is ready.
 function createContext({ app, dialog, shell, bus }) {
+  let markReady;
   const ctx = {
     app,
+    // Resolves once the store and the other services exist: the first calls of the interface wait for it.
+    ready: new Promise((resolve) => (markReady = resolve)),
+    markReady: () => markReady(),
     dialog,
     shell,
     bus,

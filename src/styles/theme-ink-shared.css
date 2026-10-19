@@ -1,0 +1,398 @@
+/* Tinta Mangá: components that the desktop and the phone share (markdown, task tree, Atividade, usage, toast). */
+
+/* ---- markdown ---- */
+:root[data-theme='ink'] .markdown {
+  line-height: 1.8;
+}
+:root[data-theme='ink'] .markdown :is(h1, h2, h3) {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+:root[data-theme='ink'] .markdown :is(h1, h2) {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+:root[data-theme='ink'] .markdown h3::before {
+  content: '▍';
+  margin-right: 6px;
+  color: #fff;
+}
+:root[data-theme='ink'] .markdown a {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+:root[data-theme='ink'] .markdown a:hover {
+  background: #fff;
+  color: #000;
+  text-decoration: none;
+}
+:root[data-theme='ink'] .markdown pre {
+  background: #0a0a0c;
+  border: 1px solid var(--border);
+  box-shadow: 4px 4px 0 var(--border);
+}
+:root[data-theme='ink'] .markdown code {
+  background: transparent;
+  color: #fff;
+  border: 1px solid var(--line-strong);
+  padding: 1px 5px;
+}
+:root[data-theme='ink'] .markdown pre code {
+  border: 0;
+  color: var(--text);
+}
+:root[data-theme='ink'] .markdown blockquote {
+  border-left: 3px solid #fff;
+  background: var(--dots);
+  color: var(--text);
+  margin-left: 0;
+}
+:root[data-theme='ink'] .markdown th,
+:root[data-theme='ink'] .markdown td {
+  border-color: var(--border);
+}
+:root[data-theme='ink'] .markdown th {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--font-scale));
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+:root[data-theme='ink'] .markdown tbody tr:hover td {
+  background: var(--dots);
+}
+:root[data-theme='ink'] .markdown li::marker {
+  color: #fff;
+}
+:root[data-theme='ink'] .markdown ul {
+  list-style: square;
+}
+:root[data-theme='ink'] .markdown hr {
+  height: 5px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--hatch-edge);
+}
+
+/* ---- task tree (Atividade and the per-message summary) ---- */
+:root[data-theme='ink'] .task-row:hover {
+  background: var(--dots);
+  color: #fff;
+}
+:root[data-theme='ink'] .task-icon,
+:root[data-theme='ink'] .task-node.command > .task-row .task-icon,
+:root[data-theme='ink'] .task-node.background > .task-row .task-icon,
+:root[data-theme='ink'] .task-node.monitor > .task-row .task-icon {
+  background: #000;
+  border: 1px solid var(--line-strong);
+  color: #fff;
+}
+:root[data-theme='ink'] .task-node.running > .task-row .task-icon {
+  background: #fff;
+  border-color: #fff;
+  color: #000;
+  animation: ink-blink 1.4s steps(2, jump-none) infinite;
+}
+:root[data-theme='ink'] .task-text strong {
+  font-weight: 700;
+}
+:root[data-theme='ink'] .task-text code {
+  color: var(--muted);
+}
+:root[data-theme='ink'] .task-tag {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  clip-path: var(--chamfer-sm);
+  padding: 1px 8px 1px 6px;
+}
+:root[data-theme='ink'] .task-tag.muted {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  clip-path: none;
+  font-weight: 400;
+}
+:root[data-theme='ink'] .task-state.running {
+  color: #fff;
+}
+:root[data-theme='ink'] .task-state.stopped {
+  color: var(--muted);
+}
+:root[data-theme='ink'] .task-state.err {
+  color: #000;
+  background: #fff;
+  padding: 1px;
+}
+:root[data-theme='ink'] .task-node[data-status='error'] > .task-row {
+  background: var(--hatch-dim);
+  border-left: 3px solid #fff;
+}
+:root[data-theme='ink'] .task-stop {
+  background: #000;
+  border: 1px solid #fff;
+  color: #fff;
+}
+:root[data-theme='ink'] .task-stop:hover,
+:root[data-theme='ink'] .task-open:hover {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .task-detail {
+  background: #000;
+  border: 1px solid var(--line-strong);
+}
+:root[data-theme='ink'] .task-note {
+  color: #fff;
+  border-left: 2px solid #fff;
+  padding-left: 8px;
+}
+:root[data-theme='ink'] .task-summary-line {
+  background: #000;
+  border-color: var(--line-strong);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  font-size: calc(9.5px * var(--font-scale));
+}
+:root[data-theme='ink'] .task-summary-line:hover {
+  border-color: #fff;
+  color: #fff;
+  background-image: var(--dots);
+}
+:root[data-theme='ink'] .task-summary-running {
+  color: #fff;
+}
+:root[data-theme='ink'] .task-summary .task-tree {
+  border-left: 2px solid var(--line-strong);
+}
+
+/* ---- Atividade: counters, filters and live cards ---- */
+:root[data-theme='ink'] .activity-chip {
+  background: #000;
+  border-color: var(--line-strong);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+:root[data-theme='ink'] .activity-chip strong {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+:root[data-theme='ink'] .activity-chip.hot {
+  background: #fff;
+  border-color: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .activity-chip.hot strong {
+  color: #000;
+}
+:root[data-theme='ink'] .segmented {
+  background: #000;
+  border-color: var(--line-strong);
+  padding: 2px;
+}
+:root[data-theme='ink'] .segmented button {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  padding: 6px 12px;
+}
+:root[data-theme='ink'] .segmented button:hover {
+  background: var(--dots);
+  color: #fff;
+}
+:root[data-theme='ink'] .segmented button.on {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  clip-path: var(--chamfer-sm);
+}
+:root[data-theme='ink'] .activity-group {
+  background: #0a0a0c;
+  border-color: var(--border);
+  position: relative;
+}
+:root[data-theme='ink'] .activity-group.live {
+  border-color: var(--border);
+  box-shadow: none;
+}
+:root[data-theme='ink'] .activity-group.live::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  pointer-events: none;
+  background: var(--marks);
+}
+:root[data-theme='ink'] .activity-group-title strong {
+  font-weight: 700;
+  font-size: 13px;
+  align-self: flex-start;
+  max-width: 100%;
+}
+:root[data-theme='ink'] .activity-group-title:hover strong {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .activity-group-title span,
+:root[data-theme='ink'] .activity-group-counts {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+:root[data-theme='ink'] .activity-live {
+  color: #000;
+  background: #fff;
+  padding: 1px 6px;
+  font-weight: 700;
+}
+:root[data-theme='ink'] .activity-stop {
+  background: var(--hatch-ends);
+  border: 1px solid #fff;
+  color: #fff;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+:root[data-theme='ink'] .activity-stop::before {
+  content: '[';
+}
+:root[data-theme='ink'] .activity-stop::after {
+  content: ']';
+}
+:root[data-theme='ink'] .activity-stop:hover {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .task-badge,
+:root[data-theme='ink'] .count.live {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+}
+:root[data-theme='ink'] .task-badge {
+  animation: ink-blink 1.4s steps(2, jump-none) infinite;
+}
+@keyframes ink-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+:root[data-theme='ink'] .activity-empty {
+  border: 1px dashed var(--line-strong);
+  background: var(--dots);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='ink'] .task-badge,
+  :root[data-theme='ink'] .task-node.running > .task-row .task-icon {
+    animation: none;
+  }
+}
+
+/* ---- usage ---- */
+:root[data-theme='ink'] .usage-bar-card,
+:root[data-theme='ink'] .usage-row {
+  background: #0a0a0c;
+  border-color: var(--border);
+}
+:root[data-theme='ink'] .usage-row:hover {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .usage-row:hover > span:first-child,
+:root[data-theme='ink'] .usage-row:hover strong,
+:root[data-theme='ink'] .usage-row:hover .muted {
+  color: #000;
+}
+:root[data-theme='ink'] .usage-bar-head strong {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+:root[data-theme='ink'] .usage-bar-head span {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 28px;
+  line-height: 1;
+}
+:root[data-theme='ink'] .usage-track {
+  height: 12px;
+  background: #000;
+  border: 1px solid var(--line-strong);
+  padding: 2px;
+}
+:root[data-theme='ink'] .usage-fill {
+  background: #fff;
+  transition: none;
+}
+:root[data-theme='ink'] .usage-bar-card.warm .usage-fill {
+  background: repeating-linear-gradient(90deg, #fff 0 4px, transparent 4px 6px);
+}
+:root[data-theme='ink'] .usage-bar-card.hot .usage-fill {
+  background: repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 4px);
+  outline: 1px solid #fff;
+}
+:root[data-theme='ink'] .usage-bar-card.hot {
+  border-color: #fff;
+  position: relative;
+}
+:root[data-theme='ink'] .usage-bar-card.hot::after {
+  content: 'ドン!';
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  background: #fff;
+  color: #000;
+  font: 700 10px var(--font-mono);
+  padding: 0 6px;
+  letter-spacing: 0.04em;
+}
+:root[data-theme='ink'] .usage-bar-card small,
+:root[data-theme='ink'] .usage-section .muted {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+:root[data-theme='ink'] .usage-provider-head h2 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+:root[data-theme='ink'] .usage-chip {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+}
+:root[data-theme='ink'] .usage-empty,
+:root[data-theme='ink'] .usage-source {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+/* ---- toast, dots ---- */
+:root[data-theme='ink'] .toast {
+  background: #000;
+  border: 1px solid #fff;
+  box-shadow: 4px 4px 0 #fff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+:root[data-theme='ink'] .pulse-dot,
+:root[data-theme='ink'] .thinking > span {
+  background: #fff;
+}

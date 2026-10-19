@@ -4,6 +4,7 @@ import { PROVIDERS } from '../../lib/constants';
 import { QUEST_STATUS, clock, progress } from '../../lib/quests';
 import { QuestBoard } from './QuestBoard';
 import { PlanEditor } from './PlanEditor';
+import { Chapter } from '../Chapter';
 
 export const StatusBadge = ({ status }) => (
   <span className={'quest-status ' + status} data-status={status}>
@@ -66,6 +67,7 @@ export function QuestDetail({ quest, projects, integrations, onBack, onOpenChat,
       </button>
       <div className="page-heading quest-heading">
         <div>
+          <Chapter n={3} title="QUESTS // QUADRO" />
           <h1>{quest.title}</h1>
           <p>
             <StatusBadge status={quest.status} />

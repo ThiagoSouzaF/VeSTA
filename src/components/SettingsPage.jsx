@@ -1,16 +1,18 @@
 import { Brain, Folder, Check, RefreshCw, Palette, HardDrive, Minus, Plus, Info } from 'lucide-react';
-import { THEME_NAMES } from '../lib/constants';
+import { THEME_NAMES, THEMES } from '../lib/constants';
 import { BACKDROPS } from './Backdrop';
 import { SettingToggle } from './SettingToggle';
 import { RemoteSettings } from './RemoteSettings';
 import { action } from '../lib/api';
 import { Mark, Wordmark } from './Brand';
+import { Chapter } from './Chapter';
 import { SCALE_MIN, SCALE_MAX, scalePercent } from '../lib/zoom';
 export function SettingsPage({ data, setting, call, notify, fontScale, stepFontScale, onAbout }) {
   return (
     <div className="content-page settings-page">
       <div className="page-heading">
         <div>
+          <Chapter n={7} title="PREFERÊNCIAS" />
           <div className="eyebrow">FAÇA DESTE ESPAÇO O SEU</div>
           <h1>Seu lar. Seu estilo.</h1>
           <p>Um lugar confortável para pensar, criar e continuar.</p>
@@ -25,7 +27,7 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
           </div>
         </div>
         <div className="theme-grid">
-          {['obsidian', 'aurora', 'paper'].map((t) => (
+          {THEMES.map((t) => (
             <button
               className={'theme-card ' + (data.settings.theme === t ? 'chosen' : '')}
               key={t}
@@ -63,7 +65,7 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
             <span>Um movimento discreto atrás das conversas, nas cores do tema.</span>
           </div>
           <div className="backdrop-options">
-            {BACKDROPS.map((b) => (
+            {BACKDROPS.filter((b) => !(b.id === 'inkrain' && data.settings.theme === 'ink')).map((b) => (
               <button
                 className={'backdrop-option ' + b.id + ((data.settings.background || 'rain') === b.id ? ' chosen' : '')}
                 onClick={() => setting({ background: b.id })}
@@ -106,31 +108,46 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
             </button>
           </div>
         </div>
-        <div className="accent-setting">
-          <div>
-            <strong>Cor de destaque</strong>
-            <span>Um toque da sua personalidade.</span>
+        {data.settings.theme === 'ink' ? (
+          <div className="accent-setting ink-only">
+            <div>
+              <strong>Cor de destaque</strong>
+              <span>A Tinta Mangá é só preto e branco. As cores de destaque ficam nos outros temas.</span>
+            </div>
+            <div className="accent-options">
+              <span className="accent-swatch ink chosen" title="Tinta" aria-label="Tinta (única opção)">
+                <Check size={17} />
+              </span>
+              <span className="accent-ink-name">TINTA</span>
+            </div>
           </div>
-          <div className="accent-options">
-            {[
-              ['ember', 'Brasa'],
-              ['violet', 'Violeta'],
-              ['mint', 'Menta'],
-              ['amber', 'Âmbar'],
-              ['rose', 'Rosa'],
-            ].map(([id, label]) => (
-              <button
-                title={label}
-                aria-label={label}
-                className={'accent-swatch ' + id}
-                onClick={() => setting({ accent: id })}
-                key={id}
-              >
-                {data.settings.accent === id && <Check size={17} />}
-              </button>
-            ))}
+        ) : (
+          <div className="accent-setting">
+            <div>
+              <strong>Cor de destaque</strong>
+              <span>Um toque da sua personalidade.</span>
+            </div>
+            <div className="accent-options">
+              {[
+                ['ember', 'Brasa'],
+                ['violet', 'Violeta'],
+                ['mint', 'Menta'],
+                ['amber', 'Âmbar'],
+                ['rose', 'Rosa'],
+              ].map(([id, label]) => (
+                <button
+                  title={label}
+                  aria-label={label}
+                  className={'accent-swatch ' + id}
+                  onClick={() => setting({ accent: id })}
+                  key={id}
+                >
+                  {data.settings.accent === id && <Check size={17} />}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
         <SettingToggle
           title="Mostrar a mascote"
           description="Vesta aparece na barra lateral, na tela Atividade e nas telas vazias, e muda de pose conforme o que as IAs estão fazendo."

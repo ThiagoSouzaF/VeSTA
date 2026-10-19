@@ -1,0 +1,1366 @@
+/*
+ * Tinta Mangá, desktop only: shell, sidebar, pages, chat, forms, modals, mascot.
+ * Shared pieces live in theme-ink.css (tokens) and theme-ink-shared.css (also used by the phone).
+ */
+:root[data-theme='ink'] {
+  --focus-bracket: 5px;
+}
+/* One mono label recipe for every small caption of the desktop. */
+:root[data-theme='ink']
+  :is(
+    .sidebar-section,
+    .beta,
+    kbd,
+    .field-label,
+    .hero-topline,
+    .starter-heading,
+    .context-title,
+    .context-label,
+    .model-menu-title,
+    .breadcrumb,
+    .memory-badge,
+    .titlebar-caption,
+    .quest-col h3,
+    .quest-status,
+    .connection-status,
+    .remote-status,
+    .subagent-type,
+    .subagent-label,
+    .memory-card-label,
+    .about-sheet h3,
+    .provider-available,
+    .composer-footnote,
+    .quest-log time,
+    .tabs button,
+    .starter-card span,
+    .fine-print
+  ) {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ---- shell: screentone ground, titlebar ---- */
+:root[data-theme='ink'] .app-shell {
+  background: #000;
+  font-family: var(--font-body);
+}
+:root[data-theme='ink'] .main {
+  background: var(--dots);
+}
+:root[data-theme='ink'] .titlebar {
+  background: #000;
+  border-bottom: 1px solid var(--border);
+}
+:root[data-theme='ink'] .titlebar-caption {
+  font-size: 9px;
+  color: var(--faint);
+}
+:root[data-theme='ink'] .titlebar-caption::before {
+  content: '// ';
+}
+:root[data-theme='ink'] .window-controls button:hover {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .window-controls button:last-child:hover {
+  background: repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 4px);
+  color: #fff;
+  outline: 1px solid #fff;
+  outline-offset: -3px;
+}
+
+/* ---- wordmark ---- */
+:root[data-theme='ink'] .wordmark {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+:root[data-theme='ink'] .wordmark em {
+  font-weight: 700;
+  color: inherit;
+  text-shadow: none;
+}
+:root[data-theme='ink'] .brand strong .wordmark {
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+:root[data-theme='ink'] .titlebar-brand .wordmark {
+  font-size: 12px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+:root[data-theme='ink'] .brand-mark img {
+  box-shadow: none;
+  outline: 1px solid #fff;
+}
+:root[data-theme='ink'] .brand-icon {
+  border-radius: 0 !important;
+}
+
+/* ---- sidebar ---- */
+:root[data-theme='ink'] .sidebar {
+  background: #0a0a0c;
+  border-right: 1px solid var(--border);
+}
+:root[data-theme='ink'] .beta {
+  background: #fff;
+  color: #000;
+  border: 0;
+  padding: 3px 7px 3px 5px;
+  font-size: 8px !important;
+  font-weight: 700;
+  clip-path: var(--chamfer-sm);
+}
+:root[data-theme='ink'] .new-chat {
+  background: #fff;
+  color: #000;
+  border: 1px solid #fff;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: -0.01em;
+  transition: none;
+}
+:root[data-theme='ink'] .new-chat kbd {
+  color: #000;
+  opacity: 0.7;
+}
+:root[data-theme='ink'] .new-chat:hover {
+  background: #000;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px #fff;
+  transform: translate(2px, 2px);
+}
+:root[data-theme='ink'] .new-chat:hover kbd {
+  color: #fff;
+}
+:root[data-theme='ink'] .nav-item {
+  transition: none;
+}
+:root[data-theme='ink'] .nav-item:hover {
+  background: var(--dots-strong);
+  color: #fff;
+}
+:root[data-theme='ink'] .nav-item.active {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  clip-path: var(--chamfer);
+}
+:root[data-theme='ink'] .nav-item.active svg {
+  color: #000;
+}
+:root[data-theme='ink'] .count {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  font-size: 9px;
+}
+:root[data-theme='ink'] .nav-item.active .count {
+  background: #000;
+  border-color: #000;
+  color: #fff;
+}
+:root[data-theme='ink'] .sidebar-section {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+}
+:root[data-theme='ink'] .sidebar-section::before {
+  content: '// ';
+  margin-right: 2px;
+}
+:root[data-theme='ink'] .sidebar-section > span {
+  margin-right: auto;
+}
+:root[data-theme='ink'] .icon-button:hover,
+:root[data-theme='ink'] .project-item:hover,
+:root[data-theme='ink'] .chat-list-item:hover {
+  background: var(--dots-strong);
+  color: #fff;
+}
+:root[data-theme='ink'] .project-item.selected {
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 #fff;
+}
+:root[data-theme='ink'] .chat-list-item.selected {
+  background: var(--surface);
+  border-left: 3px solid #fff;
+  padding-left: 5px;
+}
+:root[data-theme='ink'] .chat-list-item > div > span {
+  font-weight: 600;
+}
+:root[data-theme='ink'] .search-field {
+  background: #000;
+  border-color: var(--line-strong);
+  position: relative;
+}
+:root[data-theme='ink'] .search-field:focus-within {
+  border-color: #fff;
+}
+:root[data-theme='ink'] .search-field:focus-within::after,
+:root[data-theme='ink'] .composer:focus-within::after {
+  content: '';
+  position: absolute;
+  inset: calc(var(--focus-bracket) * -1);
+  pointer-events: none;
+  background: var(--marks);
+}
+:root[data-theme='ink'] .search-field input:focus-visible {
+  outline: none;
+}
+:root[data-theme='ink'] .sidebar-bottom {
+  border-top: 1px solid var(--border);
+}
+:root[data-theme='ink'] .status-dot {
+  box-shadow: none;
+  background: #fff;
+}
+:root[data-theme='ink'] .status-dot.offline {
+  background: transparent;
+  border: 1px solid var(--faint);
+}
+
+/* ---- header ---- */
+:root[data-theme='ink'] .main-header {
+  border-bottom: 1px solid var(--border);
+  background: rgb(0 0 0 / 0.55);
+}
+:root[data-theme='ink'] .breadcrumb {
+  font-size: 10px;
+}
+:root[data-theme='ink'] .breadcrumb strong {
+  font-weight: 700;
+  color: #fff;
+}
+:root[data-theme='ink'] .memory-badge {
+  border: 1px solid var(--line-strong);
+  font-size: 9px;
+  clip-path: var(--chamfer-sm);
+}
+
+/* ---- chapter headers and page titles ---- */
+:root[data-theme='ink'] .chapter {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 4px 12px 4px 9px;
+  background: #fff;
+  color: #000;
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  clip-path: var(--chamfer-sm);
+}
+:root[data-theme='ink'] :is(.page-heading, .chat-heading) .eyebrow {
+  display: none;
+}
+:root[data-theme='ink'] .page-heading h1 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  margin: 0 0 12px;
+}
+:root[data-theme='ink'] .page-heading p {
+  color: var(--muted);
+  max-width: 62ch;
+}
+:root[data-theme='ink'] .page-heading {
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+:root[data-theme='ink'] .page-heading::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -5px;
+  width: 96px;
+  height: 4px;
+  background: var(--hatch);
+}
+:root[data-theme='ink'] .content-page {
+  padding-top: 36px;
+}
+:root[data-theme='ink'] .loading {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+}
+
+/* ---- buttons ---- */
+:root[data-theme='ink'] :is(.primary-button, .secondary-button, .danger-button, .text-button) {
+  font-size: 11px;
+  transition: none;
+}
+:root[data-theme='ink'] .primary-button {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  border: 1px solid #fff;
+}
+:root[data-theme='ink'] .primary-button:hover {
+  background: #000;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px #fff;
+  transform: translate(2px, 2px);
+}
+:root[data-theme='ink'] :is(.secondary-button, .danger-button) {
+  background: #000;
+  color: #fff;
+  border: 1px solid var(--line-strong);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+:root[data-theme='ink'] .secondary-button:hover {
+  border-color: #fff;
+  background: #000 var(--dots-strong);
+  color: #fff;
+}
+:root[data-theme='ink'] .danger-button {
+  background: var(--hatch-ends);
+  border-color: #fff;
+  font-weight: 700;
+  padding-inline: 20px;
+}
+:root[data-theme='ink'] .danger-button::before {
+  content: '[';
+}
+:root[data-theme='ink'] .danger-button::after {
+  content: ']';
+}
+:root[data-theme='ink'] .danger-button:hover {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .danger-button.filled {
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    repeating-linear-gradient(45deg, #000 0 2px, #fff 2px 5px) border-box;
+  border: 3px solid transparent;
+  color: #000;
+  padding: 8px 12px;
+}
+:root[data-theme='ink'] .danger-button.filled:hover {
+  background: #000;
+  color: #fff;
+}
+:root[data-theme='ink'] .text-button {
+  color: #fff;
+}
+:root[data-theme='ink'] .text-button:hover {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .icon-button:hover {
+  color: #fff;
+}
+
+/* ---- inputs ---- */
+:root[data-theme='ink'] :is(input, textarea, select) {
+  font-family: var(--font-body);
+}
+:root[data-theme='ink']
+  :is(
+    .modal input,
+    .modal select,
+    .modal textarea,
+    .context-section select,
+    .model-menu input,
+    .remote-port input,
+    .plan-step textarea,
+    .plan-step-head input
+  ) {
+  background: #000;
+  border: 1px solid var(--line-strong);
+}
+:root[data-theme='ink'] :is(input, textarea, select):focus-visible {
+  outline: 1px solid #fff;
+  outline-offset: 2px;
+  border-color: #fff;
+}
+:root[data-theme='ink'] :is(input, textarea)::placeholder {
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  font-size: 0.85em;
+  text-transform: uppercase;
+}
+:root[data-theme='ink'] .field-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+}
+:root[data-theme='ink'] .field-label::before {
+  content: '> ';
+}
+
+/* ---- toggles, checks, swatches ---- */
+:root[data-theme='ink'] .toggle {
+  width: 40px;
+  height: 20px;
+  background: #000;
+  border: 1px solid var(--line-strong);
+  padding: 3px;
+}
+:root[data-theme='ink'] .toggle > span {
+  width: 12px;
+  height: 12px;
+  background: var(--muted);
+  transition: none;
+}
+:root[data-theme='ink'] .toggle.on {
+  background: #fff;
+  border: 1px solid #fff;
+  padding: 3px;
+}
+:root[data-theme='ink'] .toggle.on > span {
+  background: #000;
+  transform: translateX(20px);
+}
+:root[data-theme='ink'] .setting-row strong {
+  font-weight: 700;
+}
+:root[data-theme='ink'] .theme-check,
+:root[data-theme='ink'] .provider-check.checked {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+:root[data-theme='ink'] .theme-radio,
+:root[data-theme='ink'] .provider-check {
+  border-color: var(--muted);
+}
+:root[data-theme='ink'] .accent-swatch.ink {
+  background: #fff;
+  color: #000;
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+}
+:root[data-theme='ink'] .accent-ink-name {
+  align-self: center;
+  font: 700 10px var(--font-mono);
+  letter-spacing: 0.12em;
+}
+:root[data-theme='ink'] .theme-preview.ink {
+  background: #000;
+  border: 1px solid #27272a;
+}
+:root[data-theme='ink'] .ink .preview-sidebar {
+  background: #0a0a0c;
+}
+:root[data-theme='ink'] .ink .preview-sidebar i {
+  background: #52525b;
+}
+:root[data-theme='ink'] .ink .preview-sidebar i:first-child {
+  background: #fff;
+}
+:root[data-theme='ink'] .ink .preview-main > i:first-child {
+  background: #fff;
+}
+:root[data-theme='ink'] .ink .preview-main > div {
+  background: #000;
+  border-color: #52525b;
+  border-radius: 0;
+}
+:root[data-theme='ink'] .ink .preview-main > div:last-child {
+  background: #fff;
+  border-color: #fff;
+}
+:root[data-theme='ink'] .theme-card,
+:root[data-theme='ink'] .backdrop-option,
+:root[data-theme='ink'] .provider-card,
+:root[data-theme='ink'] .starter-card,
+:root[data-theme='ink'] .mode-options > button,
+:root[data-theme='ink'] .modal-providers button {
+  background: #0a0a0c;
+  border-color: var(--border);
+  transition: none;
+}
+:root[data-theme='ink'] :is(.theme-card, .backdrop-option, .provider-card, .starter-card):hover {
+  border-color: #fff;
+  background: #0a0a0c var(--dots-strong);
+  transform: none;
+}
+:root[data-theme='ink'] :is(.theme-card, .backdrop-option, .provider-card).chosen {
+  border-color: #fff;
+  background: #0a0a0c;
+  box-shadow: 4px 4px 0 #fff;
+}
+:root[data-theme='ink'] .backdrop-option.chosen {
+  box-shadow: 4px 4px 0 #fff;
+}
+:root[data-theme='ink'] .backdrop-thumb {
+  background: #000;
+  border-color: var(--border);
+}
+:root[data-theme='ink'] .backdrop-option strong,
+:root[data-theme='ink'] .theme-card-name span:first-child {
+  font-weight: 700;
+}
+:root[data-theme='ink'] .backdrop-option.ember .backdrop-thumb {
+  background: #000;
+}
+:root[data-theme='ink'] .zoom-step,
+:root[data-theme='ink'] .zoom-reset {
+  background: #000;
+  border-color: var(--line-strong);
+}
+:root[data-theme='ink'] .zoom-value {
+  font: 700 12px var(--font-mono);
+}
+
+/* ---- welcome ---- */
+:root[data-theme='ink'] .welcome h1 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 50px;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+:root[data-theme='ink'] .welcome h1 em {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 0 0.18em 0.04em;
+  background: #fff;
+  color: #000;
+  font-style: normal;
+  font-weight: 700;
+  clip-path: var(--chamfer);
+}
+:root[data-theme='ink'] .mini-line {
+  height: 3px;
+  background: var(--hatch);
+  width: 28px;
+}
+:root[data-theme='ink'] .orbit-ring {
+  width: 70px;
+  height: 70px;
+}
+:root[data-theme='ink'] .orbit-ring.one {
+  transform: rotate(45deg);
+}
+:root[data-theme='ink'] .orbit-ring.two {
+  width: 44px;
+  height: 44px;
+  transform: rotate(45deg);
+  border-color: #fff;
+}
+:root[data-theme='ink'] .orbit-ring.three {
+  width: 104px;
+  height: 104px;
+  transform: rotate(45deg);
+}
+:root[data-theme='ink'] .orbit-star,
+:root[data-theme='ink'] .orbit-dot {
+  border-radius: 0;
+}
+:root[data-theme='ink'] .provider-icon {
+  font-variant-emoji: text;
+  filter: grayscale(1);
+  background: #000 !important;
+  color: #fff !important;
+  border: 1px solid var(--line-strong);
+}
+:root[data-theme='ink'] .provider-icon.small {
+  border: 0;
+  background: none !important;
+}
+:root[data-theme='ink'] .provider-card > strong {
+  font-weight: 700;
+}
+:root[data-theme='ink'] .provider-card.chosen .provider-icon {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #fff;
+}
+
+/* ---- chat ---- */
+:root[data-theme='ink'] .chat-heading {
+  border-bottom: 1px solid var(--border);
+  background: rgb(0 0 0 / 0.55);
+}
+:root[data-theme='ink'] .chat-heading h2 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: calc(26px * var(--font-scale));
+  letter-spacing: -0.035em;
+  margin-top: 0;
+}
+:root[data-theme='ink'] .chat-meta,
+:root[data-theme='ink'] .chat-list-item small,
+:root[data-theme='ink'] .step-meta {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+:root[data-theme='ink'] .message-author {
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+}
+:root[data-theme='ink'] .message-author strong {
+  font-weight: 700;
+}
+:root[data-theme='ink'] .message-author time {
+  letter-spacing: 0.06em;
+}
+:root[data-theme='ink'] .message-avatar > span:not(.provider-icon) {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+:root[data-theme='ink'] .message.assistant .message-body {
+  border-left: 1px solid var(--border);
+  padding-left: 16px;
+}
+/* The user speaks in a speech balloon: paper white, thick ink border, straight tail. */
+:root[data-theme='ink'] .message.user .message-body {
+  position: relative;
+}
+:root[data-theme='ink'] .message.user .markdown {
+  display: inline-block;
+  max-width: 100%;
+  position: relative;
+  background: #fff;
+  color: #000;
+  padding: 10px 16px;
+  border: 3px solid #000;
+  box-shadow:
+    0 0 0 1px #fff,
+    5px 5px 0 1px #52525b;
+  font-weight: 500;
+}
+:root[data-theme='ink'] .message.user .markdown::before,
+:root[data-theme='ink'] .message.user .markdown::after {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: 12px;
+  border: solid transparent;
+  border-width: 7px 11px 7px 0;
+  border-right-color: #000;
+}
+:root[data-theme='ink'] .message.user .markdown::after {
+  left: -9px;
+  top: 14px;
+  border-width: 5px 8px 5px 0;
+  border-right-color: #fff;
+}
+:root[data-theme='ink'] .message.user .markdown :is(code, a, strong, p) {
+  color: #000;
+}
+:root[data-theme='ink'] .message.user .markdown code {
+  border-color: #000;
+}
+:root[data-theme='ink'] .message-tools {
+  opacity: 0.8;
+}
+:root[data-theme='ink'] .message-tools > button:not(.icon-button) {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+:root[data-theme='ink'] .message-tools > button:not(.icon-button):hover {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .activities > div {
+  border-left: 2px solid var(--line-strong);
+}
+:root[data-theme='ink'] .activities summary {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+:root[data-theme='ink'] .activities p svg,
+:root[data-theme='ink'] .activities summary > svg:first-child {
+  color: #fff;
+}
+:root[data-theme='ink'] .activity-row {
+  background: #000;
+  border-color: var(--border);
+}
+/* Errors are hatched, never red; a discreet sound effect marks them. */
+:root[data-theme='ink'] .inline-error {
+  position: relative;
+  background: var(--hatch-edge);
+  border: 1px solid #fff;
+  color: #fff;
+  padding: 12px 12px 12px 22px;
+}
+:root[data-theme='ink'] .inline-error::after {
+  content: 'ガーン';
+  position: absolute;
+  right: 10px;
+  top: -8px;
+  padding: 0 6px;
+  background: #fff;
+  color: #000;
+  font: 700 9px/15px var(--font-mono);
+  letter-spacing: 0.06em;
+}
+:root[data-theme='ink'] .scroll-end {
+  background: #000;
+  border-color: #fff;
+  box-shadow: 3px 3px 0 #fff;
+}
+:root[data-theme='ink'] .scroll-end:hover {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .scroll-end-badge {
+  background: #fff;
+  color: #000;
+  border: 1px solid #000;
+}
+
+/* ---- composer ---- */
+:root[data-theme='ink'] .composer {
+  position: relative;
+  background: #000;
+  border: 1px solid var(--line-strong);
+  box-shadow: none;
+}
+:root[data-theme='ink'] .composer:focus-within {
+  border-color: #fff;
+}
+:root[data-theme='ink'] .composer textarea::placeholder {
+  font-size: 0.78em;
+  color: #6b6b73;
+}
+:root[data-theme='ink'] .composer-options {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+:root[data-theme='ink'] .send-button {
+  background: #fff;
+  color: #000;
+  border: 1px solid #fff;
+  transition: none;
+}
+:root[data-theme='ink'] .send-button:hover:not(:disabled) {
+  background: #000;
+  color: #fff;
+  transform: translate(2px, 2px);
+  box-shadow: inset 0 0 0 1px #fff;
+}
+:root[data-theme='ink'] .send-button.stop {
+  background: var(--hatch-ends);
+  color: #fff;
+  border: 1px solid #fff;
+}
+:root[data-theme='ink'] .composer-memory {
+  color: #fff;
+}
+:root[data-theme='ink'] .composer-footnote {
+  font-size: 8.5px;
+}
+
+/* ---- context panel ---- */
+:root[data-theme='ink'] .context-panel {
+  background: #0a0a0c;
+  border-left: 1px solid var(--border);
+}
+:root[data-theme='ink'] .context-title {
+  font-weight: 700;
+  font-size: 10px;
+  color: #fff;
+}
+:root[data-theme='ink'] .context-label {
+  font-size: 9px;
+  color: var(--muted);
+}
+:root[data-theme='ink'] .context-label::before {
+  content: '// ';
+}
+:root[data-theme='ink'] .context-section {
+  border-color: var(--border);
+}
+:root[data-theme='ink'] .context-stat strong {
+  font-family: var(--font-mono);
+}
+
+/* ---- menus, pickers ---- */
+:root[data-theme='ink'] :is(.model-menu, .mode-menu) {
+  background: #000;
+  border: 1px solid #fff;
+  box-shadow: 4px 4px 0 #fff;
+}
+:root[data-theme='ink'] :is(.model-menu > button, .mode-menu > button):hover {
+  background: var(--dots-strong);
+  color: #fff;
+}
+:root[data-theme='ink'] :is(.model-menu > button.selected, .mode-menu > button.chosen) {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] :is(.model-menu > button.selected, .mode-menu > button.chosen) :is(span, svg, code, strong) {
+  color: #000;
+}
+:root[data-theme='ink'] .mode-chip,
+:root[data-theme='ink'] .model-picker button {
+  border-color: var(--line-strong);
+  background: #000;
+  transition: none;
+}
+:root[data-theme='ink'] .mode-chip:hover:not(:disabled) {
+  border-color: #fff;
+  background: #000 var(--dots-strong);
+}
+:root[data-theme='ink'] .mode-chip.edit {
+  border-color: #fff;
+  color: #fff;
+}
+:root[data-theme='ink'] .mode-chip.ask {
+  border-color: #fff;
+  border-style: dashed;
+}
+
+/* ---- permissions ---- */
+:root[data-theme='ink'] .permission-card {
+  background: #000;
+  border: 1px solid #fff;
+  box-shadow: 4px 4px 0 #fff;
+  position: relative;
+}
+:root[data-theme='ink'] .permission-card::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  pointer-events: none;
+  background: var(--marks);
+}
+:root[data-theme='ink'] .permission-actions button {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--line-strong);
+  transition: none;
+}
+:root[data-theme='ink'] .permission-actions button:hover {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+:root[data-theme='ink'] .permission-actions .deny {
+  background: var(--hatch-ends);
+  border-color: #fff;
+}
+:root[data-theme='ink'] .permission-dot {
+  background: #fff;
+}
+
+/* ---- subagents ---- */
+:root[data-theme='ink'] .subagent-card {
+  background: #0a0a0c;
+  border-color: var(--border);
+}
+:root[data-theme='ink'] .subagent-card.running {
+  border-color: #fff;
+  box-shadow: none;
+}
+:root[data-theme='ink'] .subagent-card.error {
+  background: var(--hatch-edge);
+  border-color: #fff;
+  padding-left: 8px;
+}
+:root[data-theme='ink'] .subagent-icon {
+  background: #000;
+  border: 1px solid var(--line-strong);
+  color: #fff;
+}
+:root[data-theme='ink'] .subagent-card.running .subagent-icon {
+  background: #fff;
+  color: #000;
+}
+
+/* ---- modals ---- */
+:root[data-theme='ink'] .modal-backdrop {
+  background: rgb(10 10 12 / 0.86) var(--dots);
+  backdrop-filter: blur(8px);
+}
+:root[data-theme='ink'] .modal {
+  background: #0a0a0c;
+  border: 1px solid #fff;
+  box-shadow: var(--shadow);
+  padding-top: 0;
+}
+:root[data-theme='ink'] .modal-heading {
+  margin: 0 -29px 26px;
+  padding: 18px 29px 16px;
+  background: #fff;
+  color: #000;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+:root[data-theme='ink'] .modal-heading :is(.eyebrow, h2, svg, button, span) {
+  color: #000;
+}
+:root[data-theme='ink'] .modal-heading .eyebrow {
+  font-weight: 700;
+}
+:root[data-theme='ink'] .modal-heading h2 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: -0.035em;
+  margin-top: 6px;
+}
+:root[data-theme='ink'] .modal-heading .icon-button:hover {
+  background: #000;
+  color: #fff;
+}
+:root[data-theme='ink'] .modal-heading .icon-button:hover svg {
+  color: #fff;
+}
+:root[data-theme='ink'] .modal-footer {
+  border-top: 1px solid var(--border);
+}
+:root[data-theme='ink'] :is(.modal-providers button.selected, .mode-options > button.selected) {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+:root[data-theme='ink']
+  :is(.modal-providers button.selected, .mode-options > button.selected)
+  :is(svg, span, strong, small) {
+  color: #000;
+}
+
+/* ---- memory, connections ---- */
+:root[data-theme='ink'] :is(.memory-card, .connection-card, .info-card, .memory-summary, .remote-device) {
+  background: #0a0a0c;
+  border-color: var(--border);
+}
+:root[data-theme='ink'] .memory-card:hover {
+  border-color: #fff;
+  background: #0a0a0c var(--dots-strong);
+  transform: none;
+}
+:root[data-theme='ink'] .memory-card h3,
+:root[data-theme='ink'] .connection-main h2 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+:root[data-theme='ink'] .tabs {
+  border-color: var(--border);
+}
+:root[data-theme='ink'] .tabs button {
+  font-size: 10px;
+  border: 1px solid transparent;
+}
+:root[data-theme='ink'] .tabs button:hover {
+  background: var(--dots-strong);
+  color: #fff;
+}
+:root[data-theme='ink'] .tabs button.selected {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  clip-path: var(--chamfer-sm);
+}
+:root[data-theme='ink'] .summary-icon,
+:root[data-theme='ink'] .about-meanings .glyph {
+  background: #000;
+  color: #fff;
+  border: 1px solid var(--line-strong);
+}
+:root[data-theme='ink'] .connection-status.connected {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+  font-weight: 700;
+}
+:root[data-theme='ink'] .empty-state-icon {
+  background: #000;
+  border: 1px dashed var(--line-strong);
+  color: #fff;
+}
+:root[data-theme='ink'] .remote-warning {
+  background: var(--hatch-edge);
+  border: 1px solid #fff;
+  color: #fff;
+  padding-left: 22px;
+}
+:root[data-theme='ink'] .remote-status.on {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .remote-status.err {
+  background: var(--hatch-ends);
+  color: #fff;
+  border: 1px solid #fff;
+}
+
+/* ---- quests ---- */
+:root[data-theme='ink'] .quest-row {
+  background: #0a0a0c;
+  border-color: var(--border);
+  position: relative;
+  transition: none;
+}
+:root[data-theme='ink'] .quest-row:hover {
+  background: #0a0a0c var(--dots-strong);
+  border-color: #fff;
+}
+:root[data-theme='ink'] .quest-row.running {
+  border-color: #fff;
+}
+:root[data-theme='ink'] .quest-row.running::after,
+:root[data-theme='ink'] .step-card.running::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  pointer-events: none;
+  background: var(--marks);
+}
+:root[data-theme='ink'] .quest-row-main strong {
+  font-weight: 700;
+}
+:root[data-theme='ink'] .quest-progress {
+  background: #000;
+  border: 1px solid var(--line-strong);
+  height: 10px;
+  padding: 2px;
+}
+:root[data-theme='ink'] .quest-progress span {
+  background: #fff;
+}
+:root[data-theme='ink'] .quest-progress span.err {
+  background: repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 4px);
+}
+:root[data-theme='ink'] .quest-status {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  font-size: 9px;
+  padding: 2px 8px 2px 6px;
+}
+:root[data-theme='ink'] .quest-status.running,
+:root[data-theme='ink'] .quest-status.done {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+  font-weight: 700;
+  clip-path: var(--chamfer-sm);
+}
+:root[data-theme='ink'] .quest-status.failed {
+  background: var(--hatch-ends);
+  color: #fff;
+  border-color: #fff;
+}
+:root[data-theme='ink'] .quest-heading h1 {
+  font-size: 38px;
+}
+:root[data-theme='ink'] .quest-back:hover {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .quest-banner {
+  background: #000;
+  border-color: var(--line-strong);
+}
+:root[data-theme='ink'] .quest-banner.err,
+:root[data-theme='ink'] .plan-problem {
+  background: var(--hatch-edge);
+  border: 1px solid #fff;
+  color: #fff;
+  padding-left: 22px;
+}
+:root[data-theme='ink'] .quest-hint,
+:root[data-theme='ink'] .step-result.err {
+  color: #fff;
+  border-left: 3px solid #fff;
+  padding-left: 8px;
+}
+:root[data-theme='ink'] .quest-col {
+  background: #0a0a0c;
+  border-color: var(--border);
+}
+:root[data-theme='ink'] .quest-col h3 {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin: 2px 0 10px;
+}
+:root[data-theme='ink'] .quest-col h3 span {
+  border: 1px solid var(--line-strong);
+  padding: 0 6px;
+}
+:root[data-theme='ink'] .quest-col.running h3 span {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+:root[data-theme='ink'] .quest-col.problems h3 span {
+  background: var(--hatch-ends);
+  color: #fff;
+  border-color: #fff;
+}
+:root[data-theme='ink'] .step-card {
+  background: #000;
+  border-color: var(--border);
+  position: relative;
+}
+:root[data-theme='ink'] .step-card.running {
+  border-color: #fff;
+}
+:root[data-theme='ink'] .step-card.error {
+  border-color: #fff;
+  background: var(--hatch-edge);
+  padding-left: 20px;
+}
+:root[data-theme='ink'] .step-card header strong {
+  font-weight: 700;
+}
+:root[data-theme='ink'] .step-state.ok {
+  color: #000;
+  background: #fff;
+  padding: 1px;
+}
+:root[data-theme='ink'] .step-state.err {
+  color: #fff;
+}
+:root[data-theme='ink'] .step-tag {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  padding: 0 6px;
+  font-size: 9px;
+}
+:root[data-theme='ink'] .step-link {
+  color: #fff;
+  padding: 1px 4px;
+}
+:root[data-theme='ink'] .step-link:hover {
+  background: #fff;
+  color: #000;
+  text-decoration: none;
+}
+:root[data-theme='ink'] :is(.quest-log, .quest-summary) {
+  background: #0a0a0c;
+  border-color: var(--border);
+}
+:root[data-theme='ink'] :is(.quest-log h3, .quest-summary h3) {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  color: #fff;
+}
+:root[data-theme='ink'] .plan-step {
+  background: #000;
+  border-color: var(--border);
+}
+:root[data-theme='ink'] .plan-step-num {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+:root[data-theme='ink'] .dep-chip {
+  background: #000;
+  border: 1px solid var(--line-strong);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 9px;
+}
+:root[data-theme='ink'] .dep-chip.on {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+
+/* ---- mascot: manga panels ---- */
+:root[data-theme='ink'] .manga-panel {
+  --tilt: 0deg;
+  border: 3px solid #000;
+  box-shadow:
+    0 0 0 1px #fff,
+    6px 6px 0 1px #3f3f46;
+}
+:root[data-theme='ink'] .manga-bubble {
+  border: 3px solid #000;
+  background: #fff;
+  color: #000;
+  font-family: var(--font-body);
+  font-weight: 700;
+  box-shadow:
+    0 0 0 1px #fff,
+    4px 4px 0 1px #3f3f46;
+}
+:root[data-theme='ink'] .manga-bubble::before {
+  border-right-color: #000;
+}
+:root[data-theme='ink'] .manga-bubble::after {
+  border-right-color: #fff;
+}
+:root[data-theme='ink'] .mascot-avatar {
+  background: #fff;
+  border: 2px solid #000;
+  box-shadow:
+    0 0 0 1px #fff,
+    3px 3px 0 1px #3f3f46;
+  transition: none;
+}
+:root[data-theme='ink'] .mascot-avatar:hover {
+  transform: translate(1px, 1px);
+}
+:root[data-theme='ink'] .mascot-avatar[data-state='error'] {
+  box-shadow:
+    0 0 0 1px #fff,
+    0 0 0 4px #000,
+    0 0 0 5px #fff;
+}
+:root[data-theme='ink'] .mascot-avatar[data-state='success'] {
+  box-shadow:
+    0 0 0 1px #fff,
+    0 0 0 3px #000,
+    0 0 0 5px #fff;
+}
+:root[data-theme='ink'] .manga-zzz {
+  font-family: var(--font-mono);
+  font-style: normal;
+}
+:root[data-theme='ink'] .brand-mascot {
+  background: #000;
+  border: 1px solid var(--border);
+  position: relative;
+}
+:root[data-theme='ink'] .brand-mascot strong {
+  font: 700 10px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+:root[data-theme='ink'] .brand-mascot strong::before {
+  content: '// ';
+  color: var(--faint);
+}
+:root[data-theme='ink'] .activity-mascot {
+  background: #0a0a0c var(--dots);
+  border: 1px solid var(--border);
+  position: relative;
+}
+:root[data-theme='ink'] .activity-mascot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  pointer-events: none;
+  background: var(--marks);
+}
+/* Speed lines trail the panel while she is working; a sound effect marks a failure. */
+:root[data-theme='ink'] .mascot-scene[data-state='working'] .manga-panel::before {
+  content: '';
+  position: absolute;
+  right: calc(100% + 8px);
+  top: -6px;
+  bottom: -6px;
+  width: 64px;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, #fff) 100% 8% / 40px 1px no-repeat,
+    linear-gradient(90deg, transparent, #fff) 100% 24% / 62px 1px no-repeat,
+    linear-gradient(90deg, transparent, #fff) 100% 41% / 30px 1px no-repeat,
+    linear-gradient(90deg, transparent, #fff) 100% 58% / 56px 1px no-repeat,
+    linear-gradient(90deg, transparent, #fff) 100% 74% / 36px 1px no-repeat,
+    linear-gradient(90deg, transparent, #fff) 100% 91% / 58px 1px no-repeat;
+  opacity: 0.7;
+  animation: ink-speed 0.7s steps(4, jump-none) infinite;
+}
+:root[data-theme='ink'] .mascot-scene[data-state='working'] .manga-panel {
+  animation: none;
+}
+@keyframes ink-speed {
+  0% {
+    transform: translateX(10px);
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(-6px);
+    opacity: 0.2;
+  }
+}
+:root[data-theme='ink'] .mascot-scene[data-state='error'] .manga-panel::after {
+  content: 'ガーン';
+  position: absolute;
+  left: -10px;
+  bottom: -10px;
+  padding: 3px 7px;
+  background: #fff;
+  color: #000;
+  font: 700 11px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  border: 2px solid #000;
+  transform: rotate(-6deg);
+}
+:root[data-theme='ink'] .mascot-scene[data-state='success'] .manga-panel {
+  animation: none;
+}
+:root[data-theme='ink'] .about-figure {
+  border: 3px solid #000;
+  box-shadow:
+    0 0 0 1px #fff,
+    6px 6px 0 1px #3f3f46;
+  transform: none;
+}
+:root[data-theme='ink'] .about-sheet .about-figure {
+  transform: none;
+}
+:root[data-theme='ink'] .about-meanings li {
+  background: #0a0a0c;
+  border-color: var(--border);
+}
+:root[data-theme='ink'] .about-meanings li strong {
+  font-weight: 700;
+}
+:root[data-theme='ink'] .about-copy h2 {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 26px;
+}
+:root[data-theme='ink'] .about-sheet h3 {
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+:root[data-theme='ink'] .about-sheet h3::before {
+  content: '// ';
+  color: var(--faint);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='ink'] .mascot-scene[data-state='working'] .manga-panel::before {
+    animation: none;
+  }
+}
+
+/* The version line keeps its own casing ("VeSTA v0.5.0"): the wordmark's lowercase e is part of the name. */
+:root[data-theme='ink'] .about-version {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+/* ---- empty states ---- */
+:root[data-theme='ink'] :is(.empty-state h2, .conversation-empty h3) {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+/* ---- floating terminal button, loading ---- */
+:root[data-theme='ink'] .floating-terminal {
+  background: #000;
+  border-color: var(--line-strong);
+}
+:root[data-theme='ink'] .floating-terminal:hover {
+  background: #fff;
+  color: #000;
+}

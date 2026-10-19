@@ -9,6 +9,7 @@ const fs = require('node:fs'),
   path = require('node:path');
 const { _electron: electron } = require('playwright');
 const scratch = require('./test-scratch.cjs');
+const { mainWindow } = require('./test-windows.cjs');
 
 const root = path.join(__dirname, '..');
 const shots = process.argv[2] || scratch('shots');
@@ -38,7 +39,7 @@ const HAIKU = 'claude-haiku-5-5';
   const problems = [];
   let page;
   try {
-    page = await app.firstWindow();
+    page = await mainWindow(app);
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     page.on('console', (m) => m.type() === 'error' && problems.push('console: ' + m.text()));
     await page.waitForSelector('.loading', { state: 'detached' });

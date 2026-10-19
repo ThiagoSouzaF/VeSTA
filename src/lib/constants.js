@@ -28,11 +28,12 @@ export const PROVIDERS = {
     description: 'A Drael que você já configurou no OpenCode.',
   },
 };
-export const THEME_NAMES = { obsidian: 'Obsidiana', aurora: 'Aurora', paper: 'Papel' };
+export const THEME_NAMES = { ink: 'Tinta Mangá', obsidian: 'Obsidiana', aurora: 'Aurora', paper: 'Papel' };
+export const THEMES = ['ink', 'obsidian', 'aurora', 'paper'];
 export const empty = {
   settings: {
-    theme: 'obsidian',
-    accent: 'violet',
+    theme: 'ink',
+    accent: 'ember',
     background: 'rain',
     memoryEnabled: true,
     capture: true,

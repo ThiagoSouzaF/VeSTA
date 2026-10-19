@@ -1,5 +1,6 @@
 // Runs in an isolated profile; uses Drael and OpenCode for three small replies.
 const { _electron: electron } = require('playwright');
+const { mainWindow } = require('./test-windows.cjs');
 const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path'),
@@ -10,7 +11,7 @@ const fs = require('node:fs'),
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await electron.launch({ args: ['.'], env });
   try {
-    const page = await app.firstWindow();
+    const page = await mainWindow(app);
     await page.waitForSelector('.new-chat');
     await page.evaluate(() => window.vesta.call('saveSettings', { memoryEnabled: false, capture: false }));
     await page

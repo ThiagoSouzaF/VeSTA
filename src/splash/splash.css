@@ -1,0 +1,320 @@
+/* Opening window, "Tinta Mangá": black ink, paper white, hard edges, Space Grotesk and Space Mono (bundled locally). */
+@import '@fontsource/space-grotesk/latin-400.css';
+@import '@fontsource/space-grotesk/latin-700.css';
+@import '@fontsource/space-mono/latin-400.css';
+@import '@fontsource/space-mono/latin-700.css';
+
+:root {
+  color-scheme: dark;
+  --font-body: 'Space Grotesk', 'Segoe UI', sans-serif;
+  --font-mono: 'Space Mono', Consolas, monospace;
+  --line: #27272a;
+  --line-strong: #52525b;
+  --muted: #a1a1aa;
+  --hatch: repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 5px);
+}
+* {
+  box-sizing: border-box;
+  border-radius: 0;
+}
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #000;
+  color: #e4e4e7;
+  font-family: var(--font-body);
+  overflow: hidden;
+  user-select: none;
+  -webkit-app-region: drag;
+  cursor: default;
+}
+button {
+  -webkit-app-region: no-drag;
+  font: inherit;
+  cursor: pointer;
+}
+
+.splash {
+  position: relative;
+  height: 100%;
+  padding: 22px 34px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  background:
+    radial-gradient(circle, rgb(255 255 255 / 0.06) 1px, transparent 1.2px) 0 0 / 8px 8px,
+    #000;
+  animation: enter 0.2s steps(4) both;
+}
+/* Registration marks in the four corners. */
+.splash::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  pointer-events: none;
+  background:
+    linear-gradient(#fff, #fff) 0 0 / 9px 1px no-repeat,
+    linear-gradient(#fff, #fff) 0 0 / 1px 9px no-repeat,
+    linear-gradient(#fff, #fff) 100% 0 / 9px 1px no-repeat,
+    linear-gradient(#fff, #fff) 100% 0 / 1px 9px no-repeat,
+    linear-gradient(#fff, #fff) 0 100% / 9px 1px no-repeat,
+    linear-gradient(#fff, #fff) 0 100% / 1px 9px no-repeat,
+    linear-gradient(#fff, #fff) 100% 100% / 9px 1px no-repeat,
+    linear-gradient(#fff, #fff) 100% 100% / 1px 9px no-repeat;
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+  }
+}
+body.leaving .splash {
+  opacity: 0;
+  transition: opacity 0.26s ease-in;
+}
+
+.top {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+}
+.chapter {
+  background: #fff;
+  color: #000;
+  padding: 4px 12px 4px 9px;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+.version {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* The goddess: a black-and-white manga panel, white frame, hard shadow, speed lines while loading. */
+.panel {
+  position: relative;
+  margin: 16px 0 0;
+  width: 212px;
+  aspect-ratio: 2 / 3;
+  background: #fff;
+  border: 3px solid #000;
+  box-shadow:
+    0 0 0 1px #fff,
+    6px 6px 0 1px #3f3f46;
+}
+.panel img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.panel::before {
+  content: '';
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 6px;
+  bottom: 6px;
+  width: 48px;
+  background:
+    linear-gradient(90deg, transparent, #fff) 100% 10% / 34px 1px no-repeat,
+    linear-gradient(90deg, transparent, #fff) 100% 28% / 48px 1px no-repeat,
+    linear-gradient(90deg, transparent, #fff) 100% 46% / 26px 1px no-repeat,
+    linear-gradient(90deg, transparent, #fff) 100% 63% / 44px 1px no-repeat,
+    linear-gradient(90deg, transparent, #fff) 100% 82% / 30px 1px no-repeat;
+  opacity: 0.7;
+  animation: speed 0.7s steps(4, jump-none) infinite;
+}
+body[data-state='ready'] .panel::before,
+body[data-state='error'] .panel::before {
+  animation: none;
+  opacity: 0;
+}
+@keyframes speed {
+  from {
+    transform: translateX(10px);
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.8;
+  }
+  to {
+    transform: translateX(-6px);
+    opacity: 0.2;
+  }
+}
+
+.wordmark {
+  margin: 20px 0 0;
+  font: 700 58px/1 var(--font-body);
+  letter-spacing: -0.045em;
+  color: #fff;
+}
+.wordmark em {
+  font-style: normal;
+}
+.tagline {
+  margin: 8px 0 0;
+  font: 400 10px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The loader sits apart under a hatched rule, in its own framed block. */
+.loader,
+.fail {
+  position: relative;
+  width: 100%;
+  margin-top: auto;
+  padding: 14px 16px 12px;
+  background: #000;
+  border: 1px solid #fff;
+  box-shadow: 5px 5px 0 var(--line);
+}
+.loader::before,
+.fail::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  top: -14px;
+  height: 5px;
+  background: var(--hatch);
+}
+.loader-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font: 700 12px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+}
+.loader-head span {
+  font-size: 20px;
+  font-family: var(--font-body);
+  letter-spacing: -0.03em;
+}
+.bar {
+  margin-top: 10px;
+  height: 20px;
+  padding: 3px;
+  border: 1px solid #fff;
+  background: #000;
+}
+.bar i {
+  display: block;
+  height: 100%;
+  width: var(--progress, 0%);
+  background: #fff;
+  transition: width 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.steps {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  justify-content: space-between;
+  font: 400 9px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: #6b6b73;
+}
+.steps li::before {
+  content: '□ ';
+}
+.steps li[data-done='true'] {
+  color: #fff;
+}
+.steps li[data-done='true']::before {
+  content: '■ ';
+}
+body[data-state='ready'] .loader-head strong {
+  background: #fff;
+  color: #000;
+  padding: 2px 6px;
+  margin: -2px 0;
+}
+
+/* Failure: the reason stays on screen, readable, with a way out. */
+.fail {
+  display: none;
+  margin-top: 18px;
+  padding-left: 24px;
+  background:
+    repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 5px) 0 0 / 8px 100% no-repeat,
+    #000;
+  user-select: text;
+}
+.fail:not([hidden]) {
+  display: block;
+}
+.fail::before {
+  display: none;
+}
+.fail strong {
+  font: 700 12px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+}
+.fail p {
+  margin: 10px 0 0;
+  max-height: 120px;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fail-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+}
+.fail button {
+  padding: 9px 14px;
+  font: 700 11px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  border: 1px solid #fff;
+}
+.fail .primary {
+  background: #fff;
+  color: #000;
+}
+.fail .primary:hover {
+  background: #000;
+  color: #fff;
+  transform: translate(2px, 2px);
+}
+.fail .secondary {
+  background: #000;
+  color: #fff;
+}
+.fail .secondary:hover {
+  background: #fff;
+  color: #000;
+}
+body[data-state='error'] .loader {
+  display: none;
+}
+body[data-state='error'] .panel {
+  width: 166px;
+}
+body[data-state='error'] .splash {
+  justify-content: flex-start;
+}
+body[data-state='error'] .fail {
+  margin-top: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel::before {
+    animation: none;
+    opacity: 0;
+  }
+  .splash {
+    animation: none;
+  }
+  .bar i {
+    transition: none;
+  }
+}

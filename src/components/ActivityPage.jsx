@@ -6,6 +6,7 @@ import { PROVIDERS } from '../lib/constants';
 import { RECENT_MS, filterGroups, summarize } from '../lib/activity';
 import { useNow } from '../hooks/useNow';
 import { MascotPanel } from './Mascot';
+import { Chapter } from './Chapter';
 
 // A turn is shown while it runs or inside the recent window (whole minutes, so groups do not re-render each second).
 const turnVisible = (t, scope, cutoff) =>
@@ -84,6 +85,7 @@ export function ActivityPage({ groups, projects, call, onOpen }) {
     <div className="content-page activity-page">
       <div className="page-heading">
         <div>
+          <Chapter n={2} title="ATIVIDADE" />
           <h1>O que está acontecendo.</h1>
           <p>Todo o trabalho das suas IAs, ao vivo: respostas, subagentes, comandos e tarefas em segundo plano.</p>
         </div>

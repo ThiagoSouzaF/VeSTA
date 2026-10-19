@@ -123,7 +123,7 @@
   color: var(--green);
 }
 .task-state.err {
-  color: #e07a7a;
+  color: var(--danger);
 }
 .task-state.stopped {
   color: var(--orange);
@@ -147,8 +147,8 @@
   color: var(--muted);
 }
 .task-stop {
-  color: #e07a7a;
-  background: #e07a7a1c;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 11%, transparent);
 }
 .task-stop:hover,
 .task-open:hover {
@@ -358,11 +358,11 @@
   padding: 5px 10px;
   border-radius: 7px;
   font-size: 10px;
-  color: #e07a7a;
-  background: #e07a7a1c;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 11%, transparent);
 }
 .activity-stop:hover {
-  background: #e07a7a33;
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
 }
 .activity-none {
   margin: 4px 0 0 4px;

@@ -1,0 +1,82 @@
+/*
+ * "Tinta Mangá" (Inverted Ink Manga, docs/DESIGN.md): pure black ink and paper white, no colour at all.
+ * Shared by the desktop and the phone: tokens, shape, type, and the components both of them use.
+ * Status is told by icon, inversion and stroke weight; errors are hatched at 45 degrees instead of red.
+ */
+:root[data-theme='ink'] {
+  color-scheme: dark;
+  --font-body: 'Space Grotesk', 'Segoe UI Variable', 'Segoe UI', sans-serif;
+  --font-mono: 'Space Mono', Consolas, 'Cascadia Mono', monospace;
+  --sans: var(--font-body);
+  font-family: var(--font-body);
+  --bg: #000;
+  --side: #0a0a0c;
+  --panel: #0a0a0c;
+  --surface: #121214;
+  --hover: #18181b;
+  --border: #27272a;
+  --border-soft: #1c1c1f;
+  --line-strong: #52525b;
+  --text: #e4e4e7;
+  --muted: #a1a1aa;
+  --faint: #71717a;
+  --accent: #fff;
+  --accent-bg: #18181b;
+  --accent-strong: #e4e4e7;
+  --green: #fff;
+  --orange: #d4d4d8;
+  --danger: #fff;
+  --danger-solid: #fff;
+  --shadow: 6px 6px 0 #27272a;
+  --hatch: repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 1px, transparent 5px);
+  --hatch-dim: repeating-linear-gradient(45deg, #52525b 0, #52525b 1px, transparent 1px, transparent 5px);
+  --dots: radial-gradient(circle, rgb(255 255 255 / 0.06) 1px, transparent 1.2px) 0 0 / 8px 8px;
+  --dots-strong: radial-gradient(circle, rgb(255 255 255 / 0.22) 1px, transparent 1.3px) 0 0 / 5px 5px;
+  /* Error marking: a 45-degree hatched band at the edge(s), the text stays on clean black. */
+  --hatch-edge: repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 5px) 0 0 / 7px 100% no-repeat, #000;
+  --hatch-ends: repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 5px) 0 0 / 7px 100% no-repeat,
+    repeating-linear-gradient(45deg, #fff 0 2px, #000 2px 5px) 100% 0 / 7px 100% no-repeat, #000;
+  --chamfer: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  --chamfer-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+/* Zero roundness, no soft light: the whole theme is hard edges. */
+:root[data-theme='ink'] *,
+:root[data-theme='ink'] *::before,
+:root[data-theme='ink'] *::after {
+  border-radius: 0 !important;
+  text-shadow: none !important;
+}
+:root[data-theme='ink'] body {
+  background: var(--bg);
+}
+:root[data-theme='ink'] ::selection {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] ::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+}
+:root[data-theme='ink'] ::-webkit-scrollbar-thumb:hover {
+  background: #fff;
+}
+:root[data-theme='ink'] ::placeholder {
+  color: #6b6b73;
+  opacity: 1;
+}
+:root[data-theme='ink'] {
+  /* L-shaped registration marks (5px arms, 1px wide) for cards that show live data. */
+  --marks: linear-gradient(#fff, #fff) 0 0 / 5px 1px no-repeat, linear-gradient(#fff, #fff) 0 0 / 1px 5px no-repeat,
+    linear-gradient(#fff, #fff) 100% 0 / 5px 1px no-repeat, linear-gradient(#fff, #fff) 100% 0 / 1px 5px no-repeat,
+    linear-gradient(#fff, #fff) 0 100% / 5px 1px no-repeat, linear-gradient(#fff, #fff) 0 100% / 1px 5px no-repeat,
+    linear-gradient(#fff, #fff) 100% 100% / 5px 1px no-repeat, linear-gradient(#fff, #fff) 100% 100% / 1px 5px no-repeat;
+}
+/* HUD labels: Space Mono, uppercase, wide tracking. */
+:root[data-theme='ink'] :is(.eyebrow, .task-tag, .task-detail-label, .usage-chip, .activity-detached, .count) {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+:root[data-theme='ink'] code,
+:root[data-theme='ink'] pre {
+  font-family: var(--font-mono);
+}
