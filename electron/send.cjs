@@ -89,6 +89,10 @@ async function send(ctx, { chatId, text, attachments: ids }) {
         }
       }
       if (task.cancelled) throw new Error('Resposta interrompida');
+      // The conversation is also an AI Memory session (consolidated when it goes idle). Not awaited: the answer never
+      // waits for the memory server; the per-chat queue keeps the prompt ahead of the turn end, and failures land in
+      // the Memória status.
+      ctx.memorySessions?.turnStart(chat, text || atts.map((a) => a.name).join(', ')).catch(() => {});
       // The quest's own chat sees the whole quest (steps, results and a clip of each step chat) on every message.
       const questBrief = ctx.quests?.brief(chat);
       if (questBrief)
@@ -167,7 +171,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
       if (
         assistant.status === 'done' &&
         store.state.settings.memoryEnabled &&
-        store.state.settings.capture &&
+        store.state.settings.captureRaw &&
         chat.memory
       ) {
         const note = {
@@ -199,6 +203,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
       if (chat.handoffPending && assistant.status !== 'done') chat.sessionId = null;
       cleanup();
       jobs.delete(chatId);
+      ctx.memorySessions?.turnEnd(chat, assistant).catch(() => {});
       store.save();
       sync();
       // Lets other parts of the main process (quests) react to the end of a turn without coupling to this function.

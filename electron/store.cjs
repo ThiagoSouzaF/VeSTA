@@ -16,6 +16,10 @@ const defaults = () => ({
     background: 'rain',
     memoryEnabled: true,
     capture: true,
+    // Consolidation of finished conversation stretches by an LLM ('codex' reuses the Codex CLI login, 'off' = none).
+    memoryConsolidate: 'codex',
+    // Old behaviour: one raw page per answer (conversas/<chat>/<msg>.md). Off: conversations become sessions instead.
+    captureRaw: false,
     memoryTools: true,
     density: 'comfortable',
     fontScale: 1,

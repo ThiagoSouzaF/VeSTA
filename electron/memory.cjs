@@ -8,7 +8,14 @@ const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/cli
 const redact = (text) =>
   String(text)
     .replace(/\b(?:sk-|dk-|ghp_|github_pat_)[A-Za-z0-9_-]{16,}/g, '[chave removida]')
-    .replace(/((?:api[_-]?key|authorization|password|senha|token)\s*[:=]\s*)[^\s,;]+/gi, '$1[removido]');
+    .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, '[chave removida]')
+    .replace(/eyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}/g, '[token removido]')
+    .replace(/(?:AKIA|ASIA)[0-9A-Z]{16}/g, '[chave removida]')
+    .replace(/(Bearer\s+)[\w.~+/-]{12,}=*/gi, '$1[removido]')
+    .replace(
+      /((?:api[_-]?key|authorization|password|passwd|senha|token|secret|client[_-]?secret)\s*[:=]\s*)[^\s,;]+/gi,
+      '$1[removido]'
+    );
 const scope = (projectId) => ({ workspace: 'vesta', project: projectId || 'inbox' });
 const freePort = () =>
   new Promise((resolve, reject) => {
@@ -23,9 +30,11 @@ const freePort = () =>
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // One HTTP server owns the data dir (ai-memory refuses a second `serve` on it); the app and every agent it launches share it.
 class Memory {
-  constructor(exe, dir) {
+  // `options.env()` adds server environment read at every start (the consolidation LLM comes from the preferences).
+  constructor(exe, dir, options = {}) {
     this.exe = exe;
     this.dir = dir;
+    this.extraEnv = options.env || (() => ({}));
     this.client = null;
     this.server = null;
     this.endpoint = null;
@@ -61,7 +70,7 @@ class Memory {
         'inbox',
       ],
       {
-        env: { ...process.env, AI_MEMORY_EMBEDDING_PROVIDER: 'none', AI_MEMORY_AUTH_TOKEN: token },
+        env: { ...process.env, ...this.extraEnv(), AI_MEMORY_EMBEDDING_PROVIDER: 'none', AI_MEMORY_AUTH_TOKEN: token },
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],
       }
@@ -124,9 +133,9 @@ class Memory {
     await this.connect();
     return this.endpoint;
   }
-  async call(name, args) {
+  async call(name, args, { timeout = 20000 } = {}) {
     const client = await this.connect();
-    const result = await client.callTool({ name, arguments: args }, undefined, { timeout: 20000 });
+    const result = await client.callTool({ name, arguments: args }, undefined, { timeout });
     const text = (result.content || [])
       .filter((x) => x.type === 'text')
       .map((x) => x.text)
@@ -176,6 +185,54 @@ class Memory {
     return this.call('memory_delete_page', {
       path: note.path,
       ...(note.kind === 'preference' ? { scope: 'profile' } : scope(note.projectId)),
+    });
+  }
+  // Lifecycle event of a conversation, posted like a native hook would (fire-and-forget on the server: 202 queued).
+  // workspace/project ride the query string, so the session lands in vesta/<project>, not in basename(cwd).
+  async hook(event, agent, payload, projectId) {
+    const { url, token } = await this.start();
+    const q = new URLSearchParams({ event, agent, ...scope(projectId), cwd: payload.cwd || '' });
+    const r = await fetch(url + '/hook?' + q, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) throw new Error('AI Memory recusou o evento ' + event + ' (' + r.status + ')');
+  }
+  // The assistant's answer only reaches the store through the native hook binary, which sanitizes and caps it (2 KB)
+  // before sending; the server must run with AI_MEMORY_CAPTURE_ASSISTANT=true.
+  async stopWithAnswer(agent, payload) {
+    const { url, token } = await this.start();
+    await new Promise((resolve, reject) => {
+      const child = spawn(
+        this.exe,
+        [
+          '--data-dir',
+          this.dir,
+          'hook',
+          '--event',
+          'stop',
+          '--agent',
+          agent,
+          '--capture-assistant',
+          '--server-url',
+          url,
+        ],
+        { env: { ...process.env, AI_MEMORY_AUTH_TOKEN: token }, windowsHide: true, stdio: ['pipe', 'ignore', 'pipe'] }
+      );
+      let err = '';
+      const timer = setTimeout(() => child.kill(), 15000);
+      child.stderr.on('data', (b) => (err = (err + b).slice(-2000)));
+      child.on('error', reject);
+      child.on('exit', (code) => {
+        clearTimeout(timer);
+        if (code === 0) resolve();
+        else reject(new Error(err.trim().split('\n').pop() || 'hook stop falhou (' + code + ')'));
+      });
+      // The hook may exit before reading stdin (bad token, missing binary): EPIPE must not reach the main process.
+      child.stdin.on('error', () => {});
+      child.stdin.end(JSON.stringify(payload));
     });
   }
   // The server is stopped synchronously first: before-quit does not wait for this promise.

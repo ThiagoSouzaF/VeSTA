@@ -9,7 +9,17 @@ import {
   FileText,
   Globe,
   HardDrive,
+  Sparkles,
 } from 'lucide-react';
+// Kind of a consolidated page from its path (sessions/, _rules/, gotchas/, concepts/...).
+const insightLabel = (path = '') =>
+  path.startsWith('_rules/')
+    ? 'REGRA'
+    : path.startsWith('gotchas/')
+      ? 'ARMADILHA'
+      : path.startsWith('decisions/')
+        ? 'DECISÃO'
+        : 'APRENDIZADO';
 import { action } from '../lib/api';
 import { IconButton } from './IconButton';
 import { formatDate } from '../lib/format';
@@ -68,7 +78,14 @@ export function MemoryPage({
           </span>
           <div>
             <strong className="summary-status">{memoryStatus?.connected ? 'Conectado' : 'Verificar conexão'}</strong>
-            <span>AI Memory · local · sem API</span>
+            <span>
+              {memoryStatus?.consolidation?.provider === 'codex'
+                ? 'AI Memory · consolida com Codex' +
+                  (memoryStatus.consolidation.open
+                    ? ' · ' + memoryStatus.consolidation.open + ' sessão(ões) aberta(s)'
+                    : '')
+                : 'AI Memory · local · sem IA'}
+            </span>
           </div>
         </div>
       </div>
@@ -77,6 +94,7 @@ export function MemoryPage({
           {[
             ['all', 'Tudo'],
             ['preferences', 'Preferências'],
+            ['insights', 'Aprendizados'],
             ['notes', 'Notas'],
             ['sessions', 'Conversas'],
           ].map(([id, label]) => (
@@ -128,6 +146,8 @@ export function MemoryPage({
                   <Globe size={13} />
                 ) : m.kind === 'session' ? (
                   <MessageSquare size={13} />
+                ) : m.kind === 'insight' ? (
+                  <Sparkles size={13} />
                 ) : (
                   <FileText size={13} />
                 )}{' '}
@@ -135,7 +155,9 @@ export function MemoryPage({
                   ? 'PREFERÊNCIA PESSOAL'
                   : m.kind === 'session'
                     ? 'CONVERSA'
-                    : 'NOTA DE PROJETO'}
+                    : m.kind === 'insight'
+                      ? insightLabel(m.path)
+                      : 'NOTA DE PROJETO'}
               </span>
               <ArrowUpRight size={15} />
             </div>

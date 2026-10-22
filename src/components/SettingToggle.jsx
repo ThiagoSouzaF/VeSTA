@@ -1,4 +1,4 @@
-export function SettingToggle({ title, description, checked, onChange }) {
+export function SettingToggle({ title, description, checked, onChange, disabled }) {
   return (
     <div className="setting-row">
       <div>
@@ -10,6 +10,7 @@ export function SettingToggle({ title, description, checked, onChange }) {
         role="switch"
         aria-checked={checked}
         aria-label={title}
+        disabled={disabled}
         onClick={onChange}
       >
         <span />

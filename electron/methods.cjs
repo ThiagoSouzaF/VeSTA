@@ -73,9 +73,11 @@ function createMethods(ctx) {
     },
     deleteChat: ({ id }) => {
       if (jobs.has(id)) throw new UserError('Interrompa a resposta antes de excluir');
+      const session = ctx.store.state.chats.find((c) => c.id === id)?.memorySession;
       ctx.store.state.chats = ctx.store.state.chats.filter((c) => c.id !== id);
       ctx.store.save();
       ctx.attachments?.removeChat(id);
+      ctx.memorySessions?.forget(id, session);
       sync();
       return state();
     },
@@ -161,8 +163,10 @@ function createMethods(ctx) {
       if (['ember', 'violet', 'mint', 'amber', 'rose'].includes(input.accent)) s.accent = input.accent;
       if (['none', 'ember', 'rain', 'inkrain', 'stream'].includes(input.background)) s.background = input.background;
       if (Number.isFinite(input.fontScale)) s.fontScale = clampFontScale(input.fontScale);
-      for (const key of ['memoryEnabled', 'capture', 'memoryTools', 'mascot'])
+      for (const key of ['memoryEnabled', 'capture', 'captureRaw', 'memoryTools', 'mascot'])
         if (typeof input[key] === 'boolean') s[key] = input[key];
+      // The server always has the LLM configured; this only decides whether the app asks for consolidations.
+      if (['codex', 'off'].includes(input.memoryConsolidate)) s.memoryConsolidate = input.memoryConsolidate;
       ctx.store.save();
       sync();
       return state();
@@ -177,6 +181,12 @@ function createMethods(ctx) {
           dir: ctx.memory.dir,
           agents: ctx.store.state.settings.memoryTools !== false,
           endpoint: ctx.memory.endpoint?.mcp,
+          consolidation: {
+            provider: ctx.store.state.settings.memoryConsolidate || 'off',
+            open: ctx.store.state.chats.filter((c) => c.memorySession).length,
+            last: ctx.memorySessions?.status.lastConsolidation || null,
+            error: ctx.memorySessions?.status.lastError || null,
+          },
         };
       } catch (e) {
         return { connected: false, error: e.message, dir: ctx.memory.dir };

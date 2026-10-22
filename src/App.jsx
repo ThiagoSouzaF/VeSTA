@@ -281,7 +281,8 @@ export function App() {
     (m) =>
       (memoryFilter === 'all' ||
         (memoryFilter === 'preferences' && m.kind === 'preference') ||
-        (memoryFilter === 'notes' && m.kind !== 'session' && m.kind !== 'preference') ||
+        (memoryFilter === 'insights' && m.kind === 'insight') ||
+        (memoryFilter === 'notes' && m.kind !== 'session' && m.kind !== 'preference' && m.kind !== 'insight') ||
         (memoryFilter === 'sessions' && m.kind === 'session')) &&
       (!projectId || m.projectId === projectId || m.kind === 'preference') &&
       (m.title + ' ' + m.body).toLowerCase().includes(memorySearch.toLowerCase())

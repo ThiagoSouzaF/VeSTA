@@ -170,10 +170,23 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
           onChange={() => setting({ memoryEnabled: !data.settings.memoryEnabled })}
         />
         <SettingToggle
-          title="Guardar trechos das conversas"
-          description="Salva trechos de até 6 mil caracteres da pergunta e 10 mil da resposta como memória consultável. Não extrai preferências automaticamente."
-          checked={data.settings.capture}
-          onChange={() => setting({ capture: !data.settings.capture })}
+          title="Aprender com as conversas"
+          description="Cada conversa vira uma sessão no AI Memory: seus pedidos, as ferramentas usadas e um trecho da resposta. Depois de 30 minutos sem mensagens (ou ao trocar de IA ou de projeto) a sessão é encerrada."
+          checked={data.settings.capture !== false}
+          onChange={() => setting({ capture: data.settings.capture === false })}
+        />
+        <SettingToggle
+          title="Consolidar com IA (Codex)"
+          description="Ao encerrar a sessão, o Codex resume a conversa e extrai regras, armadilhas e decisões em páginas próprias, usando o seu login do Codex (consome a cota do ChatGPT; o conteúdo da conversa vai para a OpenAI, mesmo em chats do Claude). Desligado, a sessão fica só com um resumo automático, sem IA."
+          checked={data.settings.memoryConsolidate === 'codex'}
+          disabled={data.settings.capture === false}
+          onChange={() => setting({ memoryConsolidate: data.settings.memoryConsolidate === 'codex' ? 'off' : 'codex' })}
+        />
+        <SettingToggle
+          title="Guardar também a conversa bruta"
+          description="Modo antigo: salva cada resposta inteira (até 6 mil caracteres da pergunta e 10 mil da resposta) como uma página. Gera muito volume; deixe desligado se a consolidação estiver ativa."
+          checked={!!data.settings.captureRaw}
+          onChange={() => setting({ captureRaw: !data.settings.captureRaw })}
         />
         <SettingToggle
           title="Agentes podem consultar e gravar na memória"

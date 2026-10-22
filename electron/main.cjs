@@ -10,6 +10,7 @@ const { createBus } = require('./events.cjs');
 const { createContext } = require('./context.cjs');
 const { createMethods } = require('./methods.cjs');
 const { createQuestEngine } = require('./quest-engine.cjs');
+const { createMemorySessions } = require('./memory-sessions.cjs');
 const { createRemote, remoteMethods } = require('./remote/index.cjs');
 const { createConfirmer } = require('./remote/confirm.cjs');
 const { createBoot, mayReveal, STAGES, BOOT_TIMEOUT_MS } = require('./boot.cjs');
@@ -277,8 +278,23 @@ app.whenReady().then(() => {
         app.isPackaged
           ? path.join(process.resourcesPath, 'ai-memory.exe')
           : path.join(__dirname, '../runtime/ai-memory.exe'),
-        path.join(app.getPath('userData'), 'memory')
+        path.join(app.getPath('userData'), 'memory'),
+        {
+          // Consolidation reuses the Codex CLI login; the answer excerpt only reaches the store with capture on.
+          // The hourly auto-improve reviewer stays off: one consolidation per conversation stretch, nothing more.
+          // Always the same environment, so toggling the preference never restarts the server under running agents:
+          // the app alone decides whether to call memory_consolidate.
+          env: () => ({
+            AI_MEMORY_LLM_PROVIDER: 'codex',
+            AI_MEMORY_CAPTURE_ASSISTANT: 'true',
+            AI_MEMORY_AUTO_IMPROVE__SCHEDULER__ENABLED: 'false',
+          }),
+        }
       );
+      // VESTA_MEMORY_IDLE_MS only shortens the 30 min idle close for the E2E tests.
+      ctx.memorySessions = createMemorySessions(ctx, { idleMs: Number(process.env.VESTA_MEMORY_IDLE_MS) || undefined });
+      // Stretches left open by the previous run are closed and consolidated in the background.
+      if (store.state.settings.memoryEnabled) ctx.memorySessions.recover();
       ctx.markReady();
     } catch (e) {
       if (!useSplash) throw e;
@@ -341,6 +357,7 @@ app.on('before-quit', (event) => {
       .finally(() => app.quit());
     return;
   }
+  ctx.memorySessions?.dispose();
   ctx.memory?.close().catch(() => {});
 });
 module.exports = { methods, ctx, getState: () => ctx.state() };
