@@ -6,6 +6,7 @@ import { ContextPanel } from './ContextPanel';
 import { useState } from 'react';
 import { Paperclip } from 'lucide-react';
 import { hasFiles } from '../lib/attachments';
+import { QuestChatBar } from './quests/QuestChatBar';
 export function ChatPage({
   chat,
   currentProject,
@@ -41,6 +42,8 @@ export function ChatPage({
   onPick,
   onFiles,
   onRemoveAttachment,
+  onOpenQuest,
+  onOpenQuestChat,
 }) {
   const [dropping, setDropping] = useState(false);
   // Dropping files anywhere over the conversation attaches them (the highlight follows the pointer).
@@ -74,6 +77,14 @@ export function ChatPage({
               call={call}
               running={running}
             />
+            {chat.questId && (
+              <QuestChatBar
+                chat={chat}
+                quest={data.quests.find((q) => q.id === chat.questId)}
+                onOpenQuest={onOpenQuest}
+                onOpenChat={onOpenQuestChat}
+              />
+            )}
             <MessageList chat={chat} call={call} notify={notify} setModal={setModal} running={running} focus={focus} />
           </>
         ) : (

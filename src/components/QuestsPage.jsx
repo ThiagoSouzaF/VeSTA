@@ -52,10 +52,12 @@ export const QuestsPage = memo(function QuestsPage({
   call,
   setData,
   onOpenChat,
+  onOpenQuestChat,
+  selected,
+  setSelected,
   notify,
 }) {
-  const [selected, setSelected] = useState(null),
-    [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(false);
   const projectName = useMemo(() => Object.fromEntries(projects.map((p) => [p.id, p.name])), [projects]);
   const quest = quests.find((q) => q.id === selected);
   const onAct = useCallback(
@@ -66,7 +68,7 @@ export const QuestsPage = memo(function QuestsPage({
     },
     [call, setData]
   );
-  const onBack = useCallback(() => setSelected(null), []);
+  const onBack = useCallback(() => setSelected(null), [setSelected]);
   const create = async (input) => {
     const next = await call('createQuest', input);
     setData(next);
@@ -82,6 +84,7 @@ export const QuestsPage = memo(function QuestsPage({
         integrations={integrations}
         onBack={onBack}
         onOpenChat={onOpenChat}
+        onOpenQuestChat={onOpenQuestChat}
         call={call}
         onAct={onAct}
         notify={notify}

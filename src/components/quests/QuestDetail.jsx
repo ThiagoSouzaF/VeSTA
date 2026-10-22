@@ -41,7 +41,17 @@ const Log = memo(function Log({ log }) {
 });
 
 // One quest: controls, planning state, plan editor (draft) or board, summary and journal.
-export function QuestDetail({ quest, projects, integrations, onBack, onOpenChat, call, onAct, notify }) {
+export function QuestDetail({
+  quest,
+  projects,
+  integrations,
+  onBack,
+  onOpenChat,
+  onOpenQuestChat,
+  call,
+  onAct,
+  notify,
+}) {
   const [busy, setBusy] = useState(false),
     [confirmCancel, setConfirmCancel] = useState(false),
     [confirmDelete, setConfirmDelete] = useState(false);
@@ -76,6 +86,15 @@ export function QuestDetail({ quest, projects, integrations, onBack, onOpenChat,
           </p>
         </div>
         <div className="quest-controls" role="toolbar" aria-label="Controles da quest">
+          <button
+            className="secondary-button"
+            data-action="quest-chat"
+            title="Converse com a IA da quest: ela acompanha todas as etapas e seus chats"
+            onClick={() => onOpenQuestChat(quest.id)}
+          >
+            <MessageSquare size={14} />
+            Chat da quest
+          </button>
           {quest.status === 'running' && (
             <button className="secondary-button" data-action="pause" disabled={busy} onClick={() => act('pauseQuest')}>
               <Pause size={14} />

@@ -446,3 +446,75 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 }
+/* Bar above a quest chat: back to the board / quest chat, and (in the quest chat) every step chat. */
+.quest-chat-bar {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.quest-chat-bar-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+}
+.quest-chat-bar-head strong {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text);
+}
+.quest-chat-bar-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.quest-chat-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.quest-chat-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  padding: 3px 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  font-size: 11px;
+  background: var(--surface);
+}
+.quest-chat-step:not(:disabled):hover {
+  border-color: var(--accent);
+}
+.quest-chat-step:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.quest-chat-step small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.quest-chat-step .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--muted);
+}
+.quest-chat-step.running .dot {
+  background: var(--accent);
+}
+.quest-chat-step.done .dot {
+  background: var(--green);
+}
+.quest-chat-step.error .dot {
+  background: var(--orange);
+}

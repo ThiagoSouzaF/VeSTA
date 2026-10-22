@@ -24,7 +24,7 @@ A mascote é a própria Vesta, em mangá preto e branco: guardiã da chama, com 
 - Agentes com acesso à memória (opção nas preferências, ligada por padrão): Claude, Codex e OpenCode recebem as ferramentas do AI Memory (`memory_query`, `memory_write_page` e as demais) apenas nas sessões abertas pelo VeSTA, via `--mcp-config`, `-c mcp_servers...` e `OPENCODE_CONFIG_CONTENT`. Cada chat é orientado a usar o workspace `vesta` e o projeto do chat.
 - Busca no contexto do projeto; preferências pessoais compartilhadas entre todas as IAs; gravação, edição e exclusão de memórias.
 - **Atividade**: todo o trabalho em paralelo de todas as IAs, ao vivo e em árvore (turno → subagentes → comandos, ferramentas, tarefas em segundo plano e Monitor), com tempos, detalhes, filtros e Parar (por chat; por tarefa no Claude). A barra lateral mostra quantas tarefas rodam em cada chat.
-- **Quests**: dê um objetivo e as IAs trabalham juntas. Uma IA planeja (ou você monta o plano), cada etapa vai para a IA escolhida num chat próprio, os resultados passam de uma etapa para a seguinte e ficam no AI Memory, e o quadro mostra Pendentes, Rodando, Concluídas e Problemas.
+- **Quests**: dê um objetivo e as IAs trabalham juntas. Uma IA planeja (ou você monta o plano), cada etapa vai para a IA escolhida num chat próprio, os resultados passam de uma etapa para a seguinte e ficam no AI Memory, e o quadro mostra Pendentes, Rodando, Concluídas e Problemas. Cada quest tem um **chat da quest**: ele recebe a ideia (o planejamento acontece nele) e, a cada mensagem sua, vê a situação, os resultados e um trecho da conversa de cada etapa, com atalhos para abrir os chats das etapas e voltar ao quadro. Os chats criados por quests ficam fora de Conversas.
 - **Uso por IA**: janelas oficiais do plano do Claude (5 h e semanal) e do Codex (lidas do `codex app-server`), além de tokens e custo por dia de cada IA.
 - **Anexos** de imagens e documentos nos chats (desktop e celular): clipe, arrastar e soltar, Ctrl+V; veja a seção Anexos.
 - **Leitura confortável**: zoom do texto de 80% a 160% (**Ctrl +**, **Ctrl −**, **Ctrl 0** ou Ctrl+roda); a conversa só rola sozinha se você estiver no fim, com botão para descer até o fim.
@@ -32,7 +32,7 @@ A mascote é a própria Vesta, em mangá preto e branco: guardiã da chama, com 
 ## Primeiro uso
 
 1. Clique em **Adicionar projeto** e escolha a pasta de um projeto, ou use o espaço pessoal.
-2. Clique em **Novo chat**, escolha a IA, o projeto e o modo de trabalho. Deixe o modelo vazio para usar o padrão do programa. Para Drael, o modelo inicial é `drael/drael-v1`.
+2. Clique em **Novo chat**, escolha a IA, o projeto e o modo de trabalho. O campo Modelo lista os modelos da IA escolhida (aliases do Claude, o cache de modelos do Codex, `opencode models`); "Padrão da sua conta" usa o configurado no programa e "Outro modelo…" aceita qualquer id. Para Drael, o modelo inicial é `drael/drael-v1`.
 3. Escreva a primeira mensagem. A IA usa sua conta já autenticada no programa correspondente.
 4. Em **Memória**, adicione suas preferências pessoais (como idioma e organização de arquivos) ou notas específicas de um projeto.
 5. Em **Preferências**, escolha o tema, a cor e se quer gravar trechos das conversas.

@@ -46,10 +46,26 @@ const Row = memo(
     a.onOpen === b.onOpen
 );
 
-export function ChatsScreen({ chats, projects, running, waitingIds, done, integrations, onOpen, onCreate }) {
+export function ChatsScreen({
+  chats,
+  quests = [],
+  projects,
+  running,
+  waitingIds,
+  done,
+  integrations,
+  onOpen,
+  onCreate,
+}) {
   const [creating, setCreating] = useState(false);
   const names = useMemo(() => Object.fromEntries(projects.map((p) => [p.id, p.name])), [projects]);
-  const sorted = useMemo(() => [...chats].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)), [chats]);
+  // Quest chats are reached from the quest, not listed here (same rule as the desktop's Conversas).
+  const sorted = useMemo(() => {
+    const live = new Set(quests.map((q) => q.id));
+    return chats
+      .filter((c) => !(c.questId && live.has(c.questId)))
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  }, [chats, quests]);
   const runningSet = useMemo(() => new Set(running), [running]);
   return (
     <>

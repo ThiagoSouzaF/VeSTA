@@ -11,15 +11,20 @@ const NAMES = [
   'skipStep',
   'deleteQuest',
 ];
+// Like the others, but the renderer also needs the id of the chat it should open.
+const questChat = (ctx) => (args) => ({ chatId: ctx.quests.questChat(args || {}), state: ctx.state() });
 function questMethods(ctx) {
-  return Object.fromEntries(
-    NAMES.map((name) => [
-      name,
-      (args) => {
-        ctx.quests[name](args || {});
-        return ctx.state();
-      },
-    ])
-  );
+  return {
+    ...Object.fromEntries(
+      NAMES.map((name) => [
+        name,
+        (args) => {
+          ctx.quests[name](args || {});
+          return ctx.state();
+        },
+      ])
+    ),
+    questChat: questChat(ctx),
+  };
 }
 module.exports = { questMethods };

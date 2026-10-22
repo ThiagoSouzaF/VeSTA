@@ -451,7 +451,8 @@ test('engine: AI planning fills the draft plan; bad replies are reported without
   const q = h.engine.createQuest({ title: 'Plan', goal: 'g', plan: { provider: 'claude' } });
   await h.tick();
   assert.equal(q.planning.status, 'running');
-  assert.equal(h.store.chat(q.planning.chatId).questRole, 'plan');
+  assert.equal(h.store.chat(q.planning.chatId).questRole, 'lead');
+  assert.equal(q.leadChatId, q.planning.chatId, 'the idea arrives in the quest chat');
   assert.equal(h.store.chat(q.planning.chatId).mode, 'read');
   h.finish(q.planning.chatId, plan([{ title: 'A', instructions: 'i', provider: 'claude' }]));
   assert.equal(q.planning.status, 'done');
@@ -473,4 +474,61 @@ test('engine: AI planning fills the draft plan; bad replies are reported without
       }),
     /ciclo/
   );
+});
+
+test('engine: every quest gets its own chat; it plans there and later sees every step', async () => {
+  const h = harness();
+  const manualQ = h.engine.createQuest({ title: 'Manual', goal: 'g', steps: manual });
+  const lead = h.store.chat(manualQ.leadChatId);
+  assert.equal(lead.questRole, 'lead');
+  assert.equal(lead.mode, 'read');
+  assert.equal(lead.memory, false);
+  assert.equal(h.sent.length, 0, 'opening the quest chat sends nothing');
+
+  const q = h.engine.createQuest({ title: 'Lead', goal: 'meta', plan: { provider: 'claude' } });
+  await h.tick();
+  const leadId = q.leadChatId;
+  assert.equal(h.engine.brief(h.store.chat(leadId)), null, 'the planning turn already carries the quest');
+  h.finish(
+    leadId,
+    plan([
+      { title: 'A', instructions: 'i', provider: 'claude' },
+      { title: 'B', instructions: 'j', provider: 'codex', dependsOn: [1] },
+    ])
+  );
+  h.engine.replan({ id: q.id, provider: 'claude' });
+  await h.tick();
+  assert.equal(q.planning.chatId, leadId, 'replanning with the same AI stays in the quest chat');
+  h.finish(
+    leadId,
+    plan([
+      { title: 'A', instructions: 'i', provider: 'claude' },
+      { title: 'B', instructions: 'j', provider: 'codex', dependsOn: [1] },
+    ])
+  );
+  h.engine.startQuest({ id: q.id });
+  await h.tick();
+  const stepChat = h.sent.at(-1).chatId;
+  h.finish(stepChat, 'detalhe longo da etapa\n## Resultado\nfiz A');
+  await h.tick();
+  const brief = h.engine.brief(h.store.chat(leadId));
+  assert.match(brief, /meta/);
+  assert.match(brief, /s1 · A/);
+  assert.match(brief, /Resultado: fiz A/);
+  assert.match(brief, /detalhe longo da etapa/, 'includes a clip of the step conversation');
+  assert.match(brief, /s2 · B[\s\S]*rodando/);
+  assert.equal(h.engine.brief(h.store.chat(stepChat)), null, 'step chats get no brief');
+  assert.equal(h.engine.questChat({ id: q.id }), leadId);
+});
+
+test('engine: an old quest promotes its planning chat to the quest chat', () => {
+  const h = harness();
+  const old = h.store.addChat({ provider: 'codex', mode: 'read', memory: false });
+  Object.assign(old, { questRole: 'plan' });
+  const q = Q.normalizeQuest({ id: 'old', title: 'Velha', goal: 'g', planning: { chatId: old.id, status: 'done' } });
+  old.questId = q.id;
+  h.store.state.quests.unshift(q);
+  assert.equal(h.engine.questChat({ id: 'old' }), old.id);
+  assert.equal(old.questRole, 'lead');
+  assert.equal(q.leadChatId, old.id);
 });

@@ -176,6 +176,56 @@ const HAIKU = 'claude-haiku-5-5';
     console.log('AI Memory (busca "' + word + '"):', String(found).replace(/\s+/g, ' ').slice(0, 200));
     assert.ok(String(found).includes('quests/' + questId), 'a página da quest está no AI Memory');
 
+    // Quest chats stay out of Conversas: the sidebar lists none of the 4 (quest chat + 3 steps).
+    assert.ok(q.leadChatId && chat(q.leadChatId)?.questRole === 'lead', 'a quest tem um chat próprio');
+    assert.equal(st.chats.filter((c) => c.questId === questId).length, 4);
+    assert.equal(await page.locator('.chat-list .chat-list-item').count(), 0, 'chats da quest fora de Conversas');
+
+    // The quest's own chat: opened from the board, lists every step chat and knows the whole quest.
+    await call('updateChat', { id: q.leadChatId, model: HAIKU });
+    await page.locator('.quest-controls [data-action=quest-chat]').click();
+    await page.locator('.quest-chat-bar .quest-chat-step').nth(2).waitFor();
+    assert.equal(await page.locator('.quest-chat-bar .quest-chat-step').count(), 3);
+    await call('send', {
+      chatId: q.leadChatId,
+      text: 'Sem usar ferramentas: quantas etapas esta quest tem e qual IA fez a etapa "Revisar a nota"? Responda só no formato: N etapas; IA=<id da IA>',
+    });
+    let lead;
+    for (let i = 0; i < 180; i++) {
+      lead = (await get()).chats.find((c) => c.id === q.leadChatId);
+      if (lead.messages.at(-1).status !== 'running') break;
+      await wait(1000);
+    }
+    const answer = lead.messages.at(-1);
+    console.log('chat da quest respondeu:', JSON.stringify(answer.text.slice(0, 160)));
+    assert.equal(answer.status, 'done', answer.error || 'o chat da quest não terminou');
+    assert.match(answer.text, /3 etapas/);
+    assert.match(answer.text.toLowerCase(), new RegExp('ia\\s*=\\s*' + reviewer));
+    assert.ok(answer.activities.some((a) => a.label === 'Quest consultada'));
+    assert.ok(!lead.messages.at(-2).text.includes('<quest>'), 'o contexto da quest não aparece como fala do usuário');
+    await page.screenshot({ path: path.join(shots, 'w3-quest-chat.png') });
+    // Walk to a step chat and back to the board.
+    await page.locator('.quest-chat-step[data-step=s2]').click();
+    await page.locator('.quest-chat-bar [data-action=open-quest-chat]').waitFor();
+    await page.locator('.quest-chat-bar [data-action=open-board]').click();
+    await page.locator('.quest-detail[data-quest="' + questId + '"]').waitFor();
+
+    // New chat: the model list follows the chosen AI.
+    await page.locator('.new-chat').click();
+    await page.locator('.modal-providers button', { hasText: 'Claude' }).click();
+    const options = await page.locator('#model option').allTextContents();
+    assert.ok(
+      options.some((o) => o.includes(HAIKU)),
+      'modelos do Claude no novo chat: ' + options.join(', ')
+    );
+    await page.locator('#model').selectOption(HAIKU);
+    await page.screenshot({ path: path.join(shots, 'w3-new-chat-models.png') });
+    await page.locator('.modal-footer .primary-button').click();
+    await page.locator('.chat-list .chat-list-item').first().waitFor();
+    const created = (await get()).chats.find((c) => !c.questId);
+    assert.equal(created.model, HAIKU, 'o chat novo usa o modelo escolhido');
+    assert.equal(await page.locator('.chat-list .chat-list-item').count(), 1, 'só o chat comum aparece em Conversas');
+
     const usage = q.steps.map((s) => s.id + ' ' + Math.round((s.endedAt - s.startedAt) / 1000) + 's');
     console.log('duração por etapa:', usage.join(', '), '· total', Math.round((Date.now() - t0) / 1000) + 's');
     assert.deepEqual(problems, [], problems.join('\n'));

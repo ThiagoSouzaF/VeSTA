@@ -146,6 +146,7 @@ function Signed({ token, onSignOut }) {
               {tab === 'chats' && route.name === 'chats' && (
                 <ChatsScreen
                   chats={state.chats}
+                  quests={state.quests}
                   projects={state.projects}
                   running={state.running}
                   waitingIds={waitingIds}

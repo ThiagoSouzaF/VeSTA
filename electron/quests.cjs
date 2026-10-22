@@ -1,7 +1,9 @@
 // Quests: several AIs working together on one goal. Pure functions, no I/O: used by the engine (main process), the
 // tests and the renderer (the board derives from the same file).
 //
-// Quest { id, title, goal, guidelines, projectId, status, maxParallel, steps[], log[], summary, pauseReason, planning, createdAt, updatedAt }
+// Quest { id, title, goal, guidelines, projectId, status, maxParallel, steps[], log[], summary, pauseReason, planning, leadChatId,
+//         createdAt, updatedAt }
+//   leadChatId  the quest's own chat: it receives the idea (the planning turn) and later briefs the person on every step
 //   status  'draft' | 'running' | 'paused' | 'done' | 'failed' | 'cancelled'
 // Step { id, title, instructions, provider, model, mode, dependsOn[], kind, status, chatId, result, startedAt, endedAt, attempts }
 //   kind    'work' | 'review'          status  'pending' | 'running' | 'done' | 'error' | 'skipped'
@@ -87,6 +89,7 @@ function normalizeQuest(raw) {
     summary: text(q.summary, 6000),
     pauseReason: q.pauseReason === 'error' || q.pauseReason === 'user' ? q.pauseReason : null,
     planning: q.planning && typeof q.planning === 'object' ? { ...q.planning } : null,
+    leadChatId: q.leadChatId ? String(q.leadChatId) : null,
     createdAt: Number(q.createdAt) || now,
     updatedAt: Number(q.updatedAt) || now,
   };
@@ -534,7 +537,71 @@ function columns(q) {
   return col;
 }
 
+// Context of the quest's own chat, rebuilt for every message the person sends there: the AI sees the whole quest and
+// a clip of every step's conversation, so it can walk the person through them. `chatOf(id)` -> chat or undefined.
+const STATUS_PT = { pending: 'pendente', running: 'rodando', done: 'feita', error: 'com problema', skipped: 'pulada' };
+const QUEST_PT = {
+  draft: 'rascunho',
+  running: 'rodando',
+  paused: 'pausada',
+  done: 'concluída',
+  failed: 'falhou',
+  cancelled: 'cancelada',
+};
+function buildLeadBrief(q, chatOf = () => undefined, { perStep = 1500, max = 24000 } = {}) {
+  const p = progress(q);
+  const steps = q.steps.map((s) => {
+    const chat = s.chatId ? chatOf(s.chatId) : null;
+    const last = chat ? [...chat.messages].reverse().find((m) => m.role === 'assistant' && (m.text || m.error)) : null;
+    const reply = last ? clip(String(last.text || last.error).trim(), perStep, 'end') : '';
+    return [
+      '### ' + s.id + ' · ' + s.title + (s.kind === 'review' ? ' (revisão)' : ''),
+      'IA: ' +
+        s.provider +
+        (s.model ? ' (' + s.model + ')' : '') +
+        ' · ' +
+        STATUS_PT[s.status] +
+        (s.attempts > 1 ? ' · ' + s.attempts + ' tentativas' : '') +
+        (s.dependsOn.length ? ' · depende de ' + s.dependsOn.join(', ') : '') +
+        (chat ? ' · chat "' + chat.title + '"' : ''),
+      s.result ? 'Resultado: ' + s.result : '',
+      reply && reply !== s.result ? 'Última resposta no chat da etapa (trecho):\n' + reply : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  });
+  const out = [
+    'Este é o chat da quest "' +
+      q.title +
+      '" no VeSTA. Você acompanha a quest para a pessoa: explica o andamento, resume e compara as conversas das etapas, aponta problemas e sugere o que fazer (tentar de novo, pular, ajustar o plano). As etapas rodam em chats próprios; não refaça o trabalho delas aqui a menos que a pessoa peça.',
+    '## Objetivo\n' + q.goal,
+    q.guidelines ? '## Diretrizes\n' + q.guidelines : '',
+    '## Situação: ' +
+      QUEST_PT[q.status] +
+      ' · ' +
+      p.done +
+      '/' +
+      p.total +
+      ' etapas' +
+      (p.running ? ' · ' + p.running + ' rodando' : '') +
+      (p.errors ? ' · ' + p.errors + ' com problema' : ''),
+    steps.length ? '## Etapas\n' + steps.join('\n\n') : '## Etapas\nAinda não há plano.',
+    q.summary ? '## Resumo final\n' + q.summary : '',
+    q.log.length
+      ? '## Diário (mais recentes)\n' +
+        q.log
+          .slice(-10)
+          .map((e) => '- ' + e.text)
+          .join('\n')
+      : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  return clip(out, max, 'start');
+}
+
 module.exports = {
+  buildLeadBrief,
   QUEST_STATUS,
   STEP_STATUS,
   MAX_STEPS,

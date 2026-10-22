@@ -44,6 +44,7 @@ export function App() {
     [memoryFilter, setMemoryFilter] = useState('all'),
     [queryResult, setQueryResult] = useState(null),
     [focus, setFocus] = useState(null),
+    [questSel, setQuestSel] = useState(null),
     [busy, setBusy] = useState(false);
   const { drafts, setDraft } = useDrafts({ chats: data.chats, loading });
   const { toast, notify } = useToast();
@@ -239,6 +240,27 @@ export function App() {
     },
     [notify]
   );
+  // The quest's own chat (created on demand for quests from before it existed).
+  const openQuestChat = useCallback(async (questId) => {
+    try {
+      const r = await call('questChat', { id: questId });
+      replaceData(r.state);
+      const c = r.state.chats.find((x) => x.id === r.chatId);
+      if (c) goChat(c);
+    } catch {}
+  }, []);
+  const openQuest = useCallback((questId) => {
+    setQuestSel(questId);
+    setPage('quests');
+  }, []);
+  const openFromQuestBar = useCallback(
+    (chatId, questId) => (chatId ? openChatById(chatId) : openQuestChat(questId)),
+    [openChatById, openQuestChat]
+  );
+  const goPage = (p) => {
+    if (p === 'quests') setQuestSel(null);
+    setPage(p);
+  };
   const openFromActivity = useCallback(
     (chatId, messageId) => {
       const c = data.chats.find((x) => x.id === chatId);
@@ -246,8 +268,14 @@ export function App() {
     },
     [data.chats]
   );
+  // Chats started by a quest live in the quest (its board and its own chat), not in Conversas. A deleted quest's chats
+  // come back to the list, so nothing becomes unreachable.
+  const questIds = useMemo(() => new Set(data.quests.map((q) => q.id)), [data.quests]);
   const filteredChats = data.chats.filter(
-    (c) => (!projectId || c.projectId === projectId) && c.title.toLowerCase().includes(search.toLowerCase())
+    (c) =>
+      !(c.questId && questIds.has(c.questId)) &&
+      (!projectId || c.projectId === projectId) &&
+      c.title.toLowerCase().includes(search.toLowerCase())
   );
   const shownMemories = data.memories.filter(
     (m) =>
@@ -268,7 +296,7 @@ export function App() {
           <Sidebar
             openNew={openNew}
             page={page}
-            setPage={setPage}
+            setPage={goPage}
             data={data}
             addProject={addProject}
             projectId={projectId}
@@ -337,6 +365,8 @@ export function App() {
                 onPick={pickFiles}
                 onFiles={attachFiles}
                 onRemoveAttachment={(id) => removePending(draftKey, id)}
+                onOpenQuest={openQuest}
+                onOpenQuestChat={openFromQuestBar}
               />
             ) : page === 'activity' ? (
               <ActivityPage groups={groups} projects={data.projects} call={call} onOpen={openFromActivity} />
@@ -348,6 +378,9 @@ export function App() {
                 call={call}
                 setData={replaceData}
                 onOpenChat={openChatById}
+                onOpenQuestChat={openQuestChat}
+                selected={questSel}
+                setSelected={setQuestSel}
                 notify={notify}
               />
             ) : page === 'memory' ? (

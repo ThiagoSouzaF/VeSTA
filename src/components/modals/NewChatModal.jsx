@@ -1,8 +1,12 @@
-import { PROVIDERS } from '../../lib/constants';
+import { PROVIDERS, MODEL_LABELS } from '../../lib/constants';
 import { ProviderIcon } from '../ProviderIcon';
 import { ArrowUpRight, Plus, Check, Pencil, ShieldCheck, ShieldQuestion } from 'lucide-react';
 import { action } from '../../lib/api';
+const OTHER = '__other__';
 export function NewChatModal({ modal, setModal, data, addProject, integrations, createChat }) {
+  // The models offered follow the chosen AI (Claude aliases, the Codex cache, `opencode models`).
+  const models = integrations[modal.provider]?.models || [];
+  const custom = modal.customModel || (!!modal.model && !models.includes(modal.model));
   return (
     <>
       <label className="field-label">INTELIGÊNCIA</label>
@@ -17,6 +21,7 @@ export function NewChatModal({ modal, setModal, data, addProject, integrations, 
                 provider: id,
                 mode: id === 'drael' && modal.mode === 'ask' ? 'read' : modal.mode,
                 model: id === 'opencode' ? 'drael/drael-v1' : '',
+                customModel: false,
               })
             }
           >
@@ -50,20 +55,41 @@ export function NewChatModal({ modal, setModal, data, addProject, integrations, 
       <label className="field-label" htmlFor="model">
         MODELO
       </label>
-      <input
+      <select
         id="model"
         disabled={modal.provider === 'drael'}
-        value={modal.model}
-        onChange={(e) => setModal({ ...modal, model: e.target.value })}
-        placeholder="Padrão da sua conta"
-        list="models"
-      />
-      <datalist id="models">
-        {(modal.provider === 'opencode' ? integrations.opencode?.models || [] : []).map((m) => (
-          <option key={m} value={m} />
+        value={custom ? OTHER : modal.model}
+        onChange={(e) =>
+          setModal({
+            ...modal,
+            model: e.target.value === OTHER ? '' : e.target.value,
+            customModel: e.target.value === OTHER,
+          })
+        }
+      >
+        <option value="">Padrão da sua conta</option>
+        {models.map((m) => (
+          <option key={m} value={m}>
+            {MODEL_LABELS[m] ? MODEL_LABELS[m] + ' · ' + m : m}
+          </option>
         ))}
-      </datalist>
-      <p className="field-help">Deixe vazio para usar o modelo configurado no programa.</p>
+        <option value={OTHER}>Outro modelo…</option>
+      </select>
+      {custom && (
+        <input
+          id="model-custom"
+          aria-label="Id do modelo"
+          autoFocus
+          value={modal.model}
+          onChange={(e) => setModal({ ...modal, model: e.target.value })}
+          placeholder="Id do modelo, como aparece no programa"
+        />
+      )}
+      <p className="field-help">
+        {models.length
+          ? 'Modelos que o ' + PROVIDERS[modal.provider].name + ' oferece. O padrão usa o configurado no programa.'
+          : 'Não encontrei a lista de modelos desta IA; use o padrão ou informe o id em Outro modelo.'}
+      </p>
       <label className="field-label">COMO A IA PODE TRABALHAR?</label>
       <div className="mode-options">
         <button
@@ -110,7 +136,10 @@ export function NewChatModal({ modal, setModal, data, addProject, integrations, 
         </button>
         <button
           className="primary-button"
-          onClick={action(() => createChat({ ...modal, projectId: modal.projectId || null }))}
+          onClick={action(() => {
+            const { customModel, ...options } = modal;
+            return createChat({ ...options, model: options.model.trim(), projectId: options.projectId || null });
+          })}
         >
           Criar chat
           <ArrowUpRight size={15} />

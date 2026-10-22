@@ -34,6 +34,27 @@ function createQuestEngine(ctx, deps = {}) {
     return chat;
   };
   const assistantOf = (chat) => [...chat.messages].reverse().find((m) => m.role === 'assistant');
+  // The quest's own chat (read-only, outside the shared memory). Quests from before it existed promote their planning
+  // chat; otherwise a new one is opened with the given AI, or the first installed one.
+  const leadOf = (q) => (q.leadChatId ? store.state.chats.find((c) => c.id === q.leadChatId) : undefined);
+  function ensureLead(q, provider, model = '') {
+    let chat = leadOf(q);
+    if (chat && (!provider || chat.provider === provider)) return chat;
+    if (!chat && !provider && q.planning?.chatId) chat = store.state.chats.find((c) => c.id === q.planning.chatId);
+    if (chat && !provider) {
+      chat.questRole = 'lead';
+      q.leadChatId = chat.id;
+      return chat;
+    }
+    provider ||= Q.PROVIDER_IDS.find((p) => ctx.integrations[p]?.installed);
+    if (!provider) throw new UserError('Instale uma IA na tela Conexões para conversar sobre a quest');
+    chat = newChat({ provider, model, projectId: q.projectId, mode: 'read', memory: false }, 'Quest: ' + q.title, {
+      questId: q.id,
+      questRole: 'lead',
+    });
+    q.leadChatId = chat.id;
+    return chat;
+  }
 
   // ---- Scheduling -----------------------------------------------------------------------------------------------
   function startStep(q, s) {
@@ -122,7 +143,7 @@ function createQuestEngine(ctx, deps = {}) {
     if (!chat?.questId) return;
     const q = quests().find((x) => x.id === chat.questId);
     if (!q) return;
-    if (chat.questRole === 'plan') {
+    if (chat.questRole === 'plan' || chat.questRole === 'lead') {
       if (q.planning?.chatId === chatId && q.planning.status === 'running') {
         onPlanDone(q, chat, status);
         Q.touch(q, now());
@@ -179,11 +200,10 @@ function createQuestEngine(ctx, deps = {}) {
   function plan(q, { provider, model }) {
     if (!ctx.integrations[provider]?.installed) throw new UserError('Esta IA não está instalada. Confira as Conexões.');
     if (!q.goal) throw new UserError('Descreva o objetivo para planejar');
-    const chat = newChat(
-      { provider, model: model || '', projectId: q.projectId, mode: 'read', memory: false },
-      'Quest: ' + q.title + ' — planejamento',
-      { questId: q.id, questRole: 'plan' }
-    );
+    // The idea arrives in the quest's own chat: the planning turn is its first message.
+    const chat = ensureLead(q, provider, model || '');
+    if (ctx.jobs.has(chat.id)) throw new UserError('O chat da quest está respondendo; aguarde ou pare a resposta');
+    if (model !== undefined && chat.model !== (model || '') && !chat.messages.length) chat.model = model || '';
     q.planning = { chatId: chat.id, provider, status: 'running', error: null, startedAt: now() };
     Q.addLog(q, 'Planejando com ' + provider + '…', now());
     Promise.resolve()
@@ -199,6 +219,21 @@ function createQuestEngine(ctx, deps = {}) {
   const stop = (chatId) => ctx.stopChat(chatId);
   return {
     onChatDone,
+    // Extra context for a message sent in the quest's own chat (null for any other chat, and for the planning turn,
+    // whose prompt already carries the quest).
+    brief(chat) {
+      if (chat?.questRole !== 'lead') return null;
+      const q = quests().find((x) => x.id === chat.questId);
+      if (!q || (q.planning?.status === 'running' && q.planning.chatId === chat.id)) return null;
+      return Q.buildLeadBrief(q, (id) => store.state.chats.find((c) => c.id === id));
+    },
+    // Opens (creating if needed) the quest's own chat; returns its id.
+    questChat({ id }) {
+      const q = find(id);
+      const chat = ensureLead(q);
+      commit();
+      return chat.id;
+    },
     // App (re)opened: nothing may stay stuck in "running".
     recover() {
       let changed = false;
@@ -220,6 +255,10 @@ function createQuestEngine(ctx, deps = {}) {
       if (!q.goal && !q.steps.length) throw new UserError('Descreva o objetivo da quest');
       Q.addLog(q, 'Quest criada.', now());
       if (input.plan) plan(q, input.plan);
+      else
+        try {
+          ensureLead(q);
+        } catch {} // no AI installed yet: the chat is opened later, from the quest screen
       quests().unshift(q);
       commit();
       return q;
