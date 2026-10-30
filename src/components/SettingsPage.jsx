@@ -3,6 +3,7 @@ import { THEME_NAMES, THEMES } from '../lib/constants';
 import { BACKDROPS } from './Backdrop';
 import { SettingToggle } from './SettingToggle';
 import { RemoteSettings } from './RemoteSettings';
+import { BackupSettings } from './BackupSettings';
 import { action } from '../lib/api';
 import { Mark, Wordmark } from './Brand';
 import { Chapter } from './Chapter';
@@ -258,6 +259,7 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
           acontece localmente.
         </p>
       </section>
+      <BackupSettings call={call} notify={notify} />
       <RemoteSettings call={call} notify={notify} />
       <section className="settings-section">
         <div className="settings-label">

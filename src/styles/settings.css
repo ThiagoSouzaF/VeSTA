@@ -342,3 +342,25 @@
 .zoom-reset:hover:not(:disabled) {
   color: var(--accent);
 }
+
+.backup-folder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.backup-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.backup-note {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+  max-width: 630px;
+  margin: 12px 0;
+}
+.backup-note a {
+  color: var(--text);
+  text-decoration: underline;
+}

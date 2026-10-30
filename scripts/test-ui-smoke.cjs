@@ -106,6 +106,23 @@ async function emptyStorePhase() {
       await heading('Seu lar. Seu estilo.').waitFor();
       await nav('Conversas').click();
     });
+    await step('Backup: "Fazer backup agora" writes the .zip and the schedule persists', async () => {
+      await page.locator('.sidebar-bottom .nav-item', { hasText: 'Preferências' }).click();
+      const section = page.locator('[data-section=backup]');
+      await section.waitFor();
+      assert.match(await section.innerText(), /Nenhum backup feito ainda/i);
+      await section.getByRole('button', { name: 'Fazer backup agora' }).click();
+      await page.waitForFunction(() => /Último backup/.test(document.querySelector('[data-backup-last]')?.textContent));
+      const status = await page.evaluate(() => window.vesta.call('backupStatus'));
+      assert.ok(fs.existsSync(status.lastFile), status.lastFile);
+      assert.match(path.basename(status.lastFile), /^VeSTA-backup-\d{4}-\d{2}-\d{2}-\d{4}\.zip$/);
+      assert.equal(status.backups.length, 1);
+      await section.getByLabel('Frequência do backup automático').selectOption('weekly');
+      await page.waitForFunction(async () => (await window.vesta.call('backupStatus')).auto === 'weekly');
+      await section.scrollIntoViewIfNeeded();
+      await shot(page, 'backup');
+      await nav('Conversas').click();
+    });
     await step('Sobre a VeSTA opens from the Preferências with the art and the version', async () => {
       await page.locator('.sidebar-bottom .nav-item', { hasText: 'Preferências' }).click();
       await page.locator('[data-action=about]').click();

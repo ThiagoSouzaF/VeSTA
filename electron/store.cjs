@@ -33,6 +33,8 @@ const defaults = () => ({
   quests: [],
   usage: emptyUsage(),
   remote: defaultRemote(),
+  // Preferências → Backup (see backup.cjs): destination, schedule and the result of the last run.
+  backup: { folder: '', auto: 'daily', keep: 10 },
 });
 // One-time upgrades, keyed by the version a store file was saved with. Mutates and returns `state`.
 // v4: "Tinta Mangá" became the default theme, so existing installs move to it once; their later choice is respected.
@@ -56,6 +58,7 @@ class Store {
           usage: migrate({ ...this.state.usage, ...saved.usage, daily: { ...saved.usage?.daily } }),
           quests: normalizeQuests(saved.quests),
           remote: normalizeRemote(saved.remote),
+          backup: { ...this.state.backup, ...saved.backup },
           version: STORE_VERSION,
         };
         const from = saved.version || 1;

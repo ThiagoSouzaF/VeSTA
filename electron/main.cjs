@@ -3,7 +3,6 @@ const { pathToFileURL } = require('node:url');
 const fs = require('node:fs'),
   path = require('node:path');
 const { Store } = require('./store.cjs');
-const { Memory, redact } = require('./memory.cjs');
 const updater = require('./updater.cjs');
 const { Permissions } = require('./permissions.cjs');
 const { createBus } = require('./events.cjs');
@@ -22,6 +21,18 @@ const bg = require('./background-mode.cjs');
 const { createQuestMcp } = require('./quest-mcp.cjs');
 const follow = require('./follow.cjs');
 const tasksLib = require('./tasks.cjs');
+const { applyPendingRestore, PENDING: PENDING_RESTORE } = require('./backup.cjs');
+const { createBackups, defaultBackupFolder } = require('./backup-methods.cjs');
+const memoryLib = require('./memory.cjs');
+const { Memory, redact } = memoryLib;
+// Before a restore: an AI Memory server of the previous run still holding the memory dir is ended (by its pid only).
+async function stopStaleMemory(dataDir) {
+  let pid = 0;
+  try {
+    pid = Number(fs.readFileSync(path.join(dataDir, 'memory', 'vesta-server.pid'), 'utf8').trim()) || 0;
+  } catch {}
+  if (pid > 0 && memoryLib.alive(pid) && /ai-memory/i.test(memoryLib.imageOf(pid))) await memoryLib.killPid(pid);
+}
 app.setName('VeSTA');
 app.commandLine.appendSwitch('force-renderer-accessibility');
 bg.configureBackgroundMode();
@@ -279,7 +290,17 @@ app.whenReady().then(() => {
     if (process.env.VESTA_DEV === '1') win.loadURL('http://127.0.0.1:5173');
     else win.loadFile(path.join(__dirname, '../dist/index.html'));
     try {
-      const store = (ctx.store = new Store(app.getPath('userData')));
+      const dataDir = app.getPath('userData'),
+        memoryExe = app.isPackaged
+          ? path.join(process.resourcesPath, 'ai-memory.exe')
+          : path.join(__dirname, '../runtime/ai-memory.exe');
+      // A backup chosen in Preferências is put in place now, before anything opens the data or the memory.
+      // Checked synchronously: with nothing pending the store still opens in this same tick, as before.
+      const restored = fs.existsSync(path.join(dataDir, PENDING_RESTORE))
+        ? await applyPendingRestore(dataDir, { exe: memoryExe, stopMemory: () => stopStaleMemory(dataDir) })
+        : null;
+      const store = (ctx.store = new Store(dataDir));
+      if (restored) store.state.backup = { ...store.state.backup, lastRestore: restored };
       // Mark interrupted responses after a crash, without discarding the partial transcript.
       for (const chat of store.state.chats)
         for (const m of chat.messages)
@@ -305,29 +326,26 @@ app.whenReady().then(() => {
       const confirmer = createConfirmer({ dialog, getWindow: () => ctx.win, isPackaged: app.isPackaged });
       ctx.remote = createRemote({ ctx, methods, bus, deps: { confirm: (request) => confirmer.confirm(request) } });
       if (store.state.remote.enabled) ctx.remote.start().catch(() => {});
-      ctx.memory = new Memory(
-        app.isPackaged
-          ? path.join(process.resourcesPath, 'ai-memory.exe')
-          : path.join(__dirname, '../runtime/ai-memory.exe'),
-        path.join(app.getPath('userData'), 'memory'),
-        {
-          // Consolidation reuses the Codex CLI login; the answer excerpt only reaches the store with capture on.
-          // The hourly auto-improve reviewer stays off: one consolidation per conversation stretch, nothing more.
-          // Always the same environment, so toggling the preference never restarts the server under running agents:
-          // the app alone decides whether to call memory_consolidate.
-          env: () => ({
-            AI_MEMORY_LLM_PROVIDER: 'codex',
-            AI_MEMORY_CAPTURE_ASSISTANT: 'true',
-            AI_MEMORY_AUTO_IMPROVE__SCHEDULER__ENABLED: 'false',
-            // The profile (how the user works) learns from a single project too: VeSTA is one personal assistant.
-            AI_MEMORY_PROFILE__MIN_PROJECTS: '1',
-          }),
-        }
-      );
+      ctx.memory = new Memory(memoryExe, path.join(dataDir, 'memory'), {
+        // Consolidation reuses the Codex CLI login; the answer excerpt only reaches the store with capture on.
+        // The hourly auto-improve reviewer stays off: one consolidation per conversation stretch, nothing more.
+        // Always the same environment, so toggling the preference never restarts the server under running agents:
+        // the app alone decides whether to call memory_consolidate.
+        env: () => ({
+          AI_MEMORY_LLM_PROVIDER: 'codex',
+          AI_MEMORY_CAPTURE_ASSISTANT: 'true',
+          AI_MEMORY_AUTO_IMPROVE__SCHEDULER__ENABLED: 'false',
+          // The profile (how the user works) learns from a single project too: VeSTA is one personal assistant.
+          AI_MEMORY_PROFILE__MIN_PROJECTS: '1',
+        }),
+      });
       // VESTA_MEMORY_IDLE_MS only shortens the 30 min idle close for the E2E tests.
       ctx.memorySessions = createMemorySessions(ctx, { idleMs: Number(process.env.VESTA_MEMORY_IDLE_MS) || undefined });
       // Stretches left open by the previous run are closed and consolidated in the background.
       if (store.state.settings.memoryEnabled) ctx.memorySessions.recover();
+      // Automatic backups (Preferências → Backup); the E2E data dirs only back up when asked.
+      ctx.backups = createBackups(ctx, { defaultFolder: defaultBackupFolder(app) });
+      if (!process.env.VESTA_DATA_DIR) ctx.backups.schedule();
       ctx.markReady();
     } catch (e) {
       if (!useSplash) throw e;
@@ -395,6 +413,7 @@ app.on('before-quit', (event) => {
     return;
   }
   ctx.memorySessions?.dispose();
+  ctx.backups?.dispose();
   ctx.questMcp?.close().catch(() => {});
   ctx.memory?.close().catch(() => {});
 });

@@ -12,6 +12,7 @@ const { readCodexRateLimits } = require('./rate-limits.cjs');
 const { openTerminal } = require('./terminal.cjs');
 const { questMethods } = require('./quest-methods.cjs');
 const { attachmentMethods } = require('./attachment-methods.cjs');
+const { backupMethods } = require('./backup-methods.cjs');
 const { THEMES } = require('./store.cjs');
 const follow = require('./follow.cjs');
 // Text zoom: 80%..160% in steps of 10%.
@@ -135,6 +136,7 @@ function createMethods(ctx) {
     },
     ...questMethods(ctx),
     ...attachmentMethods(ctx),
+    ...backupMethods(ctx),
     // Ends the following of a chat (claude.exe closes; the background processes keep running).
     stopFollowing: ({ chatId }) => {
       if (!ctx.endFollowing(chatId, 'user')) throw new UserError('Este chat não está sendo acompanhado');

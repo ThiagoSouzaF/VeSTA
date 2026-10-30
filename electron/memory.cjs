@@ -536,6 +536,26 @@ class Memory {
     });
     return { before, after: spoolCount(this.dir), rewritten };
   }
+  // Snapshot of wiki/, db/ and config taken by the running server (consistent while agents write) into a .tar.gz.
+  async backupTo(file) {
+    const { url, token } = await this.start();
+    await new Promise((resolve, reject) => {
+      const child = spawn(this.exe, ['--data-dir', this.dir, 'backup', '--to', file], {
+        env: { ...process.env, AI_MEMORY_AUTH_TOKEN: token, AI_MEMORY_SERVER_URL: url },
+        windowsHide: true,
+        stdio: ['ignore', 'ignore', 'pipe'],
+      });
+      let err = '';
+      child.stderr.on('data', (b) => (err = (err + b).slice(-2000)));
+      const timer = setTimeout(() => child.kill(), 120000);
+      child.on('error', reject);
+      child.on('exit', (code) => {
+        clearTimeout(timer);
+        if (code === 0 && fs.existsSync(file)) resolve();
+        else reject(new Error('o AI Memory não gerou o backup (' + (err.trim().split('\n').pop() || code) + ')'));
+      });
+    });
+  }
   // The server is stopped synchronously first: before-quit does not wait for this promise.
   async close() {
     const server = this.server,
@@ -657,5 +677,8 @@ module.exports = {
   payloadError,
   readIdentity,
   explainStartError,
+  alive,
+  imageOf,
+  killPid,
   PRODUCER,
 };
