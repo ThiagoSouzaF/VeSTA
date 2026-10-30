@@ -1,4 +1,15 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu, protocol, net, nativeImage } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  shell,
+  Menu,
+  protocol,
+  net,
+  nativeImage,
+  safeStorage,
+} = require('electron');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs'),
   path = require('node:path');
@@ -19,11 +30,13 @@ const { createAttachmentStore } = require('./attachment-store.cjs');
 const { IMAGE_EXT } = require('./attachments.cjs');
 const bg = require('./background-mode.cjs');
 const { createQuestMcp } = require('./quest-mcp.cjs');
+const { createAppMcp } = require('./app-mcp.cjs');
 const follow = require('./follow.cjs');
 const tasksLib = require('./tasks.cjs');
 const { applyPendingRestore, PENDING: PENDING_RESTORE } = require('./backup.cjs');
 const { createBackups, defaultBackupFolder } = require('./backup-methods.cjs');
 const memoryLib = require('./memory.cjs');
+const { createDrive } = require('./gdrive.cjs');
 const { Memory, redact } = memoryLib;
 // Before a restore: an AI Memory server of the previous run still holding the memory dir is ended (by its pid only).
 async function stopStaleMemory(dataDir) {
@@ -313,6 +326,7 @@ app.whenReady().then(() => {
       // Quests: the engine reacts to finished turns; anything left "running" by a previous run is closed first.
       ctx.quests = createQuestEngine(ctx);
       ctx.questMcp = createQuestMcp(ctx, { engine: () => ctx.quests });
+      ctx.appMcp = createAppMcp(ctx, { methods: () => methods });
       ctx.quests.recover();
       bus.subscribe((event) => event.type === 'chat-done' && ctx.quests.onChatDone(event));
       store.save();
@@ -345,6 +359,17 @@ app.whenReady().then(() => {
       if (store.state.settings.memoryEnabled) ctx.memorySessions.recover();
       // Automatic backups (Preferências → Backup); the E2E data dirs only back up when asked.
       ctx.backups = createBackups(ctx, { defaultFolder: defaultBackupFolder(app) });
+      // Google Drive copy of the backups: the secrets are sealed by the OS keychain (DPAPI) when it is available.
+      const sealed = () => safeStorage.isEncryptionAvailable();
+      ctx.drive = createDrive({
+        file: path.join(dataDir, 'google-drive.json'),
+        seal: (v) => (sealed() ? 'dpapi:' + safeStorage.encryptString(v).toString('base64') : 'plain:' + v),
+        unseal: (v) =>
+          v.startsWith('dpapi:')
+            ? safeStorage.decryptString(Buffer.from(v.slice(6), 'base64'))
+            : v.replace(/^plain:/, ''),
+        openExternal: (url) => shell.openExternal(url),
+      });
       if (!process.env.VESTA_DATA_DIR) ctx.backups.schedule();
       ctx.markReady();
     } catch (e) {
@@ -415,6 +440,7 @@ app.on('before-quit', (event) => {
   ctx.memorySessions?.dispose();
   ctx.backups?.dispose();
   ctx.questMcp?.close().catch(() => {});
+  ctx.appMcp?.close().catch(() => {});
   ctx.memory?.close().catch(() => {});
 });
 module.exports = { methods, ctx, getState: () => ctx.state() };

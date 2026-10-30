@@ -22,7 +22,8 @@ const FORMAT = 1;
 const PENDING = 'restore-pending';
 const INTERVALS = { off: 0, daily: 24 * 3600e3, weekly: 7 * 24 * 3600e3 };
 const KEEP = [3, 5, 10, 20, 30];
-const DEFAULTS = { folder: '', auto: 'daily', keep: 10 };
+// drive: also send each backup to Google Drive when it is connected (see gdrive.cjs).
+const DEFAULTS = { folder: '', auto: 'daily', keep: 10, drive: true };
 const PROVIDER_NAMES = { claude: 'Claude', codex: 'Codex', opencode: 'OpenCode', drael: 'Drael' };
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -52,6 +53,7 @@ function settings(state) {
     folder: typeof b.folder === 'string' ? b.folder : DEFAULTS.folder,
     auto: b.auto in INTERVALS ? b.auto : DEFAULTS.auto,
     keep: KEEP.includes(b.keep) ? b.keep : DEFAULTS.keep,
+    drive: typeof b.drive === 'boolean' ? b.drive : DEFAULTS.drive,
   };
 }
 // Is an automatic backup due? `last` = time of the last successful one.

@@ -272,11 +272,12 @@ test('schedule and settings: due by interval, defaults for missing or invalid va
   assert.equal(B.due('daily', T0 - day, T0), true);
   assert.equal(B.due('weekly', T0 - 3 * day, T0), false);
   assert.equal(B.due('off', 0, T0), false);
-  assert.deepEqual(B.settings({}), { folder: '', auto: 'daily', keep: 10 });
+  assert.deepEqual(B.settings({}), { folder: '', auto: 'daily', keep: 10, drive: true });
   assert.deepEqual(B.settings({ backup: { folder: 'D:\\b', auto: 'hourly', keep: 7 } }), {
     folder: 'D:\\b',
     auto: 'daily',
     keep: 10,
+    drive: true,
   });
   assert.equal(B.slug('Ação: café / “teste”?'), 'acao-cafe-teste');
   assert.equal(B.slug(''), 'sem-titulo');

@@ -183,7 +183,7 @@ function createMethods(ctx) {
         s.followMinutes = l.minutes;
         s.followMax = l.maxChats;
       }
-      for (const key of ['memoryEnabled', 'capture', 'captureRaw', 'memoryTools', 'mascot'])
+      for (const key of ['memoryEnabled', 'capture', 'captureRaw', 'memoryTools', 'mascot', 'chatSettings'])
         if (typeof input[key] === 'boolean') s[key] = input[key];
       // The server always has the LLM configured; this only decides whether the app asks for consolidations.
       if (['codex', 'off'].includes(input.memoryConsolidate)) s.memoryConsolidate = input.memoryConsolidate;

@@ -364,3 +364,55 @@
   color: var(--text);
   text-decoration: underline;
 }
+.drive-backup {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-soft);
+}
+.drive-head {
+  margin-bottom: 6px;
+}
+.drive-head p {
+  font-size: 12px;
+  color: var(--muted);
+}
+.drive-steps {
+  margin: 4px 0 14px 20px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.drive-steps a,
+.drive-steps strong {
+  color: var(--text);
+}
+.drive-steps a {
+  text-decoration: underline;
+}
+.drive-paste {
+  margin: 12px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.drive-paste summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.drive-paste-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.drive-paste-fields input {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.backup-error {
+  color: var(--danger);
+}
+.drive-list {
+  width: 100%;
+}

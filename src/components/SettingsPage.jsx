@@ -19,7 +19,7 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
           <p>Um lugar confortável para pensar, criar e continuar.</p>
         </div>
       </div>
-      <section className="settings-section">
+      <section className="settings-section" data-section="appearance">
         <div className="settings-label">
           <Palette size={19} />
           <div>
@@ -156,7 +156,7 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
           onChange={() => setting({ mascot: data.settings.mascot === false })}
         />
       </section>
-      <section className="settings-section">
+      <section className="settings-section" data-section="memory">
         <div className="settings-label">
           <Brain size={19} />
           <div>
@@ -195,8 +195,14 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
           checked={data.settings.memoryTools !== false}
           onChange={() => setting({ memoryTools: data.settings.memoryTools === false })}
         />
+        <SettingToggle
+          title="Os chats podem mudar as preferências"
+          description="Peça numa conversa (“mude o tema para Papel”, “faça um backup agora”) e a IA ajusta o VeSTA. Conectar o Google Drive, restaurar backups e o controle pelo celular continuam só aqui. Chats em Só consulta apenas leem."
+          checked={data.settings.chatSettings !== false}
+          onChange={() => setting({ chatSettings: data.settings.chatSettings === false })}
+        />
       </section>
-      <section className="settings-section">
+      <section className="settings-section" data-section="follow">
         <div className="settings-label">
           <Eye size={19} />
           <div>
@@ -242,7 +248,7 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
           </select>
         </div>
       </section>
-      <section className="settings-section">
+      <section className="settings-section" data-section="data">
         <div className="settings-label">
           <HardDrive size={19} />
           <div>
@@ -261,7 +267,7 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
       </section>
       <BackupSettings call={call} notify={notify} />
       <RemoteSettings call={call} notify={notify} />
-      <section className="settings-section">
+      <section className="settings-section" data-section="updates">
         <div className="settings-label">
           <RefreshCw size={19} />
           <div>

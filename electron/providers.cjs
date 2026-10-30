@@ -63,16 +63,20 @@ function kill(child) {
   else child.kill('SIGTERM');
 }
 // MCP servers are registered per launch (flags/env), never in ~/.claude, ~/.codex or the global OpenCode config.
-// Two servers can be present: the AI Memory (vesta-memory) and, in the quest's own chat, vesta-quest.
+// Servers: the AI Memory (vesta-memory), the quest's own chat tools (vesta-quest) and the app's preferences (vesta-app).
 const MEMORY_SERVER = 'vesta-memory',
   MEMORY_TOKEN_ENV = 'VESTA_MEMORY_TOKEN',
   QUEST_SERVER = 'vesta-quest',
-  QUEST_TOKEN_ENV = 'VESTA_QUEST_TOKEN';
+  QUEST_TOKEN_ENV = 'VESTA_QUEST_TOKEN',
+  APP_SERVER = 'vesta-app',
+  APP_TOKEN_ENV = 'VESTA_APP_TOKEN';
 // A server entry: { name, url, token, tokenEnv }. The helpers turn the endpoints the main process holds into entries.
 const memoryServer = (endpoint) =>
   endpoint && { name: MEMORY_SERVER, url: endpoint.mcp, token: endpoint.token, tokenEnv: MEMORY_TOKEN_ENV };
 const questServer = (endpoint) =>
   endpoint && { name: QUEST_SERVER, url: endpoint.mcp, token: endpoint.token, tokenEnv: QUEST_TOKEN_ENV };
+const appServer = (endpoint) =>
+  endpoint && { name: APP_SERVER, url: endpoint.mcp, token: endpoint.token, tokenEnv: APP_TOKEN_ENV };
 // One or more servers for a provider -> { args, env }. The tokens travel by environment; each CLI expands them into the
 // Authorization header itself, so they never appear on a command line.
 function mcpTools(provider, servers) {
@@ -986,11 +990,14 @@ module.exports = {
   mcpTools,
   memoryServer,
   questServer,
+  appServer,
   memoryHint,
   PROFILE_CATEGORIES,
   MEMORY_SERVER,
   QUEST_SERVER,
   QUEST_TOKEN_ENV,
+  APP_SERVER,
+  APP_TOKEN_ENV,
   parser,
   upsertSubagent,
   upsertActivity,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Archive, Folder, FolderOpen, Cloud, RotateCcw, Loader2 } from 'lucide-react';
+import { Archive, Folder, FolderOpen, RotateCcw, Loader2 } from 'lucide-react';
+import { DriveBackup } from './DriveBackup';
 import { action } from '../lib/api';
 
 const AUTO = [
@@ -9,10 +10,9 @@ const AUTO = [
 ];
 const when = (t) => (t ? new Date(t).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '');
 const size = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
-const DRIVE_DOWNLOAD = 'https://www.google.com/drive/download/';
 
 // Preferências → Backup: one .zip with the conversations, memories and preferences (readable as Markdown anywhere)
-// that also restores the app. Google Drive is reached through its desktop app: the folder it syncs.
+// that also restores the app, plus its copy in Google Drive (DriveBackup).
 export function BackupSettings({ call, notify }) {
   const [status, setStatus] = useState(null),
     [busy, setBusy] = useState(false);
@@ -21,15 +21,23 @@ export function BackupSettings({ call, notify }) {
     refresh().catch(() => {});
   }, [refresh]);
   if (!status) return null;
-  const drive = status.googleDrive || [];
-  const onDrive = drive.includes(status.folder);
   const save = (patch) => action(async () => setStatus(await call('backupSettings', patch)))();
   const backupNow = action(async () => {
     setBusy(true);
     try {
       const s = await call('backupNow');
       setStatus(s);
-      notify(s.lastWarning ? 'Backup salvo, mas sem a memória: ' + s.lastWarning : 'Backup salvo: ' + s.lastFile);
+      const cloud =
+        s.cloud?.connected && s.drive
+          ? s.driveErrorAt >= s.lastAt
+            ? ' O envio ao Google Drive falhou: ' + s.driveError
+            : ' Enviado ao Google Drive.'
+          : '';
+      notify(
+        (s.lastWarning ? 'Backup salvo, mas sem a memória: ' + s.lastWarning : 'Backup salvo: ' + s.lastFile) +
+          '.' +
+          cloud
+      );
     } finally {
       setBusy(false);
     }
@@ -50,7 +58,7 @@ export function BackupSettings({ call, notify }) {
         <div>
           <strong>Pasta dos backups</strong>
           <p className="backup-folder" title={status.folder}>
-            {onDrive && <Cloud size={13} />} {status.folder}
+            {status.folder}
           </p>
         </div>
         <button className="secondary-button" onClick={action(async () => setStatus(await call('backupChooseFolder')))}>
@@ -58,36 +66,6 @@ export function BackupSettings({ call, notify }) {
           Escolher pasta
         </button>
       </div>
-      {drive.length > 0 && !onDrive && (
-        <div className="setting-row">
-          <div>
-            <strong>Google Drive encontrado</strong>
-            <p>Os backups salvos em {drive[0]} sobem para o seu Drive sozinhos.</p>
-          </div>
-          <button
-            className="secondary-button"
-            onClick={action(async () => setStatus(await call('backupChooseFolder', { target: drive[0] })))}
-          >
-            <Cloud size={15} />
-            Usar o Google Drive
-          </button>
-        </div>
-      )}
-      {!drive.length && (
-        <p className="backup-note">
-          Para guardar no Google Drive, instale o{' '}
-          <a
-            href={DRIVE_DOWNLOAD}
-            onClick={(e) => {
-              e.preventDefault();
-              call('openLink', { url: DRIVE_DOWNLOAD });
-            }}
-          >
-            Google Drive para computador
-          </a>
-          , entre com sua conta e volte aqui: o VeSTA encontra a pasta “Meu Drive” e passa a enviar os backups para lá.
-        </p>
-      )}
       <div className="setting-row">
         <div>
           <strong>Backup automático</strong>
@@ -147,9 +125,10 @@ export function BackupSettings({ call, notify }) {
         </button>
         <button className="secondary-button" onClick={action(() => call('backupRestore'))}>
           <RotateCcw size={15} />
-          Restaurar de um backup
+          Restaurar de um arquivo
         </button>
       </div>
+      <DriveBackup status={status} setStatus={setStatus} call={call} notify={notify} />
     </section>
   );
 }

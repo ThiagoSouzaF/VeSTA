@@ -105,7 +105,15 @@ export function App() {
     return api.onEvent((e) => {
       if (e.type === 'state') replaceData(e.state);
       if (e.type === 'nav') navGo(e.dir < 0 ? -1 : 1);
-      if ((e.type === 'update' || e.type === 'remote-notice') && e.message) notify(e.message);
+      if ((e.type === 'update' || e.type === 'remote-notice' || e.type === 'notice') && e.message) notify(e.message);
+      // A chat asked to show a part of Preferências (vesta_open_settings).
+      if (e.type === 'open-settings') {
+        setPage('settings');
+        setTimeout(
+          () => document.querySelector('[data-section="' + e.section + '"]')?.scrollIntoView({ block: 'start' }),
+          120
+        );
+      }
       if (e.type === 'permission' && e.permission?.status === 'pending' && e.chatId !== activeRef.current)
         notify('Uma IA pede permissão em outra conversa');
       if (e.type === 'text' || e.type === 'activity' || e.type === 'subagent' || e.type === 'permission')

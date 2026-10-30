@@ -117,6 +117,13 @@ async function emptyStorePhase() {
       assert.ok(fs.existsSync(status.lastFile), status.lastFile);
       assert.match(path.basename(status.lastFile), /^VeSTA-backup-\d{4}-\d{2}-\d{2}-\d{4}\.zip$/);
       assert.equal(status.backups.length, 1);
+      // Google Drive starts unconfigured, with the setup steps; the chats may change preferences by default.
+      assert.equal(await section.locator('[data-drive]').getAttribute('data-drive'), 'setup');
+      await section.getByRole('button', { name: 'Escolher o JSON do cliente' }).waitFor();
+      assert.equal(
+        await page.getByRole('switch', { name: 'Os chats podem mudar as preferências' }).getAttribute('aria-checked'),
+        'true'
+      );
       await section.getByLabel('Frequência do backup automático').selectOption('weekly');
       await page.waitForFunction(async () => (await window.vesta.call('backupStatus')).auto === 'weekly');
       await section.scrollIntoViewIfNeeded();
