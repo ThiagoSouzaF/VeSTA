@@ -3,7 +3,18 @@ const { test } = require('node:test'),
 const fs = require('node:fs'),
   path = require('node:path'),
   os = require('node:os');
-const { command, parser, memoryTools, memoryHint, MEMORY_SERVER } = require('../electron/providers.cjs');
+const {
+  command,
+  parser,
+  memoryTools,
+  mcpTools,
+  memoryServer,
+  questServer,
+  memoryHint,
+  MEMORY_SERVER,
+  QUEST_SERVER,
+} = require('../electron/providers.cjs');
+const drael = require('../electron/drael.cjs');
 const { Memory } = require('../electron/memory.cjs');
 const endpoint = { url: 'http://127.0.0.1:50001', mcp: 'http://127.0.0.1:50001/mcp', token: 'secret-token-value' };
 test('without an endpoint no provider gets memory tools', () => {
@@ -115,7 +126,7 @@ test(
     } finally {
       await m.close();
     }
-    // A server left behind by a crashed run is reaped on the next start instead of holding the data-dir lock.
+    // A healthy server left behind by a crashed run is adopted on the next start instead of fighting for the lock.
     const first = new Memory(exe, dir);
     await first.agentEndpoint();
     const orphan = first.server;
@@ -126,7 +137,8 @@ test(
     const second = new Memory(exe, dir);
     try {
       await second.agentEndpoint();
-      assert.notEqual(second.server.pid, orphan.pid);
+      assert.equal(second.server, null, 'nothing new was spawned');
+      assert.equal(second.adopted, orphan.pid);
       assert.match(await second.query('quimera42', 'proj-x'), /zebra/i);
     } finally {
       await second.close();
@@ -136,3 +148,96 @@ test(
     }
   }
 );
+
+// ---- Memory + quest servers in one launch --------------------------------------------------------------------------
+const qEndpoint = { url: 'http://127.0.0.1:50002', mcp: 'http://127.0.0.1:50002/mcp', token: 'quest-token-value' };
+const both = (provider, mode = 'read') =>
+  command({ provider, mode }, provider + '.exe', endpoint, { extra: [questServer(qEndpoint)] });
+const questOnly = (provider, mode = 'read') =>
+  command({ provider, mode }, provider + '.exe', null, { extra: [questServer(qEndpoint)] });
+test('only-memory launches are unchanged by the multi-server support', () => {
+  for (const provider of ['claude', 'codex', 'opencode']) {
+    const old = memoryTools(provider, endpoint);
+    const viaList = mcpTools(provider, [memoryServer(endpoint)]);
+    assert.deepEqual(viaList, old);
+    const c = command({ provider, mode: 'edit' }, provider + '.exe', endpoint);
+    for (const a of old.args) assert.ok(c.args.includes(a));
+    assert.ok(!c.args.join(' ').includes(QUEST_SERVER));
+    assert.ok(!('VESTA_QUEST_TOKEN' in c.env));
+  }
+  const claude = memoryTools('claude', endpoint);
+  assert.deepEqual(claude.args.slice(-2), ['--allowedTools', 'mcp__' + MEMORY_SERVER]);
+  assert.deepEqual(Object.keys(JSON.parse(claude.args[1]).mcpServers), [MEMORY_SERVER]);
+});
+test('claude: one --mcp-config with both servers and both allowed, tokens only by environment', () => {
+  const c = both('claude');
+  const cfg = JSON.parse(c.args[c.args.indexOf('--mcp-config') + 1]);
+  assert.deepEqual(Object.keys(cfg.mcpServers), [MEMORY_SERVER, QUEST_SERVER]);
+  assert.equal(cfg.mcpServers[QUEST_SERVER].url, qEndpoint.mcp);
+  assert.equal(cfg.mcpServers[QUEST_SERVER].headers.Authorization, 'Bearer ${VESTA_QUEST_TOKEN}');
+  assert.equal(c.args.filter((a) => a === '--mcp-config').length, 1);
+  const i = c.args.indexOf('--allowedTools');
+  assert.deepEqual(c.args.slice(i + 1, i + 3), ['mcp__' + MEMORY_SERVER, 'mcp__' + QUEST_SERVER]);
+  assert.equal(c.env.VESTA_MEMORY_TOKEN, endpoint.token);
+  assert.equal(c.env.VESTA_QUEST_TOKEN, qEndpoint.token);
+  assert.ok(!c.args.join(' ').includes(qEndpoint.token));
+  // The quest chat stays read-only, but not in plan mode (the model would refuse to use the tools): editing and running
+  // tools are denied and nothing outside the MCP tools is allowed.
+  assert.equal(c.args[c.args.indexOf('--permission-mode') + 1], 'default');
+  const denied = c.args.slice(c.args.indexOf('--disallowedTools') + 1, c.args.indexOf('--mcp-config'));
+  for (const t of ['Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'Bash', 'PowerShell'])
+    assert.ok(denied.includes(t), t);
+  assert.ok(!c.args.includes('--permission-prompt-tool'), 'no prompt channel: whatever is not allowed is refused');
+  assert.ok(!c.args.includes('bypassPermissions'));
+  const memoryOnlyRead = command({ provider: 'claude', mode: 'read' }, 'claude.exe', endpoint);
+  assert.equal(
+    memoryOnlyRead.args[memoryOnlyRead.args.indexOf('--permission-mode') + 1],
+    'plan',
+    'other read chats keep plan'
+  );
+  assert.ok(!memoryOnlyRead.args.includes('--disallowedTools'));
+  const only = questOnly('claude');
+  assert.deepEqual(Object.keys(JSON.parse(only.args[only.args.indexOf('--mcp-config') + 1]).mcpServers), [
+    QUEST_SERVER,
+  ]);
+  assert.ok(!only.args.join(' ').includes(MEMORY_SERVER));
+});
+test('codex: the -c group is repeated per server; read-only sandbox stays', () => {
+  const c = both('codex');
+  for (const [name, ep] of [
+    [MEMORY_SERVER, endpoint],
+    [QUEST_SERVER, qEndpoint],
+  ]) {
+    assert.ok(c.args.includes('mcp_servers.' + name + '.url="' + ep.mcp + '"'));
+    assert.ok(c.args.includes('mcp_servers.' + name + '.default_tools_approval_mode="approve"'));
+  }
+  assert.ok(c.args.includes('mcp_servers.' + QUEST_SERVER + '.bearer_token_env_var="VESTA_QUEST_TOKEN"'));
+  assert.equal(c.args[0], 'app-server');
+  assert.equal(c.thread.sandbox, 'read-only');
+  assert.equal(c.env.VESTA_QUEST_TOKEN, qEndpoint.token);
+  assert.ok(!c.args.join(' ').includes(qEndpoint.token));
+});
+test('opencode: one merged config, read mode still denies edit and bash only', () => {
+  const c = both('opencode');
+  const mcp = JSON.parse(c.env.OPENCODE_CONFIG_CONTENT).mcp;
+  assert.deepEqual(Object.keys(mcp), [MEMORY_SERVER, QUEST_SERVER]);
+  assert.equal(mcp[QUEST_SERVER].headers.Authorization, 'Bearer {env:VESTA_QUEST_TOKEN}');
+  assert.ok(!c.env.OPENCODE_CONFIG_CONTENT.includes(qEndpoint.token));
+  const permission = JSON.parse(c.env.OPENCODE_PERMISSION);
+  assert.equal(permission.edit, 'deny');
+  assert.equal(permission.bash, 'deny');
+  assert.equal(c.agent, 'plan');
+});
+test('drael: allowed tools for both servers, quest tools allowed even in read mode', () => {
+  const servers = [memoryServer(endpoint), questServer(qEndpoint)];
+  const edit = drael.command({ provider: 'drael', mode: 'edit' }, 'x/bin/node.exe', servers, true);
+  const i = edit.args.indexOf('--allowed-tools');
+  assert.deepEqual(edit.args.slice(i + 1, i + 3), [MEMORY_SERVER + '__*', QUEST_SERVER + '__*']);
+  const read = drael.command({ provider: 'drael', mode: 'read' }, 'x/bin/node.exe', servers);
+  const j = read.args.indexOf('--allowed-tools');
+  assert.deepEqual(read.args.slice(j + 1), [QUEST_SERVER + '__*'], 'memory stays out of read-only chats, as before');
+  assert.equal(read.args[read.args.indexOf('--mode') + 1], 'plan');
+  assert.deepEqual(read.servers, servers);
+  const none = drael.command({ provider: 'drael', mode: 'edit' }, 'x/bin/node.exe', []);
+  assert.ok(!none.args.includes('--allowed-tools'));
+});

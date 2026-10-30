@@ -4,7 +4,7 @@ import { PROVIDERS } from '../lib/constants';
 import { Message } from './Message';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useCallback, useEffect } from 'react';
-export function MessageList({ chat, call, notify, setModal, running, focus }) {
+export function MessageList({ chat, call, notify, setModal, running, following = false, focus }) {
   const last = chat.messages.at(-1);
   const { scroller, content, atBottom, unread, onScroll, onWheel, goEnd } = useAutoScroll({
     chatId: chat.id,
@@ -40,7 +40,7 @@ export function MessageList({ chat, call, notify, setModal, running, focus }) {
               key={m.id}
               m={m}
               chat={chat}
-              live={running && m === last}
+              live={(running && m === last) || (following && m.activities?.some((a) => a.status === 'running'))}
               onStopTask={onStopTask}
               provider={chat.provider}
               title={chat.title}

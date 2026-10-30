@@ -807,6 +807,35 @@ async function questPhase() {
       );
     const col = (id) => page.locator('.quest-col[data-col="' + id + '"]');
     await page.waitForSelector('.loading', { state: 'detached' });
+    const qshot = async (name) => {
+      const dir = process.env.VESTA_SHOTS;
+      if (!dir) return;
+      fs.mkdirSync(dir, { recursive: true });
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: path.join(dir, 'q2-' + name + '.png') });
+    };
+    // Deterministic AIs whatever is installed on this machine: the main process and the renderer both see these two.
+    await app.evaluate(
+      (_, electronDir) => {
+        const main = process.mainModule.require(electronDir + '/main.cjs');
+        const fake = {
+          claude: {
+            id: 'claude',
+            installed: true,
+            exe: 'fake-claude.exe',
+            models: ['claude-haiku-5-5', 'claude-sonnet-5-5'],
+          },
+          codex: { id: 'codex', installed: true, exe: 'fake-codex.exe', models: ['gpt-5'] },
+          drael: { id: 'drael', installed: false, models: [] },
+          opencode: { id: 'opencode', installed: false, models: [] },
+        };
+        main.ctx.integrations = fake;
+        main.ctx.bootDiscovery = Promise.resolve(fake);
+      },
+      path.join(root, 'electron').split(String.fromCharCode(92)).join('/')
+    );
+    await page.reload();
+    await page.waitForSelector('.loading', { state: 'detached' });
 
     await step('Quests appears in the sidebar and lists both quests with progress', async () => {
       await nav('Quests').click();
@@ -837,6 +866,60 @@ async function questPhase() {
       assert.equal(await col('problems').locator('[data-action=skip]').isVisible(), true);
       assert.equal((await page.locator('.quest-log li').count()) >= 2, true, 'journal has entries');
     });
+    await step(
+      'step card: change AI, model and mode of a pending step; the rest of the plan is untouched',
+      async () => {
+        const card = col('pending').locator('.step-card[data-step=s3]');
+        await card.locator('[data-action=edit-step]').click();
+        const picker = card.locator('.step-picker');
+        assert.equal(
+          await picker
+            .getByLabel(/^IA da etapa/)
+            .locator('option')
+            .count(),
+          2,
+          'only installed AIs are offered'
+        );
+        await picker.getByLabel(/^IA da etapa/).selectOption('codex');
+        assert.deepEqual(
+          await picker
+            .getByLabel(/^Modelo da etapa/)
+            .locator('option')
+            .allInnerTexts(),
+          ['Padrão da conta', 'gpt-5']
+        );
+        await picker.getByLabel(/^Modelo da etapa/).selectOption('gpt-5');
+        await picker.getByLabel(/^Modo da etapa/).selectOption('read');
+        await qshot('stepcard-picker');
+        await picker.locator('[data-action=save-step-ai]').click();
+        await card.locator('.step-picker').waitFor({ state: 'detached' });
+        const saved = (await page.evaluate(() => window.vesta.call('bootstrap'))).state.quests.find(
+          (x) => x.id === 'quest-1'
+        );
+        const s3 = saved.steps.find((s) => s.id === 's3');
+        assert.deepEqual([s3.provider, s3.model, s3.mode, s3.status], ['codex', 'gpt-5', 'read', 'pending']);
+        const s1 = saved.steps.find((s) => s.id === 's1');
+        assert.deepEqual(
+          [s1.status, s1.chatId, s1.provider],
+          ['done', 'qc1', 'claude'],
+          'the finished step is untouched'
+        );
+        assert.match(saved.log.at(-1).text, /Etapa "Resumir" alterada: IA claude → codex/);
+        assert.match(await card.innerText(), /gpt-5/);
+      }
+    );
+    await step('step card: a failed step moved to another AI forgets its chat; done steps have no picker', async () => {
+      const card = col('problems').locator('.step-card[data-step=s2]');
+      await card.locator('[data-action=edit-step]').click();
+      await card.getByLabel(/^IA da etapa/).selectOption('claude');
+      await card.locator('[data-action=save-step-ai]').click();
+      await card.locator('.step-picker').waitFor({ state: 'detached' });
+      const s2 = (await page.evaluate(() => window.vesta.call('bootstrap'))).state.quests
+        .find((x) => x.id === 'quest-1')
+        .steps.find((s) => s.id === 's2');
+      assert.deepEqual([s2.provider, s2.status, s2.chatId], ['claude', 'error', null]);
+      assert.equal(await col('done').locator('[data-action=edit-step]').count(), 0);
+    });
     await step('a running quest shows the running card, Pausar and the sidebar counter', async () => {
       const st = (await page.evaluate(() => window.vesta.call('bootstrap'))).state;
       const q = st.quests.find((x) => x.id === 'quest-1');
@@ -853,12 +936,56 @@ async function questPhase() {
       assert.equal(await page.locator('.quest-controls [data-action=pause]').isVisible(), true);
       assert.equal(await page.locator('.quest-controls [data-action=resume]').count(), 0);
       assert.equal(await col('running').locator('.quest-time').count(), 1, 'elapsed time on the running card');
+      assert.equal(
+        await col('running').locator('[data-action=edit-step]').count(),
+        0,
+        'a running step cannot be swapped'
+      );
       await page.screenshot({ path: path.join(process.env.VESTA_SHOTS || scratch('shots'), 'w3-smoke-board.png') });
     });
     await step('a step card links to its chat', async () => {
       await col('done').locator('[data-action=open-chat]').click();
       await page.waitForSelector('.chat-heading h2');
       assert.equal(await page.locator('.chat-heading h2').innerText(), 'Quest: Site de contato — Criar a página');
+    });
+    await step(
+      'back: from the step chat to the same quest panel; forward returns; Alt+Left / Alt+Right also work',
+      async () => {
+        const back = page.locator('[data-action=nav-back]'),
+          forward = page.locator('[data-action=nav-forward]');
+        assert.equal(await back.isEnabled(), true);
+        assert.equal(await forward.isEnabled(), false);
+        await qshot('back-button');
+        await back.click();
+        await page.locator('.quest-detail[data-quest="quest-1"]').waitFor();
+        assert.equal(await forward.isEnabled(), true);
+        await forward.click();
+        await page.waitForSelector('.chat-heading h2');
+        await page.keyboard.press('Alt+ArrowLeft');
+        await page.locator('.quest-detail[data-quest="quest-1"]').waitFor();
+        await page.keyboard.press('Alt+ArrowRight');
+        await page.waitForSelector('.chat-heading h2');
+      }
+    );
+    await step('back: the mouse back button and the window app command go back too', async () => {
+      await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()
+          .find((w) => w.webContents.getURL().includes('index.html'))
+          .webContents.send('vesta:event', { type: 'nav', dir: -1 })
+      );
+      await page.locator('.quest-detail[data-quest="quest-1"]').waitFor();
+      await page.evaluate(() =>
+        window.dispatchEvent(new MouseEvent('mouseup', { button: 4, bubbles: true, cancelable: true }))
+      );
+      await page.waitForSelector('.chat-heading h2');
+      await page.evaluate(() =>
+        window.dispatchEvent(new MouseEvent('mouseup', { button: 3, bubbles: true, cancelable: true }))
+      );
+      await page.locator('.quest-detail[data-quest="quest-1"]').waitFor();
+      await page.evaluate(() =>
+        window.dispatchEvent(new MouseEvent('mouseup', { button: 4, bubbles: true, cancelable: true }))
+      );
+      await page.waitForSelector('.chat-heading h2');
     });
     await step('Atividade shows quest chats by their quest name', async () => {
       await nav('Atividade').click();

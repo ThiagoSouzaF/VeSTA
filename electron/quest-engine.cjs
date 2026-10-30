@@ -1,6 +1,7 @@
 const { randomUUID } = require('node:crypto');
 const { UserError } = require('./errors.cjs');
 const Q = require('./quests.cjs');
+const T = require('./quest-tools.cjs');
 const { redact } = require('./memory.cjs');
 
 // The quest engine: glue between the pure model (quests.cjs) and the rest of the main process. It reacts to the
@@ -221,11 +222,11 @@ function createQuestEngine(ctx, deps = {}) {
     onChatDone,
     // Extra context for a message sent in the quest's own chat (null for any other chat, and for the planning turn,
     // whose prompt already carries the quest).
-    brief(chat) {
+    brief(chat, { tools = true } = {}) {
       if (chat?.questRole !== 'lead') return null;
       const q = quests().find((x) => x.id === chat.questId);
       if (!q || (q.planning?.status === 'running' && q.planning.chatId === chat.id)) return null;
-      return Q.buildLeadBrief(q, (id) => store.state.chats.find((c) => c.id === id));
+      return Q.buildLeadBrief(q, (id) => store.state.chats.find((c) => c.id === id), { tools });
     },
     // Opens (creating if needed) the quest's own chat; returns its id.
     questChat({ id }) {
@@ -323,6 +324,129 @@ function createQuestEngine(ctx, deps = {}) {
       advance(q);
       commit();
       return q;
+    },
+    // ---- Plan edits while the quest lives. `by` (optional) = who asked, for the journal. -------------------------------
+    updateStep({ id, stepId, by, ...patch }) {
+      const q = find(id);
+      Q.updateStep(q, stepId, patch, installed(), now(), by);
+      if (q.status === 'running') advance(q);
+      Q.touch(q, now());
+      commit();
+      return q;
+    },
+    addStep({ id, by, ...input }) {
+      const q = find(id);
+      Q.addStep(q, input, installed(), now(), by);
+      if (q.status === 'running') advance(q);
+      commit();
+      return q;
+    },
+    removeStep({ id, stepId, by }) {
+      const q = find(id);
+      Q.removeStep(q, stepId, now(), by);
+      if (q.status === 'running') advance(q);
+      commit();
+      return q;
+    },
+    // ---- What the quest chat (vesta-quest MCP) can see and do. Every call is bound to ONE quest id, which the server
+    // takes from the calling chat, never from the model; chats and steps outside it are refused. --------------------
+    installed,
+    log({ id, text }) {
+      const q = find(id);
+      Q.addLog(q, text, now());
+      commit();
+    },
+    questState({ id }) {
+      const q = find(id),
+        p = Q.progress(q);
+      return {
+        id: q.id,
+        titulo: q.title,
+        situacao: q.status,
+        motivoPausa: q.pauseReason,
+        objetivo: q.goal,
+        diretrizes: q.guidelines,
+        maxParalelo: q.maxParallel,
+        progresso: p.done + '/' + p.total + ' etapas',
+        iasDisponiveis: installed(),
+        planejamento: q.planning ? { status: q.planning.status, erro: q.planning.error || null } : null,
+        etapas: q.steps.map((s) => ({
+          id: s.id,
+          titulo: s.title,
+          tipo: s.kind,
+          status: s.status,
+          ia: s.provider,
+          modelo: s.model,
+          modo: s.mode,
+          dependeDe: s.dependsOn,
+          chatId: s.chatId,
+          tentativas: s.attempts,
+          respondendo: !!s.chatId && ctx.jobs.has(s.chatId),
+          instrucoes: s.instructions,
+          resultado: s.result,
+        })),
+        resumo: q.summary || null,
+        diario: q.log.slice(-15).map((e) => new Date(e.at).toISOString().slice(11, 19) + ' ' + e.text),
+      };
+    },
+    // Step (by id) or chat (by id) of THIS quest; anything else is refused.
+    stepChat({ id, stepId, chatId }) {
+      const q = find(id);
+      let s = null;
+      if (stepId) {
+        s = Q.step(q, String(stepId));
+        if (!s) throw new UserError('Etapa não encontrada nesta quest: ' + stepId);
+      } else if (chatId) {
+        s = q.steps.find((x) => x.chatId === String(chatId));
+        if (!s) throw new UserError('Esse chat não pertence a nenhuma etapa desta quest');
+      } else throw new UserError('Informe stepId ou chatId');
+      if (!s.chatId) throw new UserError('A etapa "' + s.title + '" ainda não começou: não há chat');
+      const chat = store.state.chats.find((c) => c.id === s.chatId);
+      if (!chat) throw new UserError('O chat da etapa "' + s.title + '" não existe mais');
+      return { q, step: s, chat };
+    },
+    chatRead({ id, stepId, chatId, ...cursor }) {
+      const { step: s, chat } = this.stepChat({ id, stepId, chatId });
+      return { etapa: s.id, ...T.readChat(chat, { ...cursor, live: ctx.jobs.has(chat.id) }) };
+    },
+    async chatSend({ id, stepId, text }) {
+      const { q, step: s, chat } = this.stepChat({ id, stepId });
+      if (ctx.jobs.has(chat.id))
+        throw new UserError(
+          'O chat da etapa "' + s.title + '" está respondendo agora; espere terminar ou use chat_stop'
+        );
+      await send(ctx, { chatId: chat.id, text });
+      Q.addLog(q, 'Mensagem enviada ao chat da etapa "' + s.title + '" (chat da quest).', now());
+      commit();
+      return { etapa: s.id, chatId: chat.id, enviada: true };
+    },
+    activity({ id }) {
+      const q = find(id);
+      const out = [];
+      for (const s of q.steps) {
+        const chat = s.chatId && store.state.chats.find((c) => c.id === s.chatId);
+        if (!chat) continue;
+        const live = ctx.jobs.has(chat.id);
+        const tarefas = T.runningTasks(chat, live);
+        if (live || tarefas.length)
+          out.push({ etapa: s.id, titulo: s.title, chatId: chat.id, respondendo: live, tarefas });
+      }
+      return { situacao: q.status, chats: out };
+    },
+    stopTask({ id, chatId, taskId }) {
+      const { q, step: s } = this.stepChat({ id, chatId });
+      if (!ctx.stopTask?.(s.chatId, String(taskId || '')))
+        throw new UserError('Esta tarefa não pode mais ser interrompida (ela já terminou ou o CLI não permite)');
+      Q.addLog(q, 'Tarefa encerrada no chat da etapa "' + s.title + '" (chat da quest).', now());
+      commit();
+      return { etapa: s.id, tarefa: String(taskId), encerrada: true };
+    },
+    stopStepChat({ id, stepId }) {
+      const { q, step: s, chat } = this.stepChat({ id, stepId });
+      if (!stop(chat.id)) throw new UserError('O chat da etapa "' + s.title + '" não está respondendo');
+      Q.addLog(q, 'Resposta da etapa "' + s.title + '" interrompida (chat da quest).', now());
+      commit();
+      return { etapa: s.id, interrompida: true };
     },
     deleteQuest({ id }) {
       const q = find(id);

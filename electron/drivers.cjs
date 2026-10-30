@@ -118,6 +118,7 @@ function runClaude(spec, ctx) {
   const settle = () => {
     if (settled) return;
     settled = true;
+    clearTimeout(nudge);
     finish();
     linger = setTimeout(() => {
       if (child.exitCode === null)
@@ -125,6 +126,33 @@ function runClaude(spec, ctx) {
           child.kill();
         } catch {}
     }, ctx.lingerMs ?? 5000);
+  };
+  // Following mode: the turn ended but commands/monitors it started in the background are still running. The process
+  // stays alive with stdin open; the CLI itself starts the next turn when a task_notification arrives (verified:
+  // system/init + a full assistant turn, no user message needed). 'turn' = a turn is in progress, 'idle' = waiting.
+  let phase = 'turn',
+    nudge = null,
+    lastTasks = '[]';
+  const begin = (opts) => {
+    clearTimeout(nudge);
+    phase = 'turn';
+    ctx.parse.nextTurn?.();
+    ctx.onAutoTurn?.(opts);
+  };
+  // The CLI normally starts the turn on its own; if it does not within a few seconds, VeSTA asks for it.
+  const armNudge = (finished) => {
+    clearTimeout(nudge);
+    const ms = ctx.follow?.nudgeMs;
+    if (!ms) return;
+    nudge = setTimeout(() => {
+      if (phase !== 'idle' || settled || closed) return;
+      begin({ nudged: true });
+      write({
+        type: 'user',
+        message: { role: 'user', content: ctx.follow.nudgeText ? ctx.follow.nudgeText(finished) : '' },
+      });
+    }, ms);
+    nudge.unref?.();
   };
   lines(child.stdout, (l) => {
     const e = json(l);
@@ -137,16 +165,39 @@ function runClaude(spec, ctx) {
       return;
     }
     if (e.type === 'control_response' || e.type === 'control_cancel_request') return;
+    const sys = e.type === 'system' ? e.subtype : '';
+    // The CLI started a turn by itself (after a background task finished).
+    if (phase === 'idle' && !settled && (sys === 'init' || e.type === 'stream_event' || e.type === 'assistant'))
+      begin({ nudged: false });
     ctx.parse.accept(e);
+    if (sys === 'background_tasks_changed') {
+      const tasks = ctx.parse.followTasks?.() || [],
+        key = JSON.stringify(tasks);
+      if (key !== lastTasks) {
+        lastTasks = key;
+        ctx.onTasks?.(tasks);
+      }
+    }
+    if (phase === 'idle' && sys === 'task_notification')
+      armNudge([{ taskId: e.task_id, description: String(e.summary || '').slice(0, 160) }]);
     // On resume, a background task that died with the previous process is delivered first as its own empty
     // turn (num_turns 0, no result text); the answer to this prompt comes after it, so that one must not settle.
-    if (e.type === 'result' && !(e.num_turns === 0 && !e.result) && !ctx.parse.backgroundRunning()) settle();
+    if (e.type === 'result' && !(e.num_turns === 0 && !e.result) && !ctx.parse.backgroundRunning()) {
+      const tasks = ctx.parse.followTasks?.() || [];
+      if (!settled && tasks.length && !e.is_error && ctx.follow?.allow?.(tasks)) {
+        phase = 'idle';
+        ctx.onFollow?.(tasks);
+      } else settle();
+    }
   });
-  let content = ctx.prompt;
-  try {
-    content = A.claudeContent(ctx.prompt, ctx.attachments);
-  } catch {}
-  write({ type: 'user', message: { role: 'user', content } });
+  const contentOf = (prompt, attachments) => {
+    try {
+      return A.claudeContent(prompt, attachments);
+    } catch {
+      return prompt;
+    }
+  };
+  write({ type: 'user', message: { role: 'user', content: contentOf(ctx.prompt, ctx.attachments) } });
   const done = new Promise((resolve) => {
     child.on('error', (err) => resolve({ code: -1, stderr: err.message }));
     child.on('close', (code) => {
@@ -157,8 +208,30 @@ function runClaude(spec, ctx) {
   return {
     done,
     stop() {
+      clearTimeout(nudge);
       finish();
       kill(child);
+    },
+    // True while claude.exe waits (idle) for background tasks and can take another message.
+    following: () => phase === 'idle' && !settled && !closed && child.exitCode === null,
+    // A new user message for the process that is already following: same session, same task links.
+    sendUser(prompt, attachments) {
+      if (phase !== 'idle' || settled || closed || child.exitCode !== null) return false;
+      clearTimeout(nudge);
+      phase = 'turn';
+      ctx.parse.nextTurn?.();
+      write({ type: 'user', message: { role: 'user', content: contentOf(prompt, attachments) } });
+      return true;
+    },
+    // Stops following: closes stdin and ends claude.exe alone (never its process tree), so the user's processes live on.
+    stopFollowing({ immediate = false } = {}) {
+      if (settled) return false;
+      settle();
+      if (immediate && child.exitCode === null)
+        try {
+          child.kill();
+        } catch {}
+      return true;
     },
     // Asks Claude to end one background task (command, monitor or subagent). Only while the process is alive.
     stopTask(taskId) {
@@ -173,6 +246,10 @@ function runClaude(spec, ctx) {
   };
 }
 
+// Codex and OpenCode have no equivalent of Claude's "following": their app-server / HTTP server expose no notification
+// when a command started in the background ends (checked in the Codex app-server schema: only output deltas and
+// terminal interaction of commands that belong to a running turn), so nothing could start the next turn. Both are
+// closed when the turn ends, as before; a detached command finishes unseen and the user asks again.
 function runCodex(spec, ctx) {
   const child = spawn(spec.exe, spec.args, {
     cwd: ctx.cwd,

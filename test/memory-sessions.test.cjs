@@ -191,7 +191,9 @@ test('a hook failure does not block the next events of the chat', async () => {
 
 test('helpers: agent per AI and parsing of the consolidation reply', () => {
   assert.equal(agentOf('claude'), 'claude-code');
-  assert.equal(agentOf('opencode'), 'codex');
+  assert.equal(agentOf('codex'), 'codex');
+  assert.equal(agentOf('opencode'), 'opencode');
+  assert.equal(agentOf('drael'), 'drael');
   assert.deepEqual(notesFrom('não é json', {}), []);
   const notes = notesFrom(REPLY, { projectId: null, chatId: 'c', now: 5 });
   assert.equal(notes.length, 2);

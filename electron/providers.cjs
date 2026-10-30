@@ -62,83 +62,125 @@ function kill(child) {
     execFile('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true }, () => {});
   else child.kill('SIGTERM');
 }
-// The AI Memory MCP server is registered per launch (flags/env), never in ~/.claude, ~/.codex or the global OpenCode config.
+// MCP servers are registered per launch (flags/env), never in ~/.claude, ~/.codex or the global OpenCode config.
+// Two servers can be present: the AI Memory (vesta-memory) and, in the quest's own chat, vesta-quest.
 const MEMORY_SERVER = 'vesta-memory',
-  MEMORY_TOKEN_ENV = 'VESTA_MEMORY_TOKEN';
-function memoryTools(provider, endpoint) {
-  if (!endpoint) return { args: [], env: {} };
-  const env = { [MEMORY_TOKEN_ENV]: endpoint.token };
-  // The token travels by environment; each CLI expands it into the Authorization header itself.
+  MEMORY_TOKEN_ENV = 'VESTA_MEMORY_TOKEN',
+  QUEST_SERVER = 'vesta-quest',
+  QUEST_TOKEN_ENV = 'VESTA_QUEST_TOKEN';
+// A server entry: { name, url, token, tokenEnv }. The helpers turn the endpoints the main process holds into entries.
+const memoryServer = (endpoint) =>
+  endpoint && { name: MEMORY_SERVER, url: endpoint.mcp, token: endpoint.token, tokenEnv: MEMORY_TOKEN_ENV };
+const questServer = (endpoint) =>
+  endpoint && { name: QUEST_SERVER, url: endpoint.mcp, token: endpoint.token, tokenEnv: QUEST_TOKEN_ENV };
+// One or more servers for a provider -> { args, env }. The tokens travel by environment; each CLI expands them into the
+// Authorization header itself, so they never appear on a command line.
+function mcpTools(provider, servers) {
+  servers = (servers || []).filter(Boolean);
+  if (!servers.length) return { args: [], env: {} };
+  const env = Object.fromEntries(servers.map((x) => [x.tokenEnv, x.token]));
   if (provider === 'claude')
     return {
       env,
       args: [
         '--mcp-config',
         JSON.stringify({
-          mcpServers: {
-            [MEMORY_SERVER]: {
-              type: 'http',
-              url: endpoint.mcp,
-              headers: { Authorization: 'Bearer ${' + MEMORY_TOKEN_ENV + '}' },
-            },
-          },
+          mcpServers: Object.fromEntries(
+            servers.map((x) => [
+              x.name,
+              { type: 'http', url: x.url, headers: { Authorization: 'Bearer ${' + x.tokenEnv + '}' } },
+            ])
+          ),
         }),
         '--allowedTools',
-        'mcp__' + MEMORY_SERVER,
+        ...servers.map((x) => 'mcp__' + x.name),
       ],
     };
-  if (provider === 'codex') {
-    const key = 'mcp_servers.' + MEMORY_SERVER + '.';
+  if (provider === 'codex')
     return {
       env,
-      args: [
-        '-c',
-        key + 'url="' + endpoint.mcp + '"',
-        '-c',
-        key + 'bearer_token_env_var="' + MEMORY_TOKEN_ENV + '"',
-        '-c',
-        key + 'default_tools_approval_mode="approve"',
-      ],
+      args: servers.flatMap((x) => {
+        const key = 'mcp_servers.' + x.name + '.';
+        return [
+          '-c',
+          key + 'url="' + x.url + '"',
+          '-c',
+          key + 'bearer_token_env_var="' + x.tokenEnv + '"',
+          '-c',
+          key + 'default_tools_approval_mode="approve"',
+        ];
+      }),
     };
-  }
   return {
     args: [],
     env: {
       ...env,
       OPENCODE_CONFIG_CONTENT: JSON.stringify({
-        mcp: {
-          [MEMORY_SERVER]: {
-            type: 'remote',
-            url: endpoint.mcp,
-            enabled: true,
-            oauth: false,
-            headers: { Authorization: 'Bearer {env:' + MEMORY_TOKEN_ENV + '}' },
-          },
-        },
+        mcp: Object.fromEntries(
+          servers.map((x) => [
+            x.name,
+            {
+              type: 'remote',
+              url: x.url,
+              enabled: true,
+              oauth: false,
+              headers: { Authorization: 'Bearer {env:' + x.tokenEnv + '}' },
+            },
+          ])
+        ),
       }),
     },
   };
 }
+// The AI Memory alone (kept for callers and tests that only know the memory endpoint).
+const LEAD_DENIED_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'Bash', 'PowerShell', 'Monitor'];
+const memoryTools = (provider, endpoint) => mcpTools(provider, [memoryServer(endpoint)]);
 // Tells the agent which scope is its own: tool calls without workspace/project would land in the server's default (inbox).
-function memoryHint(projectId) {
+// `mode`: 'read' (consultation) never asks to write; edit/ask also teach durable preferences ("profile"). Subagents often
+// have a fixed tool list without the memory tools, so the agent itself consults before delegating.
+const PROFILE_CATEGORIES = ['stack', 'architecture', 'workflow', 'testing', 'tools', 'style', 'habits'];
+function memoryHint(projectId, { mode = 'edit', handoff = false } = {}) {
   const project = projectId || 'inbox';
-  return (
+  const lines = [
     'Você tem acesso à memória compartilhada do VeSTA pelas ferramentas MCP do servidor "' +
-    MEMORY_SERVER +
-    '" (AI Memory). Nelas, sempre passe workspace "vesta" e project "' +
-    project +
-    '". Use memory_query para buscar decisões e contexto de conversas anteriores quando forem relevantes, e memory_write_page para registrar decisões, fatos e lições duráveis deste projeto (caminhos como "agentes/<assunto>.md"). Não grave segredos nem trechos longos de código.'
-  );
+      MEMORY_SERVER +
+      '" (AI Memory). Nelas, passe workspace "vesta" e project "' +
+      project +
+      '" (exceto nas gravações com scope "profile", que valem para todos os projetos e não levam workspace/project).',
+    'No início da conversa, consulte com memory_query decisões, fatos e preferências relevantes. Antes de delegar a um subagente, consulte a memória você mesmo e repasse no prompt dele o contexto relevante: subagentes com lista de ferramentas própria podem não ter acesso à memória. Se o subagente tiver acesso, mande-o usar workspace "vesta" e project "' +
+      project +
+      '".',
+  ];
+  if (handoff)
+    lines.push(
+      'Esta conversa veio de outra IA: se houver uma passagem de contexto pendente que você não viu, use memory_handoff_accept (workspace "vesta", project "' +
+        project +
+        '").'
+    );
+  if (mode === 'read')
+    lines.push(
+      'Modo consulta: apenas consulte a memória. Não grave nada, nem preferências; se algo merecer registro, diga ao usuário.'
+    );
+  else
+    lines.push(
+      'Use memory_write_page para registrar decisões, fatos e lições duráveis deste projeto (caminhos como "agentes/<assunto>.md"); tags e entities são listas (arrays), por exemplo tags: ["decisao"], entities: ["VeSTA"]. Não grave segredos nem trechos longos de código.',
+      'Quando o usuário expressar uma preferência durável (como gosta de trabalhar, stack, estilo, ferramentas, idioma), grave-a no perfil: memory_write_page com scope "profile" e path "<categoria>/<assunto>.md" (categorias: ' +
+        PROFILE_CATEGORIES.join(', ') +
+        '; sem o prefixo profile/), uma preferência por página, o corpo começando com "# Título" e a frase da preferência na linha seguinte. Antes, consulte (memory_query) se o assunto já existe: se existir, atualize a mesma página (expected_page_id da leitura) em vez de duplicar; para uma nova, use create_only true. Só preferências que o usuário disse de fato, nunca suposições.'
+    );
+  return lines.join(' ');
 }
 // Chat modes: 'edit' = full access, 'ask' = the agent asks the user before acting, 'read' = consultation only.
 const MODES = ['ask', 'edit', 'read'];
 const modeOf = (chat) => (MODES.includes(chat.mode) ? chat.mode : 'edit');
 // How each CLI is launched. Claude speaks stream-json both ways (its permission requests arrive on stdout and are
 // answered on stdin); Codex runs its app-server (JSON-RPC with approval requests); OpenCode runs its HTTP server.
-function command(chat, exe, endpoint, { attachDir = null } = {}) {
-  if (chat.provider === 'drael') return require('./drael.cjs').command(chat, exe, endpoint);
+// `endpoint` = AI Memory; `extra` = more MCP servers (entries, see questServer), e.g. the quest chat's own.
+function command(chat, exe, endpoint, { attachDir = null, extra = [] } = {}) {
+  const servers = [memoryServer(endpoint), ...extra].filter(Boolean);
+  if (chat.provider === 'drael') return require('./drael.cjs').command(chat, exe, servers);
   const mode = modeOf(chat),
-    mem = memoryTools(chat.provider, endpoint);
+    mem = mcpTools(chat.provider, servers);
   if (chat.provider === 'codex') {
     const policy =
       mode === 'ask'
@@ -154,8 +196,13 @@ function command(chat, exe, endpoint, { attachDir = null } = {}) {
   }
   if (chat.provider === 'claude') {
     // Even with full access, Claude still asks before touching protected files (settings, .git): those go to the user too.
-    const permission =
-      mode === 'read'
+    // The quest chat is read-only too, but it must act on the quest through its MCP tools. Claude's plan mode makes the
+    // model itself refuse any action ("plan mode is active"), so there it runs in the default mode with every tool that
+    // edits or executes denied and no prompt channel: anything not allowed (the MCP tools) is refused outright.
+    const lead = mode === 'read' && servers.some((x) => x.name === QUEST_SERVER);
+    const permission = lead
+      ? ['--permission-mode', 'default', '--disallowedTools', ...LEAD_DENIED_TOOLS]
+      : mode === 'read'
         ? ['--permission-mode', 'plan', '--permission-prompts', 'none']
         : ['--permission-mode', mode === 'edit' ? 'bypassPermissions' : 'default', '--permission-prompt-tool', 'stdio'];
     return {
@@ -217,8 +264,10 @@ function toolKind(name) {
   return 'tool';
 }
 // Memory tools read as "Memória · memory_query" instead of the raw MCP-qualified name.
+const questTool = (n) => new RegExp(QUEST_SERVER + '_+([\\w-]+)$').exec(n)?.[1];
 const toolLabel = (name) => {
   const n = String(name || '');
+  if (questTool(n)) return 'Quest · ' + questTool(n);
   if (toolKind(n) !== 'memory') return 'Usando ' + n;
   const i = n.lastIndexOf('memory_'),
     tool = i >= 0 ? n.slice(i) : n;
@@ -305,6 +354,8 @@ function codexItem(it, done) {
       kind: 'file',
       status,
     };
+  if (it.type === 'mcpToolCall' && it.server === QUEST_SERVER)
+    return { label: 'Quest · ' + it.tool, detail: it.arguments?.stepId || '', kind: 'mcp', status };
   if (it.type === 'mcpToolCall') {
     const mem = it.server === MEMORY_SERVER;
     return {
@@ -375,6 +426,50 @@ function parser(provider, emit) {
   const toolIds = new Set(),
     bgTools = new Set(),
     taskTool = new Map();
+  // Claude background tasks (commands, monitors) the CLI is still tracking: task_id -> {taskId, type, description}.
+  // `background_tasks_changed` is authoritative; task_started/task_notification keep the list right in between.
+  const bgList = new Map();
+  const listTasks = () => [...bgList.values()].filter((t) => t.type !== 'local_agent');
+  const trackBackground = (event) => {
+    if (event.subtype === 'background_tasks_changed') {
+      bgList.clear();
+      for (const t of event.tasks || [])
+        if (t?.task_id)
+          bgList.set(t.task_id, {
+            taskId: t.task_id,
+            type: t.task_type || '',
+            description: clip(t.description, 160),
+          });
+      emit({ type: 'tasks', tasks: listTasks() });
+    } else if (event.subtype === 'task_started' && event.is_backgrounded && event.task_id) {
+      bgList.set(event.task_id, {
+        taskId: event.task_id,
+        type: event.task_type || '',
+        description: clip(event.description, 160),
+        ...(event.tool_use_id ? { toolUseId: event.tool_use_id } : {}),
+      });
+    } else if (event.subtype === 'task_notification' && event.task_id) {
+      bgList.delete(event.task_id);
+    } else if (event.subtype === 'task_updated' && taskStatus(event.patch?.status) !== 'running' && event.task_id) {
+      bgList.delete(event.task_id);
+    }
+  };
+  // A write to the AI Memory (by the agent itself) is reported so the app can show where a profile entry came from.
+  const memoryWrites = new Set();
+  const memoryCall = (name, input, key) => {
+    if (key) {
+      if (memoryWrites.has(key)) return;
+      if (/memory_write_page$/.test(String(name || ''))) memoryWrites.add(key);
+    }
+    if (!String(name || '').includes(MEMORY_SERVER) && !/vesta_memory/.test(String(name || ''))) return;
+    if (!/memory_write_page$/.test(String(name))) return;
+    emit({
+      type: 'memory-write',
+      path: clip(input?.path, 300),
+      scope: input?.scope || '',
+      body: clip(input?.body, 2000),
+    });
+  };
   const taskStats = (u) =>
     u ? { toolUses: num(u.tool_uses), tokens: num(u.total_tokens), durationMs: num(u.duration_ms) } : undefined;
   // Claude `system` task events: subagents and background commands/monitors share task_id <-> tool_use_id.
@@ -446,6 +541,16 @@ function parser(provider, emit) {
     // Claude background subagents still working: their completion starts another turn in the same process.
     backgroundRunning() {
       return background.size > 0;
+    },
+    // Background commands / monitors the CLI still tracks (not subagents): the reason to keep following a chat.
+    followTasks() {
+      return listTasks();
+    },
+    // A new turn of the same process (a background task finished, or the user wrote again): the text restarts.
+    nextTurn() {
+      text = '';
+      gap = false;
+      paragraph = false;
     },
     ownerOf(toolUseId) {
       const id = toolOwner.get(toolUseId);
@@ -590,6 +695,8 @@ function parser(provider, emit) {
                 });
             }
           } else {
+            if (m === 'item/started' && it.type === 'mcpToolCall' && it.server === MEMORY_SERVER)
+              memoryCall(MEMORY_SERVER + '_' + it.tool, it.arguments);
             const s = codexItem(it, done);
             if (s)
               activity(s.label, s.detail, {
@@ -672,6 +779,7 @@ function parser(provider, emit) {
                 const i = block.input || {},
                   detail = detailOf(i);
                 toolIds.add(block.id);
+                memoryCall(block.name, i);
                 if (i.run_in_background || block.name === 'Monitor') bgTools.add(block.id);
                 activity(toolLabel(block.name), detail, {
                   kind: toolKind(block.name),
@@ -714,7 +822,10 @@ function parser(provider, emit) {
                 });
             }
           }
-        if (event.type === 'system') claudeTask(event);
+        if (event.type === 'system') {
+          trackBackground(event);
+          claudeTask(event);
+        }
         // A second turn (after a background task) starts a new message: keep paragraphs apart.
         if (event.type === 'stream_event' && event.event?.type === 'message_start' && text) gap = true;
         if (event.type === 'rate_limit_event') {
@@ -760,7 +871,8 @@ function parser(provider, emit) {
               status,
               status === 'running' ? undefined : summarize(st.output || st.error || st.title)
             );
-          } else
+          } else {
+            memoryCall(part.tool, st.input, id);
             activity(
               toolLabel(part.tool),
               st.title ||
@@ -779,6 +891,7 @@ function parser(provider, emit) {
                   : {}),
               }
             );
+          }
         }
         if (event.type === 'step_finish' && event.part) {
           const t = event.part.tokens || {};
@@ -870,8 +983,14 @@ module.exports = {
   kill,
   command,
   memoryTools,
+  mcpTools,
+  memoryServer,
+  questServer,
   memoryHint,
+  PROFILE_CATEGORIES,
   MEMORY_SERVER,
+  QUEST_SERVER,
+  QUEST_TOKEN_ENV,
   parser,
   upsertSubagent,
   upsertActivity,

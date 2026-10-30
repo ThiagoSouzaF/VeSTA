@@ -19,6 +19,9 @@ const { discover } = require('./integrations.cjs');
 const { createAttachmentStore } = require('./attachment-store.cjs');
 const { IMAGE_EXT } = require('./attachments.cjs');
 const bg = require('./background-mode.cjs');
+const { createQuestMcp } = require('./quest-mcp.cjs');
+const follow = require('./follow.cjs');
+const tasksLib = require('./tasks.cjs');
 app.setName('VeSTA');
 app.commandLine.appendSwitch('force-renderer-accessibility');
 bg.configureBackgroundMode();
@@ -193,6 +196,31 @@ app.whenReady().then(() => {
     if (!win.isDestroyed()) win.webContents.send('vesta:event', event);
   });
   win.on('focus', () => win.flashFrame(false));
+  // Closing the window while chats are followed asks first (they stop being followed; the processes keep running).
+  win.on('close', (e) => {
+    if (quitting || process.env.VESTA_SERVICE_TEST === '1' || !ctx.follows.size) return;
+    e.preventDefault();
+    dialog
+      .showMessageBox(win, {
+        type: 'warning',
+        title: 'Acompanhando processos',
+        message: 'Fechar o VeSTA?',
+        detail: follow.closeWarning(ctx.follows.size),
+        buttons: ['Fechar mesmo assim', 'Continuar aberto'],
+        defaultId: 1,
+        cancelId: 1,
+        noLink: true,
+      })
+      .then(({ response }) => response === 0 && app.quit())
+      .catch(() => {});
+  });
+  // The mouse's back / forward buttons (and the keyboard's browser keys) reach Windows apps as app commands.
+  win.on('app-command', (e, command) => {
+    if (command !== 'browser-backward' && command !== 'browser-forward') return;
+    e.preventDefault();
+    if (!win.isDestroyed())
+      win.webContents.send('vesta:event', { type: 'nav', dir: command === 'browser-backward' ? -1 : 1 });
+  });
   win.once('ready-to-show', () => {
     mainReady = true;
     if (process.env.VESTA_SERVICE_TEST === '1') return;
@@ -259,8 +287,11 @@ app.whenReady().then(() => {
             m.status = 'cancelled';
             m.error = 'A sessão foi interrompida ao fechar o aplicativo.';
           }
+      // Nobody follows the background commands of the previous run anymore.
+      for (const chat of store.state.chats) tasksLib.detachRunning(chat);
       // Quests: the engine reacts to finished turns; anything left "running" by a previous run is closed first.
       ctx.quests = createQuestEngine(ctx);
+      ctx.questMcp = createQuestMcp(ctx, { engine: () => ctx.quests });
       ctx.quests.recover();
       bus.subscribe((event) => event.type === 'chat-done' && ctx.quests.onChatDone(event));
       store.save();
@@ -288,6 +319,8 @@ app.whenReady().then(() => {
             AI_MEMORY_LLM_PROVIDER: 'codex',
             AI_MEMORY_CAPTURE_ASSISTANT: 'true',
             AI_MEMORY_AUTO_IMPROVE__SCHEDULER__ENABLED: 'false',
+            // The profile (how the user works) learns from a single project too: VeSTA is one personal assistant.
+            AI_MEMORY_PROFILE__MIN_PROJECTS: '1',
           }),
         }
       );
@@ -341,8 +374,12 @@ app.whenReady().then(() => {
   })();
 });
 app.on('window-all-closed', () => app.quit());
-let remoteDown = false;
+let remoteDown = false,
+  quitting = false;
 app.on('before-quit', (event) => {
+  quitting = true;
+  // Following ends with the app; the processes the user's AIs started keep running.
+  for (const s of ctx.follows.values()) ctx.endFollowing(s.chatId, 'quit');
   for (const task of jobs.values()) {
     task.cancelled = true;
     task.run?.stop();
@@ -358,6 +395,7 @@ app.on('before-quit', (event) => {
     return;
   }
   ctx.memorySessions?.dispose();
+  ctx.questMcp?.close().catch(() => {});
   ctx.memory?.close().catch(() => {});
 });
 module.exports = { methods, ctx, getState: () => ctx.state() };

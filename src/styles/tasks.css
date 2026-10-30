@@ -407,3 +407,92 @@
     animation: none;
   }
 }
+
+/* ---- "acompanhando": Claude waits for background processes ---- */
+.follow-bar {
+  margin: 0 18px 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+.follow-bar.notice {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+.follow-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.follow-until {
+  color: var(--muted);
+  font-size: 12px;
+  flex: 1;
+  min-width: 160px;
+}
+.follow-stop {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.follow-tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.follow-tasks li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.follow-tasks code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.follow-task-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  flex: none;
+}
+.follow-task-stop:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+.message-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  padding: 1px 7px;
+}
+.follow-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  display: inline-block;
+  opacity: 0.8;
+}

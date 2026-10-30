@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { ProviderIcon } from './ProviderIcon';
 import { PROVIDERS } from '../lib/constants';
-import { Brain, Copy, AlertCircle, Pin } from 'lucide-react';
+import { Brain, Copy, AlertCircle, Pin, BellRing } from 'lucide-react';
 import { Permissions } from './Permissions';
 import { TaskSummary } from './TaskSummary';
 import { Subagents } from './Subagents';
@@ -36,6 +36,18 @@ export const Message = memo(function Message({
               minute: '2-digit',
             })}
           </time>
+          {m.auto && (
+            <span
+              className="message-auto"
+              title="O Claude voltou sozinho depois que um processo em segundo plano terminou"
+              data-testid="auto-return"
+            >
+              <BellRing size={11} />
+              {m.auto === 'nudge'
+                ? 'Retorno automático (VeSTA avisou)'
+                : 'Retorno automático de processo em segundo plano'}
+            </span>
+          )}
           {m.memorySaved && (
             <span title="Trecho salvo no AI Memory">
               <Brain size={12} />

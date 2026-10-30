@@ -180,3 +180,35 @@ test('performance: 20 chats x 50 tasks derive fast, and a delta recomputes only 
   assert.ok(warm.ms < 2, 'unchanged re-derivation under 2 ms, got ' + warm.ms);
   assert.ok(delta < cold.ms, 'a delta must cost less than a cold derivation');
 });
+
+test('a followed chat (Claude waiting for background processes) is listed and its tasks can be stopped', async () => {
+  const A = await lib();
+  const c = {
+    id: 'f1',
+    title: 'Servidor',
+    provider: 'claude',
+    messages: [
+      {
+        id: 'm1',
+        role: 'assistant',
+        status: 'done',
+        createdAt: NOW - 5000,
+        text: 'iniciado',
+        activities: [
+          { id: 'a1', kind: 'command', background: true, taskId: 't1', label: 'Segundo plano', status: 'running' },
+        ],
+        subagents: [],
+      },
+    ],
+  };
+  const idle = A.activityGroups([c], [], [])[0];
+  const followed = A.activityGroups([c], [], ['f1'])[0];
+  assert.equal(idle.following, false);
+  assert.equal(followed.following, true);
+  assert.equal(followed.live, false, 'following is not "responding"');
+  assert.equal(followed.counts.running, 1);
+  assert.equal(A.filterGroups([followed], { scope: 'running', now: NOW + 99 * 3600000 }).length, 1);
+  const task = followed.turns[0].tasks.find((t) => t.taskId === 't1');
+  assert.equal(A.canStopTask(task, followed.following), true);
+  assert.equal(A.canStopTask(task, false), false);
+});

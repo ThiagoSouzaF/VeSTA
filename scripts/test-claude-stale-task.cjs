@@ -66,6 +66,12 @@ app.whenReady().then(async () => {
         ' . Não espere ele terminar. Responda só INICIADO.'
     );
     assert.equal(first.status, 'done', first.error);
+    // VeSTA now follows the background command (see test-claude-followup-e2e.cjs). This script covers the other path:
+    // following stopped, claude.exe gone, and the task delivered later as a stale empty turn on resume.
+    if (getState().following.some((f) => f.chatId === chat.id)) {
+      await methods.stopFollowing({ chatId: chat.id });
+      await delay(7000);
+    }
     const second = await turn(
       chat.id,
       'Rode o comando Bash "sleep 12" (em primeiro plano, esperando terminar) e depois responda só com a palavra PERGUNTA-OK.'

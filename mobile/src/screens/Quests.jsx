@@ -118,10 +118,63 @@ function NewQuest({ projects, onClose, onCreate }) {
 const StepIcon = ({ status }) =>
   status === 'running' ? <LoaderCircle size={14} className="spin" /> : status === 'done' ? <Check size={14} /> : null;
 
-export function QuestDetailScreen({ quest, projects, onBack, onAct, onOpenChat }) {
+// AIs a step can use: the ones installed on the desktop (plus the step's current one, so the select never lies).
+const providerChoices = (integrations = {}, current) =>
+  Object.keys(PROVIDERS).filter((id) => integrations[id]?.installed || id === current);
+const editable = (quest, s) =>
+  ['draft', 'running', 'paused'].includes(quest.status) && ['pending', 'error'].includes(s.status);
+
+function AddStep({ choices, onClose, onAdd }) {
+  const [title, setTitle] = useState(''),
+    [instructions, setInstructions] = useState(''),
+    [provider, setProvider] = useState(choices[0] || 'claude'),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
+  async function add() {
+    setBusy(true);
+    setError('');
+    try {
+      await onAdd({ title: title.trim(), instructions: instructions.trim(), provider });
+      onClose();
+    } catch (e) {
+      setError(e.message);
+      setBusy(false);
+    }
+  }
+  return (
+    <Sheet title="Nova etapa" onClose={onClose}>
+      <label className="field">
+        <span className="label">Título</span>
+        <input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
+      </label>
+      <label className="field">
+        <span className="label">Instruções</span>
+        <textarea rows={4} value={instructions} maxLength={8000} onChange={(e) => setInstructions(e.target.value)} />
+      </label>
+      <label className="field">
+        <span className="label">IA da etapa</span>
+        <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+          {choices.map((id) => (
+            <option key={id} value={id}>
+              {PROVIDERS[id].name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="muted small">A etapa nova pede permissão antes de editar arquivos.</p>
+      {error && <p className="form-error">{error}</p>}
+      <button className="btn primary big" disabled={busy || !title.trim() || !instructions.trim()} onClick={add}>
+        <Plus size={18} /> Adicionar etapa
+      </button>
+    </Sheet>
+  );
+}
+
+export function QuestDetailScreen({ quest, projects, integrations = {}, onBack, onAct, onOpenChat }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
-    [confirm, setConfirm] = useState(false);
+    [confirm, setConfirm] = useState(false),
+    [adding, setAdding] = useState(false);
   const run = async (method, extra) => {
     setBusy(true);
     setError('');
@@ -236,6 +289,23 @@ export function QuestDetailScreen({ quest, projects, onBack, onAct, onOpenChat }
                     {PROVIDERS[s.provider]?.name} · {modelLabel(s.model)} · {MODE_LABEL[s.mode]} ·{' '}
                     {STEP_STATUS[s.status]}
                   </span>
+                  {editable(quest, s) && (
+                    <label className="step-ai">
+                      <span className="muted small">IA da etapa</span>
+                      <select
+                        value={s.provider}
+                        disabled={busy}
+                        data-step-provider={s.id}
+                        onChange={(e) => run('updateStep', { stepId: s.id, provider: e.target.value })}
+                      >
+                        {providerChoices(integrations, s.provider).map((id) => (
+                          <option key={id} value={id}>
+                            {PROVIDERS[id].name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   {s.dependsOn.length > 0 && (
                     <span className="muted small">
                       Depende de: {s.dependsOn.map((d) => byId[d]?.title || d).join(', ')}
@@ -268,10 +338,22 @@ export function QuestDetailScreen({ quest, projects, onBack, onAct, onOpenChat }
             </section>
           );
         })}
+        {['draft', 'running', 'paused'].includes(quest.status) && !planning && (
+          <button className="btn ghost" disabled={busy} onClick={() => setAdding(true)} data-action="add-step">
+            <Plus size={16} /> Adicionar etapa
+          </button>
+        )}
         {!quest.steps.length && !planning && (
           <p className="muted center">Sem etapas ainda. Planeje a quest para a IA montar o quadro.</p>
         )}
       </div>
+      {adding && (
+        <AddStep
+          choices={providerChoices(integrations)}
+          onClose={() => setAdding(false)}
+          onAdd={(step) => onAct('addStep', { id: quest.id, ...step })}
+        />
+      )}
     </div>
   );
 }

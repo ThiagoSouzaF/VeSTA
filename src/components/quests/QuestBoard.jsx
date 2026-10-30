@@ -1,5 +1,16 @@
-import { memo } from 'react';
-import { AlertCircle, Check, LoaderCircle, MessageSquare, RotateCcw, SkipForward, Clock, Link2 } from 'lucide-react';
+import { memo, useState } from 'react';
+import {
+  AlertCircle,
+  ArrowLeftRight,
+  Check,
+  LoaderCircle,
+  MessageSquare,
+  RotateCcw,
+  SkipForward,
+  Clock,
+  Link2,
+} from 'lucide-react';
+import { StepAiPicker } from './StepAiPicker';
 import { ProviderIcon } from '../ProviderIcon';
 import { PROVIDERS } from '../../lib/constants';
 import { modelLabel, formatElapsed } from '../../lib/format';
@@ -28,6 +39,7 @@ const sameStep = (a, b) =>
   a.canAct === b.canAct &&
   a.onOpen === b.onOpen &&
   a.onAct === b.onAct &&
+  a.integrations === b.integrations &&
   [
     'id',
     'title',
@@ -44,7 +56,9 @@ const sameStep = (a, b) =>
   ].every((k) => a.step[k] === b.step[k]);
 
 // One step. Memoized on the step's own fields: a snapshot that did not touch it does not re-render it.
-const StepCard = memo(function StepCard({ questId, step, depTitles, canAct, onOpen, onAct }) {
+const StepCard = memo(function StepCard({ questId, step, depTitles, canAct, integrations, onOpen, onAct }) {
+  const [editing, setEditing] = useState(false);
+  const editable = canAct && (step.status === 'pending' || step.status === 'error');
   return (
     <article className={'step-card ' + step.status} data-step={step.id} data-status={step.status}>
       <header>
@@ -74,7 +88,24 @@ const StepCard = memo(function StepCard({ questId, step, depTitles, canAct, onOp
         </div>
       )}
       {step.result && <p className={'step-result' + (step.status === 'error' ? ' err' : '')}>{snippet(step.result)}</p>}
+      {editing && editable && (
+        <StepAiPicker
+          step={step}
+          integrations={integrations}
+          onCancel={() => setEditing(false)}
+          onSave={async (patch) => {
+            await onAct('updateStep', questId, step.id, patch);
+            setEditing(false);
+          }}
+        />
+      )}
       <footer>
+        {editable && !editing && (
+          <button className="step-link" onClick={() => setEditing(true)} data-action="edit-step">
+            <ArrowLeftRight size={12} />
+            Trocar IA
+          </button>
+        )}
         {step.chatId && (
           <button className="step-link" onClick={() => onOpen(step.chatId)} data-action="open-chat">
             <MessageSquare size={12} />
@@ -99,7 +130,7 @@ const StepCard = memo(function StepCard({ questId, step, depTitles, canAct, onOp
 }, sameStep);
 
 // The quest as a board: Pendentes / Rodando / Concluídas / Problemas.
-export function QuestBoard({ quest, onOpen, onAct }) {
+export function QuestBoard({ quest, integrations, onOpen, onAct }) {
   const cols = columns(quest);
   const title = Object.fromEntries(quest.steps.map((s) => [s.id, s.title]));
   const canAct = quest.status !== 'done' && quest.status !== 'cancelled';
@@ -122,6 +153,7 @@ export function QuestBoard({ quest, onOpen, onAct }) {
                   .filter(Boolean)
                   .join(', ')}
                 canAct={canAct}
+                integrations={integrations}
                 onOpen={onOpen}
                 onAct={onAct}
               />

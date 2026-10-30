@@ -484,6 +484,153 @@ function skipStep(q, id, now = Date.now()) {
   unblock(q, now);
   return s;
 }
+// ---- Plan edits while the quest lives ----------------------------------------------------------------------------
+// Pure: validate everything first, mutate last. `installed` = { provider: { models? } } of the usable AIs. `by`
+// (optional) names who asked (the quest chat); it only shows in the journal.
+const via = (by) => (by ? ' (' + by + ')' : '');
+function editable(q) {
+  if (q.status === 'done' || q.status === 'cancelled' || q.status === 'failed')
+    throw userError('Esta quest já terminou: o plano não pode mais ser editado');
+}
+function findStep(q, id) {
+  const s = step(q, String(id ?? ''));
+  if (!s) throw userError('Etapa não encontrada nesta quest: ' + id);
+  return s;
+}
+const STEP_REFUSAL = {
+  running: 'está rodando: pare o chat da etapa (ou espere terminar) antes de mudá-la',
+  done: 'já foi concluída e não pode mais ser alterada',
+  skipped: 'foi pulada e não pode mais ser alterada',
+};
+function checkProvider(provider, installed) {
+  if (!PROVIDER_IDS.includes(provider)) throw userError('IA desconhecida: ' + provider);
+  if (!installed[provider]) throw userError(provider + ' não está instalada. Confira as Conexões.');
+}
+function checkModel(provider, model, installed) {
+  const models = installed[provider]?.models;
+  // Claude also takes aliases (haiku, sonnet...) and full ids that are not in the list the app knows.
+  if (provider === 'claude' && /^(haiku|sonnet|opus|fable|claude-[\w.-]+)$/i.test(model)) return;
+  if (model && Array.isArray(models) && models.length && !models.includes(model))
+    throw userError(
+      'Modelo "' + model + '" não existe em ' + provider + ' (disponíveis: ' + models.slice(0, 8).join(', ') + ')'
+    );
+}
+function checkMode(provider, mode) {
+  if (!MODES.includes(mode)) throw userError('Modo inválido: ' + mode + ' (use edit, read ou ask)');
+  if (provider === 'drael' && mode === 'ask') throw userError('O Drael não aceita o modo ask; use read ou edit');
+}
+// Changes AI / model / mode / title / instructions / dependencies of a step that has not started (or failed).
+// Everything else on the step (id, chat, result, attempts, times) and every other step stay as they are; a failed
+// step that changes AI forgets its chat, so the next attempt opens a fresh one with the new AI.
+function updateStep(q, id, patch = {}, installed = {}, now = Date.now(), by = '') {
+  editable(q);
+  const s = findStep(q, id);
+  if (STEP_REFUSAL[s.status]) throw userError('A etapa "' + s.title + '" ' + STEP_REFUSAL[s.status]);
+  const has = (k) => patch[k] !== undefined && patch[k] !== null;
+  const provider = has('provider') ? String(patch.provider).toLowerCase() : s.provider;
+  const providerChanged = provider !== s.provider;
+  if (has('provider')) checkProvider(provider, installed);
+  let model = has('model') ? text(patch.model, 120) : providerChanged ? '' : s.model;
+  if (provider === 'drael') model = '';
+  checkModel(provider, model, installed);
+  const mode = has('mode') ? String(patch.mode) : s.mode;
+  if (has('mode')) checkMode(provider, mode);
+  const title = has('title') ? text(patch.title, 120) : s.title;
+  const instructions = has('instructions') ? text(patch.instructions, 8000) : s.instructions;
+  if (!title) throw userError('A etapa precisa de um título');
+  if (!instructions) throw userError('A etapa precisa de instruções');
+  let dependsOn = s.dependsOn;
+  if (has('dependsOn')) {
+    if (!Array.isArray(patch.dependsOn)) throw userError('dependsOn deve ser uma lista de ids de etapas');
+    dependsOn = [...new Set(patch.dependsOn.map((d) => String(d)))];
+    for (const d of dependsOn) {
+      if (d === s.id) throw userError('Uma etapa não pode depender dela mesma');
+      if (!step(q, d)) throw userError('A etapa depende de "' + d + '", que não existe');
+    }
+  }
+  const next = normalizeStep({ ...s, provider, model, mode, title, instructions, dependsOn });
+  const cyc = cycleIds(q.steps.map((x) => (x.id === s.id ? next : x)));
+  if (cyc.length) throw userError('As dependências formariam um ciclo (' + cyc.join(', ') + ')');
+  const changes = [];
+  if (next.provider !== s.provider) changes.push('IA ' + s.provider + ' → ' + next.provider);
+  if (next.model !== s.model) changes.push('modelo ' + (s.model || 'padrão') + ' → ' + (next.model || 'padrão'));
+  if (next.mode !== s.mode) changes.push('modo ' + s.mode + ' → ' + next.mode);
+  if (next.title !== s.title) changes.push('título "' + next.title + '"');
+  if (next.instructions !== s.instructions) changes.push('instruções');
+  if (next.dependsOn.join() !== s.dependsOn.join())
+    changes.push('dependências: ' + (next.dependsOn.join(', ') || 'nenhuma'));
+  if (!changes.length) return { step: s, changes };
+  const oldTitle = s.title;
+  Object.assign(s, {
+    provider: next.provider,
+    model: next.model,
+    mode: next.mode,
+    title: next.title,
+    instructions: next.instructions,
+    dependsOn: next.dependsOn,
+  });
+  if (s.status === 'error' && providerChanged) s.chatId = null;
+  addLog(q, 'Etapa "' + oldTitle + '" alterada' + via(by) + ': ' + changes.join('; ') + '.', now);
+  return { step: s, changes };
+}
+// Appends a pending step to a live plan. Dependencies must exist (no cycle is possible: nobody depends on it yet).
+function addStep(q, input = {}, installed = {}, now = Date.now(), by = '') {
+  editable(q);
+  if (q.steps.length >= MAX_STEPS) throw userError('No máximo ' + MAX_STEPS + ' etapas.');
+  const provider = String(input.provider || PROVIDER_IDS.find((p) => installed[p]) || '').toLowerCase();
+  checkProvider(provider, installed);
+  const model = provider === 'drael' ? '' : text(input.model, 120);
+  checkModel(provider, model, installed);
+  if (input.mode !== undefined) checkMode(provider, String(input.mode));
+  const deps = input.dependsOn === undefined ? [] : input.dependsOn;
+  if (!Array.isArray(deps)) throw userError('dependsOn deve ser uma lista de ids de etapas');
+  for (const d of deps) if (!step(q, String(d))) throw userError('A etapa depende de "' + d + '", que não existe');
+  let n = q.steps.length + 1;
+  while (step(q, 's' + n)) n++;
+  const s = normalizeStep(
+    {
+      ...input,
+      id: 's' + n,
+      provider,
+      model,
+      dependsOn: deps.map(String),
+      status: 'pending',
+      chatId: null,
+      result: '',
+      startedAt: null,
+      endedAt: null,
+      attempts: 0,
+    },
+    q.steps.length
+  );
+  const err = validateSteps([...q.steps, s]);
+  if (err) throw userError(err);
+  q.steps.push(s);
+  addLog(q, 'Etapa adicionada' + via(by) + ': "' + s.title + '" (' + s.provider + ').', now);
+  return s;
+}
+// Removes a pending step. Steps that waited for it inherit its own dependencies, so nothing is left dangling.
+function removeStep(q, id, now = Date.now(), by = '') {
+  editable(q);
+  const s = findStep(q, id);
+  if (s.status !== 'pending')
+    throw userError(
+      'Só dá para remover etapas pendentes; "' +
+        s.title +
+        '" está ' +
+        STATUS_PT[s.status] +
+        (s.status === 'error' ? ' (pule-a)' : '')
+    );
+  if (q.steps.length <= 1) throw userError('A quest precisa ter ao menos uma etapa');
+  q.steps = q.steps.filter((x) => x.id !== s.id);
+  for (const x of q.steps)
+    if (x.dependsOn.includes(s.id))
+      x.dependsOn = [...new Set([...x.dependsOn.filter((d) => d !== s.id), ...s.dependsOn])].filter((d) => d !== x.id);
+  const err = validateSteps(q.steps);
+  if (err) throw userError(err);
+  addLog(q, 'Etapa removida' + via(by) + ': "' + s.title + '".', now);
+  return s;
+}
 // App reopened (or a chat vanished): steps "running" whose chat is not running any more become errors; a planner
 // that was running is marked failed. `runningChats` = ids of chats with a live job. Returns true when anything changed.
 function reconcile(q, runningChats = [], now = Date.now()) {
@@ -548,7 +695,18 @@ const QUEST_PT = {
   failed: 'falhou',
   cancelled: 'cancelada',
 };
-function buildLeadBrief(q, chatOf = () => undefined, { perStep = 1500, max = 24000 } = {}) {
+// What the quest chat is told about its tools (the `vesta-quest` MCP server; scoped to this quest only).
+const LEAD_TOOLS = [
+  '## Suas ferramentas (servidor MCP "vesta-quest", só desta quest)',
+  '- quest_get: estado completo (etapas, IA/modelo/modo, dependências, resultados, diário).',
+  '- chat_read(stepId | chatId, desde?, deslocamento?, limite?): histórico COMPLETO do chat de uma etapa, em páginas, com comandos, subagentes e atividades resumidos. Use quando a pessoa perguntar o que uma etapa respondeu; o trecho em cada etapa abaixo é só um resumo cortado.',
+  '- chat_send(stepId, mensagem): envia uma mensagem ao chat de uma etapa (falha se ele estiver respondendo).',
+  '- activity_get: tarefas em andamento nos chats da quest (comandos, subagentes, segundo plano). task_stop(chatId, taskId) encerra uma delas; chat_stop(stepId) interrompe a resposta de uma etapa.',
+  '- step_update(stepId, provider?, model?, mode?, title?, instructions?, dependsOn?), step_add(...), step_remove(stepId): editam o plano; só etapas pendentes ou com problema podem ser alteradas, e só pendentes removidas. step_retry(stepId), step_skip(stepId).',
+  '- quest_start, quest_pause, quest_resume: controlam a quest.',
+  'Você pode reorganizar a quest (trocar a IA de uma etapa, ajustar instruções, adicionar, remover, tentar de novo ou pular etapas) quando a pessoa pedir; sem pedido, só sugira. Depois de agir, confirme o que mudou com quest_get e diga em uma frase.',
+].join('\n');
+function buildLeadBrief(q, chatOf = () => undefined, { perStep = 1500, max = 24000, tools = true } = {}) {
   const p = progress(q);
   const steps = q.steps.map((s) => {
     const chat = s.chatId ? chatOf(s.chatId) : null;
@@ -573,7 +731,10 @@ function buildLeadBrief(q, chatOf = () => undefined, { perStep = 1500, max = 240
   const out = [
     'Este é o chat da quest "' +
       q.title +
-      '" no VeSTA. Você acompanha a quest para a pessoa: explica o andamento, resume e compara as conversas das etapas, aponta problemas e sugere o que fazer (tentar de novo, pular, ajustar o plano). As etapas rodam em chats próprios; não refaça o trabalho delas aqui a menos que a pessoa peça.',
+      '" no VeSTA. Você acompanha a quest para a pessoa: explica o andamento, resume e compara as conversas das etapas, aponta problemas e sugere o que fazer (tentar de novo, pular, ajustar o plano). As etapas rodam em chats próprios; não refaça o trabalho delas aqui a menos que a pessoa peça. Você não edita arquivos do projeto.',
+    tools
+      ? LEAD_TOOLS
+      : '(As ferramentas da quest estão indisponíveis nesta mensagem: oriente a pessoa a usar o quadro.)',
     '## Objetivo\n' + q.goal,
     q.guidelines ? '## Diretrizes\n' + q.guidelines : '',
     '## Situação: ' +
@@ -631,6 +792,9 @@ module.exports = {
   failStep,
   retryStep,
   skipStep,
+  updateStep,
+  addStep,
+  removeStep,
   reconcile,
   progress,
   columns,

@@ -35,9 +35,9 @@ export const hasWork = (m) =>
 
 const groupCache = new WeakMap(); // chat -> { live, group }
 // One chat -> its latest turns with work, or null when it has none. `live` = a turn is running for this chat.
-export function chatGroup(chat, live = false) {
+export function chatGroup(chat, live = false, following = false) {
   const hit = groupCache.get(chat);
-  if (hit && hit.live === live) return hit.group;
+  if (hit && hit.live === live && hit.following === following) return hit.group;
   const turns = [];
   for (let i = chat.messages.length - 1; i >= 0 && turns.length < TURNS_PER_CHAT; i--) {
     const m = chat.messages[i];
@@ -53,21 +53,23 @@ export function chatGroup(chat, live = false) {
       provider: chat.provider,
       projectId: chat.projectId || null,
       live,
+      following, // Claude is waiting for this chat's background processes (see follow.cjs)
       turns, // newest first
       counts,
       lastAt: Math.max(...turns.map((t) => t.lastAt)),
     };
   }
-  groupCache.set(chat, { live, group });
+  groupCache.set(chat, { live, following, group });
   return group;
 }
 
 // All chats -> groups with something to show (newest activity first, live ones on top).
-export function activityGroups(chats, runningIds = []) {
+export function activityGroups(chats, runningIds = [], followingIds = []) {
   const live = new Set(runningIds),
+    followed = new Set(followingIds),
     groups = [];
   for (const c of chats) {
-    const g = chatGroup(c, live.has(c.id));
+    const g = chatGroup(c, live.has(c.id), followed.has(c.id));
     if (g) groups.push(g);
   }
   return groups.sort((a, b) => b.live - a.live || b.lastAt - a.lastAt);
@@ -108,8 +110,8 @@ export function filterGroups(groups, { scope = 'running', provider = 'all', now 
     (g) =>
       (provider === 'all' || g.provider === provider) &&
       (scope === 'running'
-        ? g.live || g.counts.running > 0
-        : g.live || g.counts.running > 0 || g.lastAt >= now - RECENT_MS)
+        ? g.live || g.following || g.counts.running > 0
+        : g.live || g.following || g.counts.running > 0 || g.lastAt >= now - RECENT_MS)
   );
 }
 // Can the user end this task? Only Claude tasks the CLI is still tracking, while its process is alive.

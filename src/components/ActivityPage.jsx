@@ -28,6 +28,7 @@ const GroupCard = memo(function GroupCard({ group, projectName, scope, cutoff, o
         </button>
         <span className="activity-group-counts">
           {group.live && <span className="activity-live">Trabalhando</span>}
+          {!group.live && group.following && <span className="activity-live">Acompanhando</span>}
           {c.running > 0 && <span>{c.running} rodando</span>}
           {c.detached > 0 && <span className="muted">{c.detached} sem acompanhamento</span>}
         </span>
@@ -47,7 +48,7 @@ const GroupCard = memo(function GroupCard({ group, projectName, scope, cutoff, o
           <TaskNode
             key={t.messageId}
             node={t.root}
-            live={group.live && i === 0}
+            live={(group.live && i === 0) || group.following}
             onStopTask={onStopTask}
             onOpen={onOpen}
             defaultOpen

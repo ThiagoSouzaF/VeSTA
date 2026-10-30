@@ -518,3 +518,40 @@
 .quest-chat-step.error .dot {
   background: var(--orange);
 }
+
+.step-picker {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--hover);
+}
+.step-picker label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.step-picker select {
+  width: 100%;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.step-picker-actions {
+  display: flex;
+  gap: 12px;
+}
+.step-link.muted {
+  color: var(--muted);
+}
+.step-link:disabled {
+  opacity: 0.4;
+  cursor: default;
+  text-decoration: none;
+}

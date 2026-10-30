@@ -49,6 +49,11 @@ const attachmentIds = (v, k) => {
     throw bad('Campo inválido: ' + k);
   return v;
 };
+const stepIds = (v, k) => {
+  if (!Array.isArray(v) || v.length > 40 || v.some((x) => typeof x !== 'string' || !ID.test(x)))
+    throw bad('Campo inválido: ' + k);
+  return v;
+};
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const PROVIDERS = ['claude', 'codex', 'drael', 'opencode'];
 const MODES = ['edit', 'read', 'ask'];
@@ -97,6 +102,34 @@ const ALLOWED = {
   cancelQuest: spec({ id: req(T.id) }),
   retryStep: spec({ id: req(T.id), stepId: req(T.id) }),
   skipStep: spec({ id: req(T.id), stepId: req(T.id) }),
+  // Plan edits of a live quest. Only the fields below get through (never status, chatId, result...). The engine
+  // checks the rest (step state, installed AI, model list, cycles). Full access ('edit') is confirmed in index.cjs.
+  updateStep: spec(
+    {
+      id: req(T.id),
+      stepId: req(T.id),
+      title: opt(T.str(120, { min: 1 })),
+      instructions: opt(T.str(8000, { min: 1 })),
+      provider: opt(T.oneOf(PROVIDERS)),
+      model: opt(T.str(120)),
+      mode: opt(T.oneOf(MODES)),
+      dependsOn: opt(stepIds),
+    },
+    undefined,
+    (out) => {
+      if (Object.keys(out).length <= 2) throw bad('Nada para alterar na etapa');
+    }
+  ),
+  addStep: spec({
+    id: req(T.id),
+    title: req(T.str(120, { min: 1 })),
+    instructions: opt(T.str(8000)),
+    provider: opt(T.oneOf(PROVIDERS)),
+    model: opt(T.str(120)),
+    mode: opt(T.oneOf(MODES)),
+    dependsOn: opt(stepIds),
+  }),
+  removeStep: spec({ id: req(T.id), stepId: req(T.id) }),
 };
 const isAllowed = (name) => typeof name === 'string' && Object.hasOwn(ALLOWED, name);
 

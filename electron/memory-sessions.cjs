@@ -7,13 +7,15 @@
 // state.memoryPending = [{ session, chatId, reason, ended, attempts }]  closed stretches still to end/consolidate:
 //   persisted, so a failure (server down, Codex logged out, quota) is retried on the next close or app start.
 const { randomUUID } = require('node:crypto');
-const { redact } = require('./memory.cjs');
+const { redact, agentName } = require('./memory.cjs');
 
 const IDLE_MS = 30 * 60 * 1000;
 const MAX_TOOLS = 30;
 const MAX_ATTEMPTS = 3;
-// Assistant capture (#196) exists for Claude Code and Codex only; the other AIs are attributed to codex.
-const agentOf = (provider) => (provider === 'claude' ? 'claude-code' : 'codex');
+// Each AI is recorded under its own wire name (claude-code, codex, opencode, drael).
+const agentOf = agentName;
+// Assistant capture (#196) exists for Claude Code and Codex only; the other AIs report a plain stop.
+const answersCaptured = (provider) => provider === 'claude' || provider === 'codex';
 const clip = (s, max) => {
   s = String(s || '');
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
@@ -80,8 +82,17 @@ function createMemorySessions(ctx, deps = {}) {
       return '';
     }
   };
+  // Stable identity of each event (never derived from its content): start/end are unique per session, the others count.
+  const eventIdOf = (s, event) =>
+    event === 'session-start' || event === 'session-end' ? event : (s.seq = (s.seq || 0) + 1);
   const post = (chat, s, event, extra) =>
-    ctx.memory.hook(event, agentOf(s.provider), { session_id: s.id, cwd: cwdOf(chat), ...extra }, s.projectId);
+    ctx.memory.hook(
+      event,
+      agentOf(s.provider),
+      { session_id: s.id, cwd: cwdOf(chat), ...extra },
+      s.projectId,
+      eventIdOf(s, event)
+    );
   const disarm = (chatId) => {
     clearTimeout(timers.get(chatId));
     timers.delete(chatId);
@@ -231,14 +242,14 @@ function createMemorySessions(ctx, deps = {}) {
               tool_response: { status: a.status || 'done' },
             });
           const answer = assistant.status === 'done' ? clip(redact(assistant.text || ''), 8000) : '';
-          if (answer)
+          if (answer && answersCaptured(s.provider))
             await ctx.memory.stopWithAnswer(agentOf(s.provider), {
               session_id: s.id,
               cwd: cwdOf(chat),
               hook_event_name: 'Stop',
               last_assistant_message: answer,
             });
-          else await post(chat, s, 'stop', {});
+          else await post(chat, s, 'stop', answer ? { last_assistant_message: answer } : {});
         } finally {
           if (assistant.status === 'done') s.turns += 1;
           s.lastAt = now();
@@ -248,6 +259,31 @@ function createMemorySessions(ctx, deps = {}) {
       });
     },
     end,
+    // The chat moved to another AI: leaves a short cross-agent handoff in the shared memory (the next AI also gets the
+    // history in its prompt; this one is what a harness with its own session start would find).
+    handoffOnSwitch(chat, from) {
+      if (!enabled(chat) || !ctx.memory.handoff) return Promise.resolve();
+      const last = (role) => [...chat.messages].reverse().find((m) => m.role === role && m.text)?.text || '';
+      const summary =
+        'A conversa "' +
+        clip(chat.title, 80) +
+        '" passou de ' +
+        from +
+        ' para ' +
+        chat.provider +
+        '. Último pedido do usuário: ' +
+        clip(last('user'), 300) +
+        ' Última resposta: ' +
+        clip(last('assistant'), 500);
+      return ctx.memory
+        .handoff({
+          projectId: chat.projectId,
+          summary,
+          nextSteps: ['Continuar a conversa "' + clip(chat.title, 80) + '" de onde a IA anterior parou.'],
+          cwd: cwdOf(chat),
+        })
+        .catch(fail);
+    },
     // A deleted chat is not consolidated (its content should not outlive it): the timer goes away, its open stretch is
     // closed on the server without an LLM pass, and its pending consolidations end without one (the chat is gone).
     forget(chatId, session) {
@@ -270,4 +306,4 @@ function createMemorySessions(ctx, deps = {}) {
     },
   };
 }
-module.exports = { createMemorySessions, notesFrom, agentOf, IDLE_MS };
+module.exports = { createMemorySessions, notesFrom, agentOf, answersCaptured, IDLE_MS };

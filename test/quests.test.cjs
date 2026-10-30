@@ -532,3 +532,74 @@ test('engine: an old quest promotes its planning chat to the quest chat', () => 
   assert.equal(old.questRole, 'lead');
   assert.equal(q.leadChatId, old.id);
 });
+
+// ---- Plan edits through the engine --------------------------------------------------------------------------------
+test('engine: swapping the AI of a pending step while the quest runs makes the step start with the new AI', async () => {
+  const h = harness();
+  const q = h.engine.createQuest({ title: 'Troca', goal: 'g', steps: manual });
+  h.engine.startQuest({ id: q.id });
+  await h.tick();
+  h.engine.updateStep({ id: q.id, stepId: 's2', provider: 'claude', mode: 'edit' });
+  assert.equal(q.steps[0].status, 'running', 'the running step is untouched');
+  assert.throws(() => h.engine.updateStep({ id: q.id, stepId: 's1', provider: 'codex' }), /está rodando/);
+  h.finish(h.sent[0].chatId, '## Resultado\nfeito');
+  await h.tick();
+  assert.equal(h.sent[1].provider, 'claude');
+  assert.equal(h.sent[1].mode, 'edit');
+  assert.match(q.log.map((e) => e.text).join('\n'), /Etapa "Revisar" alterada: IA codex → claude/);
+});
+
+test('engine: a failed step moved to another AI opens a fresh chat on retry; the others keep their chats', async () => {
+  const h = harness();
+  const q = h.engine.createQuest({ title: 'Erro', goal: 'g', steps: manual.slice(0, 2) });
+  h.engine.startQuest({ id: q.id });
+  await h.tick();
+  h.finish(h.sent[0].chatId, '## Resultado\nok');
+  await h.tick();
+  const failedChat = h.sent[1].chatId;
+  h.finish(h.sent[1].chatId, 'quebrou', 'error');
+  assert.equal(q.status, 'paused');
+  const s1Chat = q.steps[0].chatId;
+  h.engine.updateStep({ id: q.id, stepId: 's2', provider: 'claude' });
+  assert.equal(q.steps[1].chatId, null);
+  assert.equal(q.steps[0].chatId, s1Chat);
+  assert.equal(q.steps[0].result, 'ok');
+  assert.equal(q.status, 'paused', 'editing does not resume by itself');
+  h.engine.retryStep({ id: q.id, stepId: 's2' });
+  await h.tick();
+  assert.notEqual(h.sent[2].chatId, failedChat);
+  assert.equal(h.sent[2].provider, 'claude');
+  assert.equal(q.status, 'running');
+});
+
+test('engine: addStep and removeStep keep a running quest consistent and finish it when nothing is left', async () => {
+  const h = harness();
+  const q = h.engine.createQuest({ title: 'Plano vivo', goal: 'g', steps: manual.slice(0, 2) });
+  h.engine.startQuest({ id: q.id });
+  await h.tick();
+  h.engine.addStep({ id: q.id, title: 'Extra', instructions: 'extra', provider: 'codex', dependsOn: ['s2'] });
+  assert.equal(q.steps.length, 3);
+  assert.equal(q.steps[2].id, 's3');
+  h.engine.removeStep({ id: q.id, stepId: 's3' });
+  h.engine.removeStep({ id: q.id, stepId: 's2' });
+  assert.deepEqual(
+    q.steps.map((s) => s.id),
+    ['s1']
+  );
+  assert.throws(() => h.engine.removeStep({ id: q.id, stepId: 's1' }), /Só dá para remover etapas pendentes/);
+  h.finish(h.sent[0].chatId, '## Resultado\nfeito');
+  await h.tick();
+  assert.equal(q.status, 'done', 'the removed steps no longer hold the quest back');
+  assert.throws(() => h.engine.addStep({ id: q.id, title: 'T', instructions: 'i' }), /já terminou/);
+  assert.throws(() => h.engine.updateStep({ id: 'nope', stepId: 's1', title: 'x' }), /Quest não encontrada/);
+});
+
+test('engine: plan edits work on drafts without recreating the other steps', () => {
+  const h = harness();
+  const q = h.engine.createQuest({ title: 'Rascunho', goal: 'g', steps: manual });
+  const ids = q.steps.map((s) => s);
+  h.engine.updateStep({ id: q.id, stepId: 's3', provider: 'codex', title: 'Resumo final' });
+  assert.deepEqual(q.steps.slice(0, 2), ids.slice(0, 2));
+  assert.equal(q.steps[2].title, 'Resumo final');
+  assert.equal(q.status, 'draft');
+});

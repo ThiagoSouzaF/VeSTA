@@ -194,12 +194,14 @@ function summaryLine(counts) {
 
 // Closes everything still running when a turn ends. Background commands that outlive a finished turn keep running
 // but are marked `detached`: the CLI that reported them is gone, so VeSTA no longer hears when they end.
-function settleMessage(m, outcome, now = Date.now()) {
+// `keep` (a Set of task ids) = background tasks a following process still tracks: they stay running, not detached.
+function settleMessage(m, outcome, opts = {}) {
+  const { now = Date.now(), keep = null } = typeof opts === 'number' ? { now: opts } : opts;
   const status = outcome === 'stopped' ? 'stopped' : outcome === 'error' ? 'error' : 'done';
   const close = (x) => {
     if (x.status !== 'running') return;
     if (status === 'done' && x.background && x.taskId && x.kind !== 'subagent') {
-      x.detached = true;
+      if (!keep || !keep.has(x.taskId)) x.detached = true;
       return;
     }
     x.status = status;
@@ -216,6 +218,19 @@ function settleMessage(m, outcome, now = Date.now()) {
   m.endedAt = now;
 }
 
+// Nobody hears about the background commands of this chat anymore (the follower ended, the app restarted): the ones
+// still shown as running become detached. Returns how many changed.
+function detachRunning(chat) {
+  let n = 0;
+  for (const m of chat.messages || [])
+    for (const a of m.activities || [])
+      if (a.status === 'running' && a.background && a.taskId && m.status !== 'running' && !a.detached) {
+        a.detached = true;
+        n++;
+      }
+  return n;
+}
+
 module.exports = {
   KINDS,
   MAX_ACTIVITIES,
@@ -228,5 +243,6 @@ module.exports = {
   countTasks,
   summaryLine,
   settleMessage,
+  detachRunning,
   isDetached,
 };

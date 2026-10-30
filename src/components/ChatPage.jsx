@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Paperclip } from 'lucide-react';
 import { hasFiles } from '../lib/attachments';
 import { QuestChatBar } from './quests/QuestChatBar';
+import { FollowBar } from './FollowBar';
 export function ChatPage({
   chat,
   currentProject,
@@ -46,6 +47,7 @@ export function ChatPage({
   onOpenQuestChat,
 }) {
   const [dropping, setDropping] = useState(false);
+  const follow = chat && data.following?.find((f) => f.chatId === chat.id);
   // Dropping files anywhere over the conversation attaches them (the highlight follows the pointer).
   const drag = {
     onDragEnter: (e) => hasFiles(e) && !running && (e.preventDefault(), setDropping(true)),
@@ -85,7 +87,16 @@ export function ChatPage({
                 onOpenChat={onOpenQuestChat}
               />
             )}
-            <MessageList chat={chat} call={call} notify={notify} setModal={setModal} running={running} focus={focus} />
+            <MessageList
+              chat={chat}
+              call={call}
+              notify={notify}
+              setModal={setModal}
+              running={running}
+              following={!!follow}
+              focus={focus}
+            />
+            <FollowBar chat={chat} entry={follow} call={call} />
           </>
         ) : (
           <Welcome

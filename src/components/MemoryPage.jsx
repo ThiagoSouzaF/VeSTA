@@ -24,6 +24,8 @@ import { action } from '../lib/api';
 import { IconButton } from './IconButton';
 import { formatDate } from '../lib/format';
 import { Chapter } from './Chapter';
+import { ProfileList } from './ProfileList';
+import { useEffect, useState } from 'react';
 export function MemoryPage({
   newMemory,
   data,
@@ -39,6 +41,19 @@ export function MemoryPage({
   shownMemories,
   setModal,
 }) {
+  // Preferences the AIs learned live in the AI Memory profile, not in the app catalogue: count them too.
+  const [learned, setLearned] = useState(0);
+  useEffect(() => {
+    if (!memoryStatus?.connected) return;
+    let alive = true;
+    call('profileList')
+      .then((entries) => alive && setLearned(entries?.length || 0))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `call` is not memoized; refetch only when these change
+  }, [memoryStatus?.connected, memoryFilter]);
   return (
     <div className="content-page">
       <div className="page-heading">
@@ -68,7 +83,7 @@ export function MemoryPage({
             <Globe size={23} />
           </span>
           <div>
-            <strong>{data.memories.filter((m) => m.kind === 'preference').length}</strong>
+            <strong>{data.memories.filter((m) => m.kind === 'preference').length + learned}</strong>
             <span>preferências pessoais</span>
           </div>
         </div>
@@ -94,6 +109,7 @@ export function MemoryPage({
           {[
             ['all', 'Tudo'],
             ['preferences', 'Preferências'],
+            ['profile', 'Aprendidas pelas IAs'],
             ['insights', 'Aprendizados'],
             ['notes', 'Notas'],
             ['sessions', 'Conversas'],
@@ -137,8 +153,9 @@ export function MemoryPage({
           <pre>{queryResult}</pre>
         </div>
       )}
+      {memoryFilter === 'profile' && <ProfileList call={call} connected={memoryStatus?.connected} />}
       <div className="memory-grid">
-        {shownMemories.map((m) => (
+        {(memoryFilter === 'profile' ? [] : shownMemories).map((m) => (
           <button className="memory-card" key={m.id} onClick={() => setModal({ ...m, type: 'memory' })}>
             <div className="memory-card-label">
               <span>
@@ -174,7 +191,7 @@ export function MemoryPage({
           </button>
         ))}
       </div>
-      {!shownMemories.length && (
+      {!shownMemories.length && memoryFilter !== 'profile' && (
         <div className="empty-state">
           <div className="empty-state-icon">
             <Brain size={34} />

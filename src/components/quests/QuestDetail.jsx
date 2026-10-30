@@ -200,7 +200,7 @@ export function QuestDetail({
           onStart={(steps) => wait(() => onAct('startQuest', quest.id, undefined, { steps }))}
         />
       ) : (
-        <QuestBoard quest={quest} onOpen={onOpenChat} onAct={onAct} />
+        <QuestBoard quest={quest} integrations={integrations} onOpen={onOpenChat} onAct={onAct} />
       )}
       {quest.status === 'done' && quest.summary && (
         <section className="quest-summary" aria-label="Resumo final">

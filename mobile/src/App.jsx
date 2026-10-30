@@ -121,6 +121,7 @@ function Signed({ token, onSignOut }) {
             <QuestDetailScreen
               quest={quest}
               projects={state.projects}
+              integrations={integrations}
               onBack={() => go('#/quests')}
               onAct={questAct}
               onOpenChat={openChat}

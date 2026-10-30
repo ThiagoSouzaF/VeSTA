@@ -1,4 +1,4 @@
-import { Brain, Folder, Check, RefreshCw, Palette, HardDrive, Minus, Plus, Info } from 'lucide-react';
+import { Brain, Eye, Folder, Check, RefreshCw, Palette, HardDrive, Minus, Plus, Info } from 'lucide-react';
 import { THEME_NAMES, THEMES } from '../lib/constants';
 import { BACKDROPS } from './Backdrop';
 import { SettingToggle } from './SettingToggle';
@@ -194,6 +194,52 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
           checked={data.settings.memoryTools !== false}
           onChange={() => setting({ memoryTools: data.settings.memoryTools === false })}
         />
+      </section>
+      <section className="settings-section">
+        <div className="settings-label">
+          <Eye size={19} />
+          <div>
+            <h3>Processos em segundo plano</h3>
+            <p>Quando o Claude deixa um comando rodando, o VeSTA continua de olho e mostra o retorno dele.</p>
+          </div>
+        </div>
+        <div className="setting-row">
+          <div>
+            <strong>Acompanhar por até</strong>
+            <p>
+              Depois desse tempo o VeSTA para de acompanhar e avisa no chat. Servidores de desenvolvimento, que nunca
+              terminam, caem nesse limite. Os processos continuam rodando.
+            </p>
+          </div>
+          <select
+            aria-label="Tempo máximo de acompanhamento"
+            value={data.settings.followMinutes ?? 120}
+            onChange={(e) => setting({ followMinutes: Number(e.target.value) })}
+          >
+            {[15, 30, 60, 120, 240, 480, 720].map((m) => (
+              <option value={m} key={m}>
+                {m >= 60 ? m / 60 + ' h' : m + ' min'}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="setting-row">
+          <div>
+            <strong>Conversas acompanhadas ao mesmo tempo</strong>
+            <p>Cada uma mantém um processo do Claude aberto. Acima do limite, o turno termina como antes.</p>
+          </div>
+          <select
+            aria-label="Máximo de conversas acompanhadas"
+            value={data.settings.followMax ?? 3}
+            onChange={(e) => setting({ followMax: Number(e.target.value) })}
+          >
+            {[1, 2, 3, 5, 8, 10].map((n) => (
+              <option value={n} key={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
       </section>
       <section className="settings-section">
         <div className="settings-label">

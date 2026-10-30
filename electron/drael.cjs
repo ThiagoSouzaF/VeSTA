@@ -34,7 +34,8 @@ function authEnv() {
 function script(exe) {
   return path.join(path.dirname(path.dirname(exe)), 'drael.js');
 }
-function command(chat, exe, endpoint) {
+// `servers` = MCP entries { name, url, token, tokenEnv } (vesta-memory and/or vesta-quest).
+function command(chat, exe, servers = []) {
   if (chat.mode === 'ask')
     throw new Error(
       'O harness Drael não recebe aprovações pelo chat. Use Consultar, Acesso completo ou o terminal nativo.'
@@ -54,10 +55,16 @@ function command(chat, exe, endpoint) {
       '64',
       '--mode',
       chat.mode === 'read' ? 'plan' : 'bypass',
-      ...(endpoint && chat.mode !== 'read' ? ['--allowed-tools', 'vesta-memory__*'] : []),
+      // Memory stays out of read-only chats; the quest chat (read-only too) needs its own tools to reorganize the quest.
+      ...(servers.length
+        ? [
+            '--allowed-tools',
+            ...servers.filter((x) => chat.mode !== 'read' || x.name !== 'vesta-memory').map((x) => x.name + '__*'),
+          ]
+        : []),
     ],
     env,
-    endpoint,
+    servers,
   };
 }
 function history(messages, prompt) {
@@ -97,6 +104,7 @@ function expose(cwd, chatId, attachments) {
     },
   };
 }
+const urlEnv = (x) => x.tokenEnv.replace(/_TOKEN$/, '_URL');
 function start(spec, ctx) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-drael-')),
     dir = path.join(temp, 'drael');
@@ -108,16 +116,27 @@ function start(spec, ctx) {
     if (fs.existsSync(from)) fs.copyFileSync(from, path.join(dir, file));
   }
   const mcp = read(path.join(configDir(), 'mcp.json'));
-  if (spec.endpoint)
+  const servers = spec.servers || [];
+  if (servers.length)
     mcp.mcpServers = {
       ...mcp.mcpServers,
-      'vesta-memory': { url: '${VESTA_MEMORY_URL}', headers: { Authorization: 'Bearer ${VESTA_MEMORY_TOKEN}' } },
+      ...Object.fromEntries(
+        servers.map((x) => [
+          x.name,
+          { url: '${' + urlEnv(x) + '}', headers: { Authorization: 'Bearer ${' + x.tokenEnv + '}' } },
+        ])
+      ),
     };
   fs.writeFileSync(path.join(dir, 'mcp.json'), JSON.stringify(mcp));
   const env = {
     ...ctx.env,
     XDG_CONFIG_HOME: temp,
-    ...(spec.endpoint ? { VESTA_MEMORY_URL: spec.endpoint.mcp, VESTA_MEMORY_TOKEN: spec.endpoint.token } : {}),
+    ...Object.fromEntries(
+      servers.flatMap((x) => [
+        [urlEnv(x), x.url],
+        [x.tokenEnv, x.token],
+      ])
+    ),
   };
   const child = spawn(spec.exe, spec.args, { cwd: ctx.cwd, env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
   let stderr = '',

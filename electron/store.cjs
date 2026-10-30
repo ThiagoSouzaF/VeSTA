@@ -21,6 +21,9 @@ const defaults = () => ({
     // Old behaviour: one raw page per answer (conversas/<chat>/<msg>.md). Off: conversations become sessions instead.
     captureRaw: false,
     memoryTools: true,
+    // Following Claude chats whose background commands outlive the turn (see follow.cjs).
+    followMinutes: 120,
+    followMax: 3,
     density: 'comfortable',
     fontScale: 1,
   },

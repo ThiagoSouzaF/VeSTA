@@ -199,3 +199,29 @@
   color: var(--muted);
   line-height: 1.8;
 }
+
+/* ---- preferences learned by the AIs (profile of the AI Memory) ---- */
+.profile-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.profile-card {
+  cursor: default;
+  text-align: left;
+}
+.profile-card h3 {
+  font-size: 15px;
+  line-height: 1.4;
+}
+.profile-card textarea {
+  width: 100%;
+  resize: vertical;
+}
+.profile-actions {
+  display: inline-flex;
+  gap: 2px;
+}
+.profile-list .empty-state {
+  grid-column: 1 / -1;
+}

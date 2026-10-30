@@ -121,6 +121,7 @@ function createRemote({ ctx, methods, bus, staticRoot = path.join(__dirname, '..
       .digest('hex');
 
   async function dispatch(name, args, { device, ip } = {}) {
+    let pendingApproval = null;
     if (name === 'bootstrap') {
       const integrations = Object.keys(ctx.integrations || {}).length
         ? ctx.integrations
@@ -156,8 +157,30 @@ function createRemote({ ctx, methods, bus, staticRoot = path.join(__dirname, '..
         );
         approvedQuests.set(q.id, signature(q));
       }
+    } else if (name === 'addStep' || name === 'updateStep') {
+      // Same rule as chats: a step that ends up in full access ('edit') because of the phone needs a yes at the desktop.
+      // Desktop has no such confirmation for chats either, so there is none for steps there (precedent only here).
+      const q = ctx.store.state.quests?.find((x) => x.id === args.id);
+      const cur = name === 'updateStep' ? q?.steps?.find((s) => s.id === args.stepId) : null;
+      if (name === 'addStep') args = { ...args, mode: args.mode || (args.provider === 'drael' ? 'read' : 'ask') };
+      const mode = args.mode || cur?.mode;
+      // Editing what an already-edit step does (AI, title, instructions) also changes what runs with full access.
+      const changes =
+        name === 'addStep' ||
+        !cur ||
+        cur.mode !== 'edit' ||
+        ['provider', 'title', 'instructions'].some((k) => args[k] !== undefined && args[k] !== cur[k]);
+      if (q && mode === 'edit' && changes) {
+        const wasApproved = approvedQuests.get(q.id) === signature(q) || stepsToRun(q).every((s) => s.id === cur?.id);
+        await requireFullAccess(device, ip, 'à etapa "' + (cur?.title || args.title) + '" da quest "' + q.title + '"');
+        pendingApproval = wasApproved ? q.id : null;
+      }
     }
     const out = await methods[name](args);
+    if (pendingApproval) {
+      const q = ctx.store.state.quests?.find((x) => x.id === pendingApproval);
+      if (q) approvedQuests.set(q.id, signature(q)); // the user just approved this very change
+    }
     if (name === 'createQuest') {
       const q = ctx.store.state.quests?.[0];
       if (q && stepsToRun(q).length) approvedQuests.set(q.id, signature(q)); // approved above

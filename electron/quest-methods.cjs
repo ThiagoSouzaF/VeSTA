@@ -9,6 +9,9 @@ const NAMES = [
   'cancelQuest',
   'retryStep',
   'skipStep',
+  'updateStep',
+  'addStep',
+  'removeStep',
   'deleteQuest',
 ];
 // Like the others, but the renderer also needs the id of the chat it should open.

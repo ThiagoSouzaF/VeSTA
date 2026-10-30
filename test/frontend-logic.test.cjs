@@ -180,3 +180,97 @@ test('markdown blocks join into exactly what marked.parse renders, and unchanged
   markdownBlocks(base + 'terceiro em curso ainda', count, store);
   assert.equal(calls - first, 1, 'only the block that changed is rendered again');
 });
+
+// ---- Navigation history ------------------------------------------------------------------------------------------
+test('nav: back and forward walk the places; a new visit drops the forward ones; repeats are ignored', async () => {
+  const n = await lib('nav');
+  let nav = n.createNav();
+  const visit = (e) => (nav = n.push(nav, e));
+  visit({ page: 'chat', active: null });
+  visit({ page: 'quests', questSel: 'q1' });
+  visit({ page: 'quests', questSel: 'q1' });
+  visit({ page: 'chat', active: 'c1' });
+  assert.equal(nav.stack.length, 3, 'the repeated place was not recorded twice');
+  assert.equal(n.canBack(nav), true);
+  assert.equal(n.canForward(nav), false);
+  let r = n.move(nav, -1);
+  assert.deepEqual(
+    [r.entry.page, r.entry.questSel],
+    ['quests', 'q1'],
+    'chat of the step -> back to the same quest panel'
+  );
+  nav = r.nav;
+  assert.equal(n.canForward(nav), true);
+  r = n.move(nav, 1);
+  assert.equal(r.entry.active, 'c1');
+  nav = n.move(r.nav, -1).nav;
+  visit({ page: 'memory' });
+  assert.equal(n.canForward(nav), false, 'visiting somewhere new cleared the forward entries');
+  assert.deepEqual(
+    nav.stack.map((e) => e.page),
+    ['chat', 'quests', 'memory']
+  );
+  assert.equal(n.move(n.createNav(), -1), null);
+  assert.equal(n.move(nav, 1), null);
+});
+
+test('nav: a place only keeps what belongs to its page', async () => {
+  const n = await lib('nav');
+  assert.deepEqual(n.place({ page: 'settings', active: 'c1', questSel: 'q1' }), {
+    page: 'settings',
+    active: null,
+    questSel: null,
+  });
+  assert.deepEqual(n.place({ page: 'chat', active: 'c1', questSel: 'q1' }), {
+    page: 'chat',
+    active: 'c1',
+    questSel: null,
+  });
+  assert.equal(n.keyOf(n.place({ page: 'usage', active: 'a' })), n.keyOf(n.place({ page: 'usage', active: 'b' })));
+  let nav = n.push(n.createNav(), { page: 'usage', active: 'a' });
+  nav = n.push(nav, { page: 'usage', active: 'b' });
+  assert.equal(nav.stack.length, 1, 'changing the remembered chat behind another page is not a navigation');
+});
+
+test('nav: back skips chats and quests that were deleted, forgetting them', async () => {
+  const n = await lib('nav');
+  let nav = n.createNav();
+  for (const e of [
+    { page: 'chat', active: 'a' },
+    { page: 'chat', active: 'gone1' },
+    { page: 'quests', questSel: 'gone2' },
+    { page: 'chat', active: 'b' },
+  ])
+    nav = n.push(nav, e);
+  const alive = (e) => !String(e.active || e.questSel || '').startsWith('gone');
+  const r = n.move(nav, -1, alive);
+  assert.equal(r.entry.active, 'a');
+  assert.deepEqual(
+    r.nav.stack.map((e) => e.active || e.questSel),
+    ['a', 'b']
+  );
+  assert.equal(r.nav.index, 0);
+  assert.equal(n.move(r.nav, -1, alive), null, 'nothing valid before the first entry');
+  const dead = n.move(nav, -1, () => false);
+  assert.equal(dead, null);
+});
+
+test('nav: at most 50 entries; the oldest fall off', async () => {
+  const n = await lib('nav');
+  let nav = n.createNav();
+  for (let i = 0; i < 80; i++) nav = n.push(nav, { page: 'chat', active: 'c' + i });
+  assert.equal(nav.stack.length, n.LIMIT);
+  assert.equal(nav.stack[0].active, 'c30');
+  assert.equal(nav.stack.at(-1).active, 'c79');
+  assert.equal(nav.index, n.LIMIT - 1);
+});
+
+test('nav: the scroll of the place being left comes back with it', async () => {
+  const n = await lib('nav');
+  let nav = n.push(n.createNav(), { page: 'quests', questSel: 'q1' });
+  nav = n.push(nav, { page: 'chat', active: 'c1' });
+  nav = n.saveScroll(n.move(nav, -1).nav, 120);
+  const r = n.move(n.push(nav, { page: 'chat', active: 'c2' }), -1);
+  assert.equal(r.entry.scroll, 120);
+  assert.equal(n.saveScroll(n.createNav(), 5).index, -1, 'nothing to save on an empty history');
+});

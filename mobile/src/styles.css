@@ -1116,3 +1116,15 @@ fieldset.plain {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.step-ai {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.step-ai select {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+}

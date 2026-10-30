@@ -171,7 +171,10 @@ export function Sidebar({
                 {taskCounts.byChat[c.id]}
               </span>
             ) : (
-              data.running.includes(c.id) && <span className="pulse-dot" />
+              (data.running.includes(c.id) && <span className="pulse-dot" />) ||
+              (data.following?.some((f) => f.chatId === c.id) && (
+                <span className="follow-dot" title="Acompanhando processos em segundo plano" />
+              ))
             )}
           </button>
         ))}

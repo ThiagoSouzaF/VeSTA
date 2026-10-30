@@ -54,3 +54,17 @@
 .memory-badge svg {
   color: var(--accent);
 }
+
+.nav-buttons {
+  display: flex;
+  gap: 2px;
+  margin-right: 14px;
+  flex-shrink: 0;
+}
+.nav-buttons .icon-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.main-header .breadcrumb {
+  flex: 1;
+}

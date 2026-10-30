@@ -7,6 +7,7 @@ import { useToast } from './hooks/useToast';
 import { makeCall, api, signalReady } from './lib/api';
 import { applyEvents, createEventBuffer } from './lib/streamBuffer';
 import { useFontScale } from './hooks/useFontScale';
+import { useNavHistory } from './hooks/useNavHistory';
 import { Titlebar } from './components/Titlebar';
 import { Sidebar } from './components/Sidebar';
 import { Backdrop } from './components/Backdrop';
@@ -103,6 +104,7 @@ export function App() {
       .catch((e) => setMemoryStatus({ connected: false, error: e.message }));
     return api.onEvent((e) => {
       if (e.type === 'state') replaceData(e.state);
+      if (e.type === 'nav') navGo(e.dir < 0 ? -1 : 1);
       if ((e.type === 'update' || e.type === 'remote-notice') && e.message) notify(e.message);
       if (e.type === 'permission' && e.permission?.status === 'pending' && e.chatId !== activeRef.current)
         notify('Uma IA pede permissão em outra conversa');
@@ -226,7 +228,11 @@ export function App() {
     setFocus(messageId ? { chatId: c.id, messageId, nonce: Date.now() } : null);
   };
   // Derived per chat/message with memoization: a text delta only recomputes the message it touched.
-  const groups = useMemo(() => activityGroups(data.chats, data.running), [data.chats, data.running]);
+  const followingIds = useMemo(() => (data.following || []).map((f) => f.chatId), [data.following]);
+  const groups = useMemo(
+    () => activityGroups(data.chats, data.running, followingIds),
+    [data.chats, data.running, followingIds]
+  );
   const counts = useMemo(() => runningCounts(groups), [groups]);
   const questsRunning = useMemo(() => runningQuests(data.quests), [data.quests]);
   // Stable callback for the quests screen: reads the chats through a ref so text deltas do not change its identity.
@@ -261,6 +267,42 @@ export function App() {
     if (p === 'quests') setQuestSel(null);
     setPage(p);
   };
+  // Back / forward: every change of page, chat or quest is remembered; entries of deleted chats and quests are skipped.
+  const navValid = (e) =>
+    (e.page !== 'chat' || !e.active || data.chats.some((c) => c.id === e.active)) &&
+    (e.page !== 'quests' || !e.questSel || data.quests.some((q) => q.id === e.questSel));
+  const navApply = useCallback((e) => {
+    setPage(e.page);
+    if (e.page === 'chat') setActive(e.active);
+    if (e.page === 'quests') setQuestSel(e.questSel);
+  }, []);
+  const {
+    canBack,
+    canForward,
+    goBack,
+    goForward,
+    go: navGo,
+  } = useNavHistory({ page, active, questSel }, navValid, navApply);
+  useEffect(() => {
+    // Alt+Left / Alt+Right and the back / forward buttons of the mouse.
+    const keys = (e) => {
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        navGo(e.key === 'ArrowLeft' ? -1 : 1);
+      }
+    };
+    const mouse = (e) => {
+      if (e.button !== 3 && e.button !== 4) return;
+      e.preventDefault();
+      if (e.type === 'mouseup') navGo(e.button === 3 ? -1 : 1);
+    };
+    window.addEventListener('keydown', keys);
+    for (const t of ['mousedown', 'mouseup', 'auxclick']) window.addEventListener(t, mouse);
+    return () => {
+      window.removeEventListener('keydown', keys);
+      for (const t of ['mousedown', 'mouseup', 'auxclick']) window.removeEventListener(t, mouse);
+    };
+  }, [navGo]);
   const openFromActivity = useCallback(
     (chatId, messageId) => {
       const c = data.chats.find((x) => x.id === chatId);
@@ -324,6 +366,10 @@ export function App() {
               memoryStatus={memoryStatus}
               inspector={inspector}
               setInspector={setInspector}
+              canBack={canBack}
+              canForward={canForward}
+              onBack={goBack}
+              onForward={goForward}
             />
             {loading ? (
               <div className="loading">

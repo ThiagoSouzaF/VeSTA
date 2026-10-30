@@ -1,8 +1,35 @@
-import { Brain, ChevronRight, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Brain, ChevronRight, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { IconButton } from './IconButton';
-export function MainHeader({ page, chat, data, memoryStatus, inspector, setInspector }) {
+export function MainHeader({
+  page,
+  chat,
+  data,
+  memoryStatus,
+  inspector,
+  setInspector,
+  canBack = false,
+  canForward = false,
+  onBack,
+  onForward,
+}) {
   return (
     <header className="main-header">
+      <div className="nav-buttons" role="group" aria-label="Navegação">
+        <IconButton
+          icon={ArrowLeft}
+          label="Voltar (Alt+←)"
+          onClick={onBack}
+          disabled={!canBack}
+          data-action="nav-back"
+        />
+        <IconButton
+          icon={ArrowRight}
+          label="Avançar (Alt+→)"
+          onClick={onForward}
+          disabled={!canForward}
+          data-action="nav-forward"
+        />
+      </div>
       <div className="breadcrumb">
         <span>Seu espaço</span>
         <ChevronRight size={13} />
