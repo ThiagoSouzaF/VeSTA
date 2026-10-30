@@ -13,9 +13,9 @@ const {
   memoryHint,
   MEMORY_SERVER,
   QUEST_SERVER,
-} = require('../electron/providers.cjs');
-const drael = require('../electron/drael.cjs');
-const { Memory } = require('../electron/memory.cjs');
+} = require('../electron/ai/providers.cjs');
+const drael = require('../electron/ai/drael.cjs');
+const { Memory } = require('../electron/memory/client.cjs');
 const endpoint = { url: 'http://127.0.0.1:50001', mcp: 'http://127.0.0.1:50001/mcp', token: 'secret-token-value' };
 test('without an endpoint no provider gets memory tools', () => {
   for (const provider of ['claude', 'codex', 'opencode']) {

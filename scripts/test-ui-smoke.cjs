@@ -130,6 +130,31 @@ async function emptyStorePhase() {
       await shot(page, 'backup');
       await nav('Conversas').click();
     });
+    await step('Backup with a password: set on screen, the next backup is a .vesta, then removed', async () => {
+      await page.locator('.sidebar-bottom .nav-item', { hasText: 'Preferências' }).click();
+      const section = page.locator('[data-section=backup]');
+      await section.getByRole('button', { name: 'Definir senha' }).click();
+      await section.getByLabel('Nova senha do backup').fill('senha-do-teste-1');
+      await section.getByLabel('Repita a senha do backup').fill('senha-do-teste-2');
+      assert.equal(await section.getByRole('button', { name: 'Salvar senha' }).isDisabled(), true, 'senhas diferentes');
+      await section.getByLabel('Repita a senha do backup').fill('senha-do-teste-1');
+      await section.getByRole('button', { name: 'Salvar senha' }).click();
+      await section.locator('[data-backup-protected=yes]').waitFor();
+      const s = await page.evaluate(() => window.vesta.call('backupNow'));
+      assert.match(s.lastFile, /\.vesta$/);
+      assert.ok(!fs.readFileSync(s.lastFile).includes(Buffer.from('conversas/')), 'nothing readable inside');
+      await section.getByRole('button', { name: 'Remover senha' }).click();
+      await section.locator('[data-backup-protected=no]').waitFor();
+      // The update check is a preference too (no request leaves the app when it is off).
+      const toggle = page.getByRole('switch', { name: 'Procurar atualizações ao abrir' });
+      assert.equal(await toggle.getAttribute('aria-checked'), 'true');
+      await toggle.click();
+      await page.waitForFunction(
+        async () => (await window.vesta.call('bootstrap')).state.settings.autoUpdate === false
+      );
+      await toggle.click();
+      await nav('Conversas').click();
+    });
     await step('Sobre a VeSTA opens from the Preferências with the art and the version', async () => {
       await page.locator('.sidebar-bottom .nav-item', { hasText: 'Preferências' }).click();
       await page.locator('[data-action=about]').click();
@@ -713,7 +738,7 @@ async function activityPhase() {
 }
 
 // ---- Phase 4: Quests (seeded store; nothing is sent to an AI) ----------------------------------------------------
-const Q = require('../electron/quests.cjs');
+const Q = require('../electron/shared/quests.cjs');
 function questStore(dataDir) {
   const now = Date.now();
   const chat = (id, title, provider, stepId, questId, text) => ({
@@ -1100,7 +1125,7 @@ async function attachmentsPhase() {
       ({ dialog, shell }, { picks, electronDir }) => {
         const req = (f) => process.mainModule.require(electronDir + '/' + f);
         const main = req('main.cjs'),
-          drivers = req('drivers.cjs');
+          drivers = req('ai/drivers.cjs');
         main.ctx.integrations.claude = { installed: true, exe: 'fake-claude.exe' };
         globalThis.__turns = [];
         globalThis.__opened = [];

@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict'),
   fs = require('node:fs'),
   path = require('node:path');
-const { Memory } = require('../electron/memory.cjs');
+const { Memory } = require('../electron/memory/client.cjs');
 (async () => {
   const dir = require('./test-scratch.cjs')('memory');
   const m = new Memory(path.resolve(__dirname, '../runtime/ai-memory.exe'), dir);

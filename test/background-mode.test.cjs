@@ -8,7 +8,7 @@ Module._load = function (request, ...rest) {
   if (request === 'electron') return { app: { isPackaged: false, commandLine: { appendSwitch() {} } } };
   return original.call(this, request, ...rest);
 };
-const { backgroundMode } = require('../electron/background-mode.cjs');
+const { backgroundMode } = require('../electron/app/background-mode.cjs');
 Module._load = original;
 
 test('test runs with a throwaway data dir open their windows in the background', () => {

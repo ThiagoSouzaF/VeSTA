@@ -1,4 +1,4 @@
-import tasks from '../../electron/tasks.cjs';
+import tasks from '../../electron/shared/tasks.cjs';
 
 export function patchMessage(m, e) {
   if (e.type === 'text') return { ...m, text: m.text + e.text };

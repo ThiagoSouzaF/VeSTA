@@ -12,7 +12,7 @@ const { isIP } = require('node:net');
 const { hostAllowed } = require('./net.cjs');
 const { cleanName } = require('./tokens.cjs');
 const { validateArgs, isAllowed, RemoteError } = require('./allowlist.cjs');
-const { isUserError } = require('../errors.cjs');
+const { isUserError } = require('../app/errors.cjs');
 const { createLimiter } = require('./limiter.cjs');
 const { createConnectionGate, normalizeIp, isLoopback } = require('./connections.cjs');
 

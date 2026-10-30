@@ -4,7 +4,7 @@ const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
 const { WebSocket } = require('ws');
-const { createBus } = require('../electron/events.cjs');
+const { createBus } = require('../electron/app/events.cjs');
 const { createLimiter } = require('../electron/remote/limiter.cjs');
 const { Pairing, Devices, hashToken, safeEqualHex, newCode, newToken } = require('../electron/remote/tokens.cjs');
 const { createCoalescer } = require('../electron/remote/coalesce.cjs');
@@ -14,7 +14,7 @@ const net = require('../electron/remote/net.cjs');
 const tailscale = require('../electron/remote/tailscale.cjs');
 const { createHub } = require('../electron/remote/hub.cjs');
 const { createRemoteServer } = require('../electron/remote/server.cjs');
-const { createMethods } = require('../electron/methods.cjs');
+const { createMethods } = require('../electron/app/methods.cjs');
 const { remoteMethods, normalizeRemote } = require('../electron/remote/index.cjs');
 
 // ---- tokens & pairing --------------------------------------------------------------------------------------------
@@ -858,8 +858,8 @@ test('websocket: no auth within the timeout closes the socket', async () => {
 
 // ---- integration with the store and the desktop state ------------------------------------------------------------
 test('remote control is off by default and its device hashes never reach the desktop renderer', () => {
-  const { Store } = require('../electron/store.cjs');
-  const { createContext } = require('../electron/context.cjs');
+  const { Store } = require('../electron/app/store.cjs');
+  const { createContext } = require('../electron/app/context.cjs');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-store-'));
   const store = new Store(dir);
   assert.equal(store.state.remote.enabled, false);

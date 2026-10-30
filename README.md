@@ -61,7 +61,8 @@ Atalhos: **Ctrl+K** busca conversas, **Enter** envia, **Shift+Enter** pula linha
 ## Privacidade e segurança
 
 - **Tudo local.** Conversas, memória e anexos ficam no seu computador, em `%APPDATA%/VeSTA`. Sem conta no VeSTA, sem nuvem própria.
-- **Backup é seu.** O .zip vai para a pasta que você escolher (por padrão `DocumentosVeSTA-backups`) e, se você conectar, para o seu Google Drive, onde o VeSTA só enxerga os arquivos que ele mesmo criou (escopo `drive.file`). A chave do Google fica protegida pelo Windows (DPAPI) e nunca entra no backup; o pareamento do celular também não.
+- **Backup é seu.** O .zip vai para a pasta que você escolher (por padrão `Documentos\VeSTA-backups`) e, se você conectar, para o seu Google Drive, onde o VeSTA só enxerga os arquivos que ele mesmo criou (escopo `drive.file`). Com **Proteger com senha**, o backup inteiro sai criptografado (AES-256-GCM, chave derivada da senha com scrypt) e nem o Drive nem quem tiver acesso à pasta consegue lê-lo. A senha e a chave do Google ficam seladas pelo cofre do Windows (DPAPI), nunca em texto puro e nunca dentro do backup; o pareamento do celular também fica de fora.
+- **Sem telemetria.** O VeSTA não coleta nada. Os programas que ele abre (Claude Code, Codex, OpenCode) recebem as opções que desligam telemetria, relatórios de erro e envio automático de sessões (o AI Memory não tem telemetria), e o Chromium do app não faz downloads em segundo plano (corretor ortográfico, atualização de componentes, tradução). A única consulta automática é a busca por versão nova no GitHub ao abrir, que pode ser desligada em Preferências → Atualizações.
 - **Memória offline.** O motor de memória busca por texto, sem API e sem baixar modelos.
 - **Cada IA recebe só o que você manda a ela.** As mensagens e o contexto recuperado vão para o provedor escolhido, com a sua assinatura ou chave, e valem os limites e a cobrança dessa conta. Se você ligar **Consolidar com IA (Codex)**, trechos das conversas (inclusive de chats do Claude) vão para a OpenAI nessa etapa.
 - **Nada global é alterado.** O VeSTA não mexe nas configurações dos seus programas de IA (`~/.claude`, `~/.codex`, OpenCode).
@@ -74,6 +75,24 @@ Atalhos: **Ctrl+K** busca conversas, **Enter** envia, **Shift+Enter** pula linha
 Requer Node.js 22+ e Windows x64.
 
 ## Estrutura e comandos
+
+```text
+electron/
+  main.cjs        abertura (splash, janela, serviços), IPC e saída
+  app/            janela, serviços, preferências, privacidade, cofre de segredos, atualização, store
+  ai/             cada IA: localizar, montar o comando (providers/), rodar (drivers/), ler a saída (providers/parser/)
+  chat/           enviar uma mensagem, contexto do turno, acompanhamento, troca de IA
+  memory/         cliente do AI Memory, sessões, servidor (lock/spool), métodos da tela Memória
+  quests/         motor, ferramentas e servidor MCP do chat da quest
+  mcp/            base dos servidores MCP do VeSTA e o vesta-app (preferências pelos chats)
+  backup/         .zip, criptografia, restauração e Google Drive
+  attachments/    anexos: regras, armazenamento e o protocolo vesta-attachment://
+  remote/         controle pelo celular
+  shared/         módulos puros usados também pela interface (tarefas, quests)
+  util/           texto, processos, portas e escrita segura de arquivos
+src/              interface (React); settings/ tem uma seção por arquivo
+mobile/           app do celular (PWA)
+```
 
 ```text
 npm ci

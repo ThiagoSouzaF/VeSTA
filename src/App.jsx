@@ -12,21 +12,17 @@ import { Titlebar } from './components/Titlebar';
 import { Sidebar } from './components/Sidebar';
 import { Backdrop } from './components/Backdrop';
 import { MainHeader } from './components/MainHeader';
-import { LoaderCircle } from 'lucide-react';
-import { ChatPage } from './components/ChatPage';
-import { MemoryPage } from './components/MemoryPage';
-import { UsagePage } from './components/UsagePage';
-import { ConnectionsPage } from './components/ConnectionsPage';
-import { SettingsPage } from './components/SettingsPage';
+import { PageRouter } from './components/PageRouter';
 import { Toast } from './components/Toast';
 import { Modal } from './components/modals/Modal';
 import { FloatingTerminal } from './components/FloatingTerminal';
-import { ActivityPage } from './components/ActivityPage';
-import { QuestsPage } from './components/QuestsPage';
 import { runningQuests } from './lib/quests';
 import { activityGroups, runningCounts } from './lib/activity';
 import { MascotProvider } from './components/Mascot';
-import { AboutPage } from './components/AboutPage';
+import { useDocumentTheme } from './hooks/useDocumentTheme';
+import { useNavShortcuts } from './hooks/useNavShortcuts';
+import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
+import { filterChats, filterMemories } from './lib/filters';
 export function App() {
   const [data, setData] = useState(empty),
     [integrations, setIntegrations] = useState({}),
@@ -120,10 +116,7 @@ export function App() {
         events.push(e);
     });
   }, []);
-  useEffect(() => {
-    document.documentElement.dataset.theme = data.settings.theme;
-    document.documentElement.dataset.accent = data.settings.accent;
-  }, [data.settings.theme, data.settings.accent]);
+  useDocumentTheme(data.settings.theme, data.settings.accent);
   const [fontScale, stepFontScale] = useFontScale(data.settings.fontScale, (fontScale) => setting({ fontScale }));
   useEffect(() => {
     if (!currentProjectId) {
@@ -138,21 +131,7 @@ export function App() {
       alive = false;
     };
   }, [currentProjectId]);
-  useEffect(() => {
-    const listener = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-        e.preventDefault();
-        openNew();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        document.getElementById('search-chats')?.focus();
-      }
-      if (e.key === 'Escape') setModal(null);
-    };
-    window.addEventListener('keydown', listener);
-    return () => window.removeEventListener('keydown', listener);
-  }, [provider, projectId]);
+  useGlobalShortcuts({ openNew, closeModal: () => setModal(null) });
   useEffect(() => {
     setNewModel(null);
   }, [provider]);
@@ -291,26 +270,7 @@ export function App() {
     goForward,
     go: navGo,
   } = useNavHistory({ page, active, questSel }, navValid, navApply);
-  useEffect(() => {
-    // Alt+Left / Alt+Right and the back / forward buttons of the mouse.
-    const keys = (e) => {
-      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-        e.preventDefault();
-        navGo(e.key === 'ArrowLeft' ? -1 : 1);
-      }
-    };
-    const mouse = (e) => {
-      if (e.button !== 3 && e.button !== 4) return;
-      e.preventDefault();
-      if (e.type === 'mouseup') navGo(e.button === 3 ? -1 : 1);
-    };
-    window.addEventListener('keydown', keys);
-    for (const t of ['mousedown', 'mouseup', 'auxclick']) window.addEventListener(t, mouse);
-    return () => {
-      window.removeEventListener('keydown', keys);
-      for (const t of ['mousedown', 'mouseup', 'auxclick']) window.removeEventListener(t, mouse);
-    };
-  }, [navGo]);
+  useNavShortcuts(navGo);
   const openFromActivity = useCallback(
     (chatId, messageId) => {
       const c = data.chats.find((x) => x.id === chatId);
@@ -318,27 +278,82 @@ export function App() {
     },
     [data.chats]
   );
-  // Chats started by a quest live in the quest (its board and its own chat), not in Conversas. A deleted quest's chats
-  // come back to the list, so nothing becomes unreachable.
-  const questIds = useMemo(() => new Set(data.quests.map((q) => q.id)), [data.quests]);
-  const filteredChats = data.chats.filter(
-    (c) =>
-      !(c.questId && questIds.has(c.questId)) &&
-      (!projectId || c.projectId === projectId) &&
-      c.title.toLowerCase().includes(search.toLowerCase())
-  );
-  const shownMemories = data.memories.filter(
-    (m) =>
-      (memoryFilter === 'all' ||
-        (memoryFilter === 'preferences' && m.kind === 'preference') ||
-        (memoryFilter === 'insights' && m.kind === 'insight') ||
-        (memoryFilter === 'notes' && m.kind !== 'session' && m.kind !== 'preference' && m.kind !== 'insight') ||
-        (memoryFilter === 'sessions' && m.kind === 'session')) &&
-      (!projectId || m.projectId === projectId || m.kind === 'preference') &&
-      (m.title + ' ' + m.body).toLowerCase().includes(memorySearch.toLowerCase())
-  );
+  const filteredChats = filterChats(data.chats, data.quests, { projectId, search });
+  const shownMemories = filterMemories(data.memories, { filter: memoryFilter, projectId, search: memorySearch });
   const newMemory = () =>
     setModal({ type: 'memory', title: '', body: '', kind: 'preference', projectId: projectId || '' });
+  const pageProps = {
+    chat: {
+      chat,
+      currentProject,
+      setModal,
+      call,
+      running,
+      notify,
+      provider,
+      setProvider,
+      integrations,
+      setDraft,
+      draftKey,
+      textarea,
+      currentProvider,
+      input,
+      send,
+      busy,
+      setData: replaceData,
+      setNewModel,
+      newModel,
+      data,
+      active,
+      inspector,
+      projectId,
+      setProjectId,
+      addProject,
+      memoryStatus,
+      currentProjectId,
+      setPage,
+      instructions,
+      focus,
+      attachments,
+      onPick: pickFiles,
+      onFiles: attachFiles,
+      onRemoveAttachment: (id) => removePending(draftKey, id),
+      onOpenQuest: openQuest,
+      onOpenQuestChat: openFromQuestBar,
+    },
+    activity: { groups, projects: data.projects, call, onOpen: openFromActivity },
+    quests: {
+      quests: data.quests,
+      projects: data.projects,
+      integrations,
+      call,
+      setData: replaceData,
+      onOpenChat: openChatById,
+      onOpenQuestChat: openQuestChat,
+      selected: questSel,
+      setSelected: setQuestSel,
+      notify,
+    },
+    memory: {
+      newMemory,
+      data,
+      memoryStatus,
+      memoryFilter,
+      setMemoryFilter,
+      memorySearch,
+      setMemorySearch,
+      setQueryResult,
+      call,
+      projectId,
+      queryResult,
+      shownMemories,
+      setModal,
+    },
+    usage: { call, usage: data.usage },
+    connections: { setBusy, setIntegrations, call, notify, busy, integrations, memoryStatus, setMemoryStatus },
+    about: { version: data.appVersion, onBack: () => setPage('settings') },
+    settings: { data, setting, call, notify, fontScale, stepFontScale, onAbout: () => setPage('about') },
+  };
   return (
     <MascotProvider data={data} groups={groups}>
       <div className="app-shell">
@@ -379,107 +394,7 @@ export function App() {
               onBack={goBack}
               onForward={goForward}
             />
-            {loading ? (
-              <div className="loading">
-                <LoaderCircle className="spin" />
-                <p>Acendendo a chama…</p>
-              </div>
-            ) : page === 'chat' ? (
-              <ChatPage
-                chat={chat}
-                currentProject={currentProject}
-                setModal={setModal}
-                call={call}
-                running={running}
-                notify={notify}
-                provider={provider}
-                setProvider={setProvider}
-                integrations={integrations}
-                setDraft={setDraft}
-                draftKey={draftKey}
-                textarea={textarea}
-                currentProvider={currentProvider}
-                input={input}
-                send={send}
-                busy={busy}
-                setData={replaceData}
-                setNewModel={setNewModel}
-                newModel={newModel}
-                data={data}
-                active={active}
-                inspector={inspector}
-                projectId={projectId}
-                setProjectId={setProjectId}
-                addProject={addProject}
-                memoryStatus={memoryStatus}
-                currentProjectId={currentProjectId}
-                setPage={setPage}
-                instructions={instructions}
-                focus={focus}
-                attachments={attachments}
-                onPick={pickFiles}
-                onFiles={attachFiles}
-                onRemoveAttachment={(id) => removePending(draftKey, id)}
-                onOpenQuest={openQuest}
-                onOpenQuestChat={openFromQuestBar}
-              />
-            ) : page === 'activity' ? (
-              <ActivityPage groups={groups} projects={data.projects} call={call} onOpen={openFromActivity} />
-            ) : page === 'quests' ? (
-              <QuestsPage
-                quests={data.quests}
-                projects={data.projects}
-                integrations={integrations}
-                call={call}
-                setData={replaceData}
-                onOpenChat={openChatById}
-                onOpenQuestChat={openQuestChat}
-                selected={questSel}
-                setSelected={setQuestSel}
-                notify={notify}
-              />
-            ) : page === 'memory' ? (
-              <MemoryPage
-                newMemory={newMemory}
-                data={data}
-                memoryStatus={memoryStatus}
-                memoryFilter={memoryFilter}
-                setMemoryFilter={setMemoryFilter}
-                memorySearch={memorySearch}
-                setMemorySearch={setMemorySearch}
-                setQueryResult={setQueryResult}
-                call={call}
-                projectId={projectId}
-                queryResult={queryResult}
-                shownMemories={shownMemories}
-                setModal={setModal}
-              />
-            ) : page === 'usage' ? (
-              <UsagePage call={call} usage={data.usage} />
-            ) : page === 'connections' ? (
-              <ConnectionsPage
-                setBusy={setBusy}
-                setIntegrations={setIntegrations}
-                call={call}
-                notify={notify}
-                busy={busy}
-                integrations={integrations}
-                memoryStatus={memoryStatus}
-                setMemoryStatus={setMemoryStatus}
-              />
-            ) : page === 'about' ? (
-              <AboutPage version={data.appVersion} onBack={() => setPage('settings')} />
-            ) : (
-              <SettingsPage
-                data={data}
-                setting={setting}
-                call={call}
-                notify={notify}
-                fontScale={fontScale}
-                stepFontScale={stepFontScale}
-                onAbout={() => setPage('about')}
-              />
-            )}
+            <PageRouter page={page} loading={loading} props={pageProps} />
           </main>
         </div>
         {toast && <Toast toast={toast} />}

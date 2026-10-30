@@ -1,6 +1,6 @@
 const { test } = require('node:test'),
   assert = require('node:assert/strict');
-// The renderer module is ESM inside a CommonJS package (it imports the shared electron/tasks.cjs).
+// The renderer module is ESM inside a CommonJS package (it imports the shared electron/shared/tasks.cjs).
 const load = () => import('../src/lib/messages.js');
 
 test('text events append to the message text', async () => {

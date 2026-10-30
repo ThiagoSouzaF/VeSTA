@@ -1,4 +1,4 @@
-import quests from '../../electron/quests.cjs';
+import quests from '../../electron/shared/quests.cjs';
 
 // Pure quest model shared with the main process (scheduler, plan validation, progress, board columns).
 export const { progress, columns, validateSteps, normalizeStep, MAX_STEPS } = quests;

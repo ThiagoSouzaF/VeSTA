@@ -10,7 +10,7 @@ const { RemoteError } = require('./allowlist.cjs');
 const { sanitizeState, sanitizeChat, sanitizeIntegrations, createStateDiffer } = require('./sanitize.cjs');
 const net = require('./net.cjs');
 const tailscale = require('./tailscale.cjs');
-const { redact } = require('../memory.cjs');
+const { redact } = require('../memory/redact.cjs');
 
 const MODES = ['edit', 'read', 'ask'];
 const SESSION_GAP_MS = 15 * 60 * 1000; // a device idle for this long is "a new session" for the desktop notice

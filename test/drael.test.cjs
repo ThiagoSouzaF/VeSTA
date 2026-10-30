@@ -1,7 +1,7 @@
 const { test } = require('node:test'),
   assert = require('node:assert/strict');
-const { command, history } = require('../electron/drael.cjs');
-const { parser } = require('../electron/providers.cjs');
+const { command, history } = require('../electron/ai/drael.cjs');
+const { parser } = require('../electron/ai/providers.cjs');
 test('Drael cannot silently turn approval mode into full access', () => {
   assert.throws(() => command({ mode: 'ask' }, 'node.exe'), /aprovações/);
   assert.throws(() => command({ mode: 'read', model: 'another-model' }, 'node.exe'), /drael-v1/);

@@ -3,8 +3,8 @@ const { test } = require('node:test'),
   assert = require('node:assert/strict');
 const fs = require('node:fs'),
   path = require('node:path');
-const providers = require('../electron/providers.cjs');
-const T = require('../electron/tasks.cjs');
+const providers = require('../electron/ai/providers.cjs');
+const T = require('../electron/shared/tasks.cjs');
 
 const fixture = (name) =>
   fs
@@ -422,7 +422,7 @@ test('buildTree nests steps under subagents and subagents under the turn; status
 });
 
 test('driver: stopTask sends a stop_task control request while Claude is alive, and refuses after the turn settled', async () => {
-  const drivers = require('../electron/drivers.cjs');
+  const drivers = require('../electron/ai/drivers.cjs');
   const script = [
     "const rl = require('readline').createInterface({ input: process.stdin });",
     'const out = (o) => process.stdout.write(JSON.stringify(o) + String.fromCharCode(10));',

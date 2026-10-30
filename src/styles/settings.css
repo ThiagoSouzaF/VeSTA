@@ -416,3 +416,11 @@
 .drive-list {
   width: 100%;
 }
+.restore-password,
+.backup-password {
+  width: 100%;
+}
+.backup-actions input[type='password'] {
+  flex: 1 1 220px;
+  min-width: 0;
+}

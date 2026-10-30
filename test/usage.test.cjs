@@ -3,9 +3,9 @@ const { test } = require('node:test'),
 const fs = require('node:fs'),
   path = require('node:path'),
   os = require('node:os');
-const { parser, upsertSubagent, upsertActivity, rateWindows, command } = require('../electron/providers.cjs');
-const usage = require('../electron/usage.cjs');
-const { Store, STORE_VERSION } = require('../electron/store.cjs');
+const { parser, upsertSubagent, upsertActivity, rateWindows, command } = require('../electron/ai/providers.cjs');
+const usage = require('../electron/ai/usage.cjs');
+const { Store, STORE_VERSION } = require('../electron/app/store.cjs');
 const run = (provider, events) => {
   const out = [];
   const p = parser(provider, (e) => out.push(e));

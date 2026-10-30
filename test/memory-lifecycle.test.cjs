@@ -7,9 +7,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
-const M = require('../electron/memory.cjs');
-const { memoryHint } = require('../electron/providers.cjs');
-const { createMemorySessions } = require('../electron/memory-sessions.cjs');
+const M = require('../electron/memory/client.cjs');
+const { memoryHint } = require('../electron/ai/providers.cjs');
+const { createMemorySessions } = require('../electron/memory/sessions.cjs');
 
 const exe = path.join(__dirname, '../runtime/ai-memory.exe');
 const real = { skip: !fs.existsSync(exe) && 'ai-memory.exe ausente', timeout: 90000 };

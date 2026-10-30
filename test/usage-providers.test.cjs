@@ -3,10 +3,10 @@ const { test } = require('node:test'),
 const fs = require('node:fs'),
   path = require('node:path'),
   os = require('node:os');
-const { parser } = require('../electron/providers.cjs');
-const usage = require('../electron/usage.cjs');
-const { Store } = require('../electron/store.cjs');
-const { readCodexRateLimits } = require('../electron/rate-limits.cjs');
+const { parser } = require('../electron/ai/providers.cjs');
+const usage = require('../electron/ai/usage.cjs');
+const { Store } = require('../electron/app/store.cjs');
+const { readCodexRateLimits } = require('../electron/ai/rate-limits.cjs');
 const run = (provider, events) => {
   const out = [];
   const p = parser(provider, (e) => out.push(e));

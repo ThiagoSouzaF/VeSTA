@@ -40,7 +40,7 @@ test('zoom shortcuts: Ctrl+= / Ctrl++ / Ctrl+- / Ctrl+0 and Ctrl+wheel', async (
 });
 
 test('saveSettings keeps fontScale inside the allowed range', () => {
-  const { clampFontScale } = require('../electron/methods.cjs');
+  const { clampFontScale } = require('../electron/app/methods.cjs');
   assert.equal(clampFontScale(1.26), 1.3);
   assert.equal(clampFontScale(5), 1.6);
   assert.equal(clampFontScale(0), 0.8);
@@ -273,4 +273,44 @@ test('nav: the scroll of the place being left comes back with it', async () => {
   const r = n.move(n.push(nav, { page: 'chat', active: 'c2' }), -1);
   assert.equal(r.entry.scroll, 120);
   assert.equal(n.saveScroll(n.createNav(), 5).index, -1, 'nothing to save on an empty history');
+});
+
+test('filters: chats hide the ones owned by an existing quest, follow the project and match the title', async () => {
+  const { filterChats } = await lib('filters');
+  const chats = [
+    { id: 'a', title: 'Refatorar login', projectId: 'p1' },
+    { id: 'b', title: 'Outro assunto', projectId: 'p2' },
+    { id: 'c', title: 'Quest do login', projectId: 'p1', questId: 'q1' },
+    { id: 'd', title: 'Quest apagada', projectId: 'p1', questId: 'gone' },
+  ];
+  const quests = [{ id: 'q1' }];
+  assert.deepEqual(
+    filterChats(chats, quests, { projectId: '', search: '' }).map((c) => c.id),
+    ['a', 'b', 'd'],
+    'the chat of a deleted quest comes back to the list'
+  );
+  assert.deepEqual(
+    filterChats(chats, quests, { projectId: 'p1', search: 'LOGIN' }).map((c) => c.id),
+    ['a'],
+    'project filter and case-insensitive title search'
+  );
+});
+
+test('filters: memories by tab, project (preferences are always kept) and text', async () => {
+  const { filterMemories } = await lib('filters');
+  const memories = [
+    { id: 1, kind: 'preference', title: 'Estilo', body: 'curto', projectId: 'p2' },
+    { id: 2, kind: 'insight', title: 'Achado', body: 'cache', projectId: 'p1' },
+    { id: 3, kind: 'session', title: 'Sessão', body: 'cache também', projectId: 'p1' },
+    { id: 4, kind: 'note', title: 'Nota', body: 'texto', projectId: 'p1' },
+  ];
+  const ids = (o) => filterMemories(memories, { filter: 'all', projectId: '', search: '', ...o }).map((m) => m.id);
+  assert.deepEqual(ids({}), [1, 2, 3, 4]);
+  assert.deepEqual(ids({ filter: 'preferences' }), [1]);
+  assert.deepEqual(ids({ filter: 'insights' }), [2]);
+  assert.deepEqual(ids({ filter: 'sessions' }), [3]);
+  assert.deepEqual(ids({ filter: 'notes' }), [4], 'notes are what is not a session, preference or insight');
+  assert.deepEqual(ids({ projectId: 'p1' }), [1, 2, 3, 4], 'preferences ignore the project filter');
+  assert.deepEqual(ids({ projectId: 'p2' }), [1]);
+  assert.deepEqual(ids({ search: 'CACHE' }), [2, 3], 'title and body are searched together');
 });

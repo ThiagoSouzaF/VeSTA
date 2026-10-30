@@ -1,7 +1,7 @@
-// Real boot progress of the splash (electron/boot.cjs): pure logic, no electron.
+// Real boot progress of the splash (electron/app/boot.cjs): pure logic, no electron.
 const { test } = require('node:test'),
   assert = require('node:assert/strict');
-const boot = require('../electron/boot.cjs');
+const boot = require('../electron/app/boot.cjs');
 
 test('stage weights add up to the whole bar and the labels are the splash captions', () => {
   assert.equal(

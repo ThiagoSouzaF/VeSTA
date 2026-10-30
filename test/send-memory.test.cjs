@@ -5,11 +5,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const drivers = require('../electron/drivers.cjs');
-const providers = require('../electron/providers.cjs');
-const { createContext } = require('../electron/context.cjs');
-const { createBus } = require('../electron/events.cjs');
-const { send } = require('../electron/send.cjs');
+const drivers = require('../electron/ai/drivers.cjs');
+const providers = require('../electron/ai/providers.cjs');
+const { createContext } = require('../electron/app/context.cjs');
+const { createBus } = require('../electron/app/events.cjs');
+const { send } = require('../electron/chat/send.cjs');
 
 const fake = path.join(__dirname, 'fixtures', 'fake-claude.cjs');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));

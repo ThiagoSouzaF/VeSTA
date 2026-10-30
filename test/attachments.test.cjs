@@ -5,9 +5,9 @@ const { test } = require('node:test'),
 const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
-const A = require('../electron/attachments.cjs');
-const { createAttachmentStore } = require('../electron/attachment-store.cjs');
-const { UserError } = require('../electron/errors.cjs');
+const A = require('../electron/attachments/rules.cjs');
+const { createAttachmentStore } = require('../electron/attachments/store.cjs');
+const { UserError } = require('../electron/app/errors.cjs');
 
 const tmp = (p = 'vesta-att-') => fs.mkdtempSync(path.join(os.tmpdir(), p));
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(40, 1)]);
@@ -265,7 +265,7 @@ test('small text documents also go inline, limited to 100 KB per message', () =>
   assert.match(s, /não são instruções/);
 });
 test('Claude gets --add-dir for the chat attachment folder; the other providers do not need it', () => {
-  const providers = require('../electron/providers.cjs');
+  const providers = require('../electron/ai/providers.cjs');
   const dir = tmp();
   const chat = (provider) => ({ provider, mode: 'edit', messages: [] });
   const claude = providers.command(chat('claude'), 'claude.exe', null, { attachDir: dir });
@@ -280,9 +280,9 @@ test('Claude gets --add-dir for the chat attachment folder; the other providers 
 
 // ---- send() end to end with a fake driver --------------------------------------------------------------------------
 test('send copies staged files into the chat, stores them on the message and builds the prompt per provider', async () => {
-  const { send } = require('../electron/send.cjs');
-  const drivers = require('../electron/drivers.cjs');
-  const { Store } = require('../electron/store.cjs');
+  const { send } = require('../electron/chat/send.cjs');
+  const drivers = require('../electron/ai/drivers.cjs');
+  const { Store } = require('../electron/app/store.cjs');
   const dir = tmp('vesta-send-');
   const store = new Store(dir);
   const chat = store.addChat({ provider: 'claude', mode: 'edit' });
@@ -343,9 +343,9 @@ test('send copies staged files into the chat, stores them on the message and bui
 
 // ---- deleting a chat, additive migration, phone ---------------------------------------------------------------------
 test('deleting a chat deletes its attachment folder', () => {
-  const { createMethods } = require('../electron/methods.cjs');
+  const { createMethods } = require('../electron/app/methods.cjs');
   const dir = tmp('vesta-del-');
-  const { Store } = require('../electron/store.cjs');
+  const { Store } = require('../electron/app/store.cjs');
   const store = new Store(dir);
   const chat = store.addChat({ provider: 'claude' });
   const attachments = createAttachmentStore({ root: path.join(dir, 'attachments') });
@@ -368,8 +368,8 @@ test('deleting a chat deletes its attachment folder', () => {
   assert.equal(fs.existsSync(path.dirname(sent.path)), false);
 });
 test('old chats without attachments load and behave exactly as before (additive migration)', () => {
-  const { Store } = require('../electron/store.cjs');
-  const { transcript } = require('../electron/conversations.cjs');
+  const { Store } = require('../electron/app/store.cjs');
+  const { transcript } = require('../electron/chat/conversations.cjs');
   const dir = tmp('vesta-mig-');
   const old = {
     version: 4,
@@ -456,7 +456,7 @@ test('phone allowlist: send takes attachment ids, text is optional only with att
     assert.equal(isAllowed(m), false, m + ' is desktop-only');
 });
 test('attachmentData returns image previews only for files of that chat', () => {
-  const { attachmentMethods } = require('../electron/attachment-methods.cjs');
+  const { attachmentMethods } = require('../electron/attachments/methods.cjs');
   const root = tmp();
   const attachments = createAttachmentStore({ root });
   const staged = attachments.stageBuffer('a.png', PNG),
@@ -482,7 +482,7 @@ test('attachmentData returns image previews only for files of that chat', () => 
   assert.throws(() => m.attachmentData({ chatId: 'chat-2', id: sent[0].id }), /não encontrado/i);
 });
 test('openAttachment only opens files inside the chat attachment folder', async () => {
-  const { attachmentMethods } = require('../electron/attachment-methods.cjs');
+  const { attachmentMethods } = require('../electron/attachments/methods.cjs');
   const root = tmp(),
     outside = path.join(tmp('vesta-out-'), 'segredo.txt');
   fs.writeFileSync(outside, 'x');
@@ -509,7 +509,7 @@ test('POST /api/upload: authenticated, typed, size-limited, validated like the d
   const { createRemoteServer, MAX_UPLOAD } = require('../electron/remote/server.cjs');
   const { Pairing, Devices } = require('../electron/remote/tokens.cjs');
   const { createHub } = require('../electron/remote/hub.cjs');
-  const { createBus } = require('../electron/events.cjs');
+  const { createBus } = require('../electron/app/events.cjs');
   const { createStateDiffer } = require('../electron/remote/sanitize.cjs');
   const list = [];
   const devices = new Devices({ list: () => list, save: () => {}, now: () => 1_000_000 });
@@ -566,7 +566,7 @@ test('POST /api/upload: authenticated, typed, size-limited, validated like the d
 });
 
 test('Drael gets the files as relative paths inside its working folder, removed when the turn ends', () => {
-  const drael = require('../electron/drael.cjs');
+  const drael = require('../electron/ai/drael.cjs');
   const store = createAttachmentStore({ root: tmp() });
   const cwd = tmp('vesta-cwd-');
   const [sent] = store.commit('chat-9', [store.stageBuffer('nota.txt', Buffer.from('frase')).id]);
@@ -580,7 +580,7 @@ test('Drael gets the files as relative paths inside its working folder, removed 
   assert.deepEqual(drael.expose(cwd, 'c', []).attachments, []);
 });
 test('OpenCode may read the chat attachment folder without asking, in every mode', () => {
-  const providers = require('../electron/providers.cjs');
+  const providers = require('../electron/ai/providers.cjs');
   const dir = tmp();
   for (const mode of ['read', 'ask', 'edit']) {
     const spec = providers.command({ provider: 'opencode', mode, messages: [] }, 'opencode.exe', null, {

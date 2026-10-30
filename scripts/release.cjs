@@ -3,7 +3,7 @@
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs'),
   path = require('node:path');
-const { REPO, locateGh, readLatestYml } = require('../electron/updater.cjs');
+const { REPO, locateGh, readLatestYml } = require('../electron/app/updater.cjs');
 const root = path.join(__dirname, '..');
 const sh = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts }).trim();

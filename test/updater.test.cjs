@@ -4,7 +4,7 @@ const fs = require('node:fs'),
   path = require('node:path'),
   os = require('node:os'),
   crypto = require('node:crypto');
-const { newer, readLatestYml, verify, installKind } = require('../electron/updater.cjs');
+const { newer, readLatestYml, verify, installKind } = require('../electron/app/updater.cjs');
 test('only a strictly higher version is an update', () => {
   assert.equal(newer('0.1.4', '0.1.3'), true);
   assert.equal(newer('v0.2.0', '0.1.9'), true);
@@ -60,7 +60,7 @@ test('every Electron main-process file parses', () => {
   }
 });
 test('only VeSTA installers are accepted', () => {
-  const { SETUP } = require('../electron/updater.cjs');
+  const { SETUP } = require('../electron/app/updater.cjs');
   assert.ok(SETUP.test('VeSTA-Setup-0.2.0.exe'));
   for (const n of [
     'latest.yml',
@@ -72,7 +72,7 @@ test('only VeSTA installers are accepted', () => {
     assert.ok(!SETUP.test(n), n);
 });
 test('the installer is pinned to the running install folder, /D= last', () => {
-  const { installerArgs } = require('../electron/updater.cjs');
+  const { installerArgs } = require('../electron/app/updater.cjs');
   const dir = path.join('C:', 'Programs', 'vesta');
   const a = installerArgs(dir);
   assert.equal(a.at(-1), '/D=' + dir);

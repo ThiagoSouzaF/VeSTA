@@ -1,4 +1,4 @@
-import tasks from '../../electron/tasks.cjs';
+import tasks from '../../electron/shared/tasks.cjs';
 
 // Pure selector behind the Activity screen, the sidebar counters and the per-message summary.
 // Everything is memoized by object identity: the stream buffer keeps the identity of chats and messages that did

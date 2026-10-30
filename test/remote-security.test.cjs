@@ -8,7 +8,7 @@ const fs = require('node:fs'),
   nodeNet = require('node:net'),
   { EventEmitter } = require('node:events');
 const { WebSocket } = require('ws');
-const { createBus } = require('../electron/events.cjs');
+const { createBus } = require('../electron/app/events.cjs');
 const { createLimiter } = require('../electron/remote/limiter.cjs');
 const { Pairing, Devices, IDLE_TTL_MS, ABSOLUTE_TTL_MS } = require('../electron/remote/tokens.cjs');
 const { createConfirmer, autoAnswer } = require('../electron/remote/confirm.cjs');
@@ -599,7 +599,7 @@ test('LAN mode is gone: saved LAN configs turn the remote off with a warning, an
 });
 
 test('the Preferências screen has no LAN option and explains Tailscale', () => {
-  const src = fs.readFileSync(path.join(__dirname, '../src/components/RemoteSettings.jsx'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '../src/components/settings/RemoteSettings.jsx'), 'utf8');
   assert.ok(!/Rede local \(LAN\)|'lan'/.test(src));
   assert.match(src, /https:\/\/tailscale\.com\/download/);
   assert.match(src, /gratuito/);
@@ -1035,7 +1035,9 @@ test('main process pauses quitting until the publication is undone (before-quit 
   assert.match(block, /event\.preventDefault\(\)/);
   assert.match(block, /ctx\.remote\s*\.shutdown\(\)/);
   assert.match(block, /app\.quit\(\)/);
-  assert.match(main, /isPackaged: app\.isPackaged/);
+  // The desktop confirmations ignore the test-only auto answer in the installed app.
+  const services = fs.readFileSync(path.join(__dirname, '../electron/app/services.cjs'), 'utf8');
+  assert.match(services, /isPackaged: app\.isPackaged/);
 });
 
 // ---- 8, 9, 11: errors, late server errors, health -----------------------------------------------------------------
@@ -1070,7 +1072,7 @@ test('unexpected errors answer a generic message; the detail only goes to the lo
 });
 
 test('UserError messages reach the phone; every other error stays generic and logged', async () => {
-  const { UserError } = require('../electron/errors.cjs');
+  const { UserError } = require('../electron/app/errors.cjs');
   const s = await startServer({
     dispatch: async (name) => {
       if (name === 'usage') throw new UserError('Aguarde a resposta terminar antes de trocar a IA');
@@ -1100,9 +1102,9 @@ test('UserError messages reach the phone; every other error stays generic and lo
 });
 
 test('the methods reachable from the phone raise UserError (real modules, not mocks)', async () => {
-  const { UserError, isUserError } = require('../electron/errors.cjs');
-  const Q = require('../electron/quests.cjs');
-  const { send } = require('../electron/send.cjs');
+  const { UserError, isUserError } = require('../electron/app/errors.cjs');
+  const Q = require('../electron/shared/quests.cjs');
+  const { send } = require('../electron/chat/send.cjs');
   assert.ok(new UserError('x') instanceof Error);
   assert.equal(isUserError(new Error('x')), false);
   assert.throws(
@@ -1119,7 +1121,7 @@ test('the methods reachable from the phone raise UserError (real modules, not mo
     send(ctx, { chatId: 'c', text: 'oi' }),
     (e) => e instanceof UserError && /já está respondendo/.test(e.message)
   );
-  const store = require('../electron/store.cjs');
+  const store = require('../electron/app/store.cjs');
   assert.ok(store, 'store loads with the error module');
 });
 

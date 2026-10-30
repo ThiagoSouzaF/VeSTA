@@ -1,4 +1,4 @@
-const { locate, run, command, parser } = require('../electron/providers.cjs');
+const { locate, run, command, parser } = require('../electron/ai/providers.cjs');
 const fs = require('node:fs'),
   path = require('node:path');
 (async () => {

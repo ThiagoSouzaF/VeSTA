@@ -1,6 +1,6 @@
 import { memo, useState } from 'react';
 import { ChevronDown, ListTree, LoaderCircle } from 'lucide-react';
-import tasks from '../../electron/tasks.cjs';
+import tasks from '../../electron/shared/tasks.cjs';
 import { messageActivity } from '../lib/activity';
 import { TaskNode } from './TaskTree';
 

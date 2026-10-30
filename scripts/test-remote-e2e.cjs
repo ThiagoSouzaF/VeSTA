@@ -474,7 +474,7 @@ async function main() {
             /electron[\/\\]main.cjs$/.test(m.filename)
           ).exports;
           const drivers = Object.values(process.mainModule.constructor._cache).find((m) =>
-            /electron[\/\\]drivers.cjs$/.test(m.filename)
+            /electron[\/\\]ai[\/\\]drivers.cjs$/.test(m.filename)
           ).exports;
           main.ctx.integrations.claude = { installed: true, exe: 'fake-claude.exe' };
           globalThis.__phoneTurns = [];

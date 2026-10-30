@@ -3,7 +3,7 @@ const { test } = require('node:test'),
 const fs = require('node:fs'),
   path = require('node:path'),
   os = require('node:os');
-const { terminalCommand, spawnTerminal } = require('../electron/terminal.cjs');
+const { terminalCommand, spawnTerminal } = require('../electron/ai/terminal.cjs');
 const decode = (cmd) => Buffer.from(cmd.args.at(-1), 'base64').toString('utf16le');
 
 test('terminal command targets PowerShell with an encoded script', () => {

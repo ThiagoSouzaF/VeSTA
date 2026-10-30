@@ -33,7 +33,7 @@ delete process.env.CLAUDECODE;
 delete process.env.CLAUDE_CODE_ENTRYPOINT;
 const { app } = require('electron');
 const { methods, ctx, getState } = require('../electron/main.cjs');
-const { createDrive } = require('../electron/gdrive.cjs');
+const { createDrive } = require('../electron/backup/gdrive.cjs');
 const { createFakeGoogle, browse } = require('./fake-google.cjs');
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const until = async (what, fn, ms = 180000) => {
@@ -100,6 +100,26 @@ app.whenReady().then(async () => {
     assert.equal(JSON.parse(fs.readFileSync(path.join(pending, 'vesta.json'), 'utf8')).chats.length, 1);
     assert.ok(!fs.readdirSync(path.join(data, 'downloads')).length, 'o download temporário foi apagado');
     fs.rmSync(pending, { recursive: true, force: true });
+    // A protected backup restored where the password is not saved (as on another computer): it is asked for, a wrong
+    // one is refused, the right one restores.
+    await methods.backupSetPassword({ password: 'senha-do-drive-1' });
+    await delay(61000 - (Date.now() % 60000));
+    s = await methods.backupNow();
+    assert.match(s.driveFile, /\.vesta$/);
+    await methods.backupSetPassword({ password: '' });
+    const protectedOne = (await methods.driveBackups()).find((f) => f.name.endsWith('.vesta'));
+    let r = await methods.driveRestore({ id: protectedOne.id });
+    assert.equal(r.needsPassword, true);
+    assert.equal(r.wrong, false);
+    r = await methods.backupRestorePassword({ ref: r.ref, password: 'senha-errada-1' });
+    assert.equal(r.wrong, true);
+    restarted = 0;
+    assert.equal(await methods.backupRestorePassword({ ref: r.ref, password: 'senha-do-drive-1' }), true);
+    assert.equal(restarted, 2);
+    assert.ok(fs.existsSync(path.join(pending, 'pronto.json')));
+    assert.ok(!fs.readdirSync(path.join(data, 'downloads')).length, 'o download protegido também foi apagado');
+    fs.rmSync(pending, { recursive: true, force: true });
+    console.log('PASS: backup protegido por senha (Drive, senha pedida e conferida)');
     app.relaunch = relaunch;
     app.quit = quit;
     console.log('PASS: Google Drive (conectar, enviar, listar, restaurar)');

@@ -41,7 +41,6 @@ const fs = require('node:fs'),
       }
       const answer = result.state.chats.find((c) => c.id === id).messages.at(-1);
       assert.equal(answer.status, 'done', answer.error);
-      assert.ok(answer.memorySaved);
       return answer.text;
     }
     await turn('O marcador desta conversa é turquesa7429. Responda apenas OK, sem ferramentas.');

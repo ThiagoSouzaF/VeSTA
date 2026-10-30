@@ -7,11 +7,11 @@ const fs = require('node:fs'),
   path = require('node:path');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
-const { Store } = require('../electron/store.cjs');
-const { createMethods } = require('../electron/methods.cjs');
-const { backupMethods } = require('../electron/backup-methods.cjs');
-const { createAppMcp, appHint, READ_ONLY } = require('../electron/app-mcp.cjs');
-const providers = require('../electron/providers.cjs');
+const { Store } = require('../electron/app/store.cjs');
+const { createMethods } = require('../electron/app/methods.cjs');
+const { backupMethods } = require('../electron/backup/methods.cjs');
+const { createAppMcp, appHint, READ_ONLY } = require('../electron/mcp/app.cjs');
+const providers = require('../electron/ai/providers.cjs');
 
 const hosts = [];
 after(async () => {

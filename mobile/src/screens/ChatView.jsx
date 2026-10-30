@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   ShieldX,
 } from 'lucide-react';
-import tasks from '../../../electron/tasks.cjs';
+import tasks from '../../../electron/shared/tasks.cjs';
 import { Mascot, Sheet } from '../components/ui';
 import { Markdown } from '../components/Markdown';
 import { ProviderIcon } from '../../../src/components/ProviderIcon';

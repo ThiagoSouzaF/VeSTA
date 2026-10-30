@@ -1,6 +1,6 @@
 import './splash.css';
 
-// The opening window: it only draws the state the main process sends (see electron/boot.cjs). No framework, no timers.
+// The opening window: it only draws the state the main process sends (see electron/app/boot.cjs). No framework, no timers.
 const $ = (id) => document.getElementById(id);
 const api = window.splash;
 

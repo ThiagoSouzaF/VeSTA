@@ -4,8 +4,8 @@ const { test } = require('node:test'),
 const fs = require('node:fs'),
   path = require('node:path'),
   os = require('node:os');
-const { Store, defaults, STORE_VERSION, THEMES, migrateStore } = require('../electron/store.cjs');
-const { createMethods } = require('../electron/methods.cjs');
+const { Store, defaults, STORE_VERSION, THEMES, migrateStore } = require('../electron/app/store.cjs');
+const { createMethods } = require('../electron/app/methods.cjs');
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-theme-'));
 const write = (dir, state) => fs.writeFileSync(path.join(dir, 'vesta.json'), JSON.stringify(state));

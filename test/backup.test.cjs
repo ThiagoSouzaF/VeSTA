@@ -1,4 +1,4 @@
-// Backups: the .zip (readable Markdown + restorable data), rotation, staging and applying a restore, destinations,
+// Backups: the .zip (readable Markdown + restorable data), rotation, staging and applying a restore,
 // the schedule and that the phone never reaches these operations.
 const { test } = require('node:test'),
   assert = require('node:assert/strict');
@@ -6,9 +6,10 @@ const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
 const fflate = require('fflate');
-const B = require('../electron/backup.cjs');
+const B = require('../electron/backup/archive.cjs');
+const { slug } = require('../electron/util/text.cjs');
 const { isAllowed } = require('../electron/remote/allowlist.cjs');
-const { UserError } = require('../electron/errors.cjs');
+const { UserError } = require('../electron/app/errors.cjs');
 
 const tmp = (p = 'vesta-bk-') => fs.mkdtempSync(path.join(os.tmpdir(), p));
 const T0 = new Date(2026, 9, 29, 14, 5).getTime();
@@ -251,20 +252,6 @@ test('restore refuses files that are not VeSTA backups or try to escape the data
   assert.ok(!fs.existsSync(path.join(path.dirname(target), 'fora.txt')));
 });
 
-test('Google Drive for desktop is found as a drive letter or a profile folder', () => {
-  const present = new Set(['G:\\Meu Drive', path.join('C:\\Users\\a', 'My Drive')]);
-  const found = B.googleDriveFolders({ exists: (p) => present.has(p), home: 'C:\\Users\\a', platform: 'win32' });
-  assert.deepEqual(found, [path.join('G:\\Meu Drive', 'VeSTA'), path.join('C:\\Users\\a', 'My Drive', 'VeSTA')]);
-  const broken = B.googleDriveFolders({
-    exists: () => {
-      throw new Error('drive offline');
-    },
-    home: 'C:\\Users\\a',
-    platform: 'win32',
-  });
-  assert.deepEqual(broken, []);
-});
-
 test('schedule and settings: due by interval, defaults for missing or invalid values', () => {
   const day = 24 * 3600e3;
   assert.equal(B.due('daily', 0, T0), true);
@@ -279,8 +266,8 @@ test('schedule and settings: due by interval, defaults for missing or invalid va
     keep: 10,
     drive: true,
   });
-  assert.equal(B.slug('Ação: café / “teste”?'), 'acao-cafe-teste');
-  assert.equal(B.slug(''), 'sem-titulo');
+  assert.equal(slug('Ação: café / “teste”?'), 'acao-cafe-teste');
+  assert.equal(slug(''), 'sem-titulo');
 });
 
 test('backup operations are desktop only: the phone cannot reach them', () => {

@@ -1,8 +1,8 @@
 const { test } = require('node:test'),
   assert = require('node:assert/strict');
-const { Permissions, ruleFor, plainCommand } = require('../electron/permissions.cjs');
-const { command, parser } = require('../electron/providers.cjs');
-const { claudeDetail } = require('../electron/drivers.cjs');
+const { Permissions, ruleFor, plainCommand } = require('../electron/ai/permissions.cjs');
+const { command, parser } = require('../electron/ai/providers.cjs');
+const { claudeDetail } = require('../electron/ai/drivers.cjs');
 function broker() {
   const updates = [],
     rules = { c1: [] };

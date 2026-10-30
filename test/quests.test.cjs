@@ -3,9 +3,9 @@ const { test } = require('node:test'),
 const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
-const Q = require('../electron/quests.cjs');
-const { Store, STORE_VERSION } = require('../electron/store.cjs');
-const { createQuestEngine } = require('../electron/quest-engine.cjs');
+const Q = require('../electron/quests/model.cjs');
+const { Store, STORE_VERSION } = require('../electron/app/store.cjs');
+const { createQuestEngine } = require('../electron/quests/engine.cjs');
 
 const mk = (id, deps = [], extra = {}) =>
   Q.normalizeStep({ id, title: 'Etapa ' + id, instructions: 'faça ' + id, dependsOn: deps, ...extra });

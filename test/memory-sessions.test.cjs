@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createMemorySessions, notesFrom, agentOf } = require('../electron/memory-sessions.cjs');
+const { createMemorySessions, notesFrom, agentOf } = require('../electron/memory/sessions.cjs');
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const settle = async (n = 20) => {

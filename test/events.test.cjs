@@ -1,6 +1,6 @@
 const { test } = require('node:test'),
   assert = require('node:assert/strict');
-const { createBus } = require('../electron/events.cjs');
+const { createBus } = require('../electron/app/events.cjs');
 
 test('bus delivers each event to every subscriber in order', () => {
   const bus = createBus(),

@@ -4,10 +4,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const F = require('../electron/follow.cjs');
-const providers = require('../electron/providers.cjs');
-const drivers = require('../electron/drivers.cjs');
-const tasksLib = require('../electron/tasks.cjs');
+const F = require('../electron/chat/follow.cjs');
+const providers = require('../electron/ai/providers.cjs');
+const drivers = require('../electron/ai/drivers.cjs');
+const tasksLib = require('../electron/shared/tasks.cjs');
 
 const fake = path.join(__dirname, 'fixtures', 'fake-claude.cjs');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -214,9 +214,9 @@ test('driver: over the chat limit the turn ends as before', async () => {
 
 // ---- send(): messages, routing and limits --------------------------------------------------------------------------
 function chatHarness({ settings = {} } = {}) {
-  const { createContext } = require('../electron/context.cjs');
-  const { createBus } = require('../electron/events.cjs');
-  const { send } = require('../electron/send.cjs');
+  const { createContext } = require('../electron/app/context.cjs');
+  const { createBus } = require('../electron/app/events.cjs');
+  const { send } = require('../electron/chat/send.cjs');
   const bus = createBus();
   const events = [];
   bus.subscribe((e) => events.push(e));

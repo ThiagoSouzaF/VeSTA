@@ -2,7 +2,7 @@
 // none of that leaves the machine. Also builds the incremental "state" events (only chats that changed).
 const MAX_MESSAGES = 80;
 
-const { publicAttachment } = require('../attachments.cjs');
+const { publicAttachment } = require('../attachments/rules.cjs');
 const SETTINGS = ['theme', 'accent', 'fontScale'];
 // Attachments reach the phone without their filesystem paths.
 const phoneMessage = (m) => (m.attachments ? { ...m, attachments: m.attachments.map(publicAttachment) } : m);

@@ -19,3 +19,8 @@ export const formatReset = (ms, now) => {
   );
 };
 export const modelLabel = (m) => (m ? MODEL_LABELS[m] || m : 'Padrão da conta');
+// Short pt-BR date and time ("29/10/2026 14:05"); `fallback` is shown when there is no timestamp.
+export const formatDateTime = (t, fallback = '') =>
+  t ? new Date(t).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : fallback;
+export const formatBytes = (n) =>
+  n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';

@@ -5,10 +5,10 @@ const fs = require('node:fs'),
   path = require('node:path');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
-const Q = require('../electron/quests.cjs');
-const { Store } = require('../electron/store.cjs');
-const { createQuestEngine } = require('../electron/quest-engine.cjs');
-const { createQuestMcp, TOOLS } = require('../electron/quest-mcp.cjs');
+const Q = require('../electron/shared/quests.cjs');
+const { Store } = require('../electron/app/store.cjs');
+const { createQuestEngine } = require('../electron/quests/engine.cjs');
+const { createQuestMcp, TOOLS } = require('../electron/quests/mcp.cjs');
 
 // Real engine and real server; only the AI turn (`send`) is fake.
 function setup() {

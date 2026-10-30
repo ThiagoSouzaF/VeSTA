@@ -1,7 +1,7 @@
 const { test } = require('node:test'),
   assert = require('node:assert/strict');
-const Q = require('../electron/quests.cjs');
-const { readChat, runningTasks } = require('../electron/quest-tools.cjs');
+const Q = require('../electron/quests/model.cjs');
+const { readChat, runningTasks } = require('../electron/quests/tools.cjs');
 
 const installed = {
   claude: { models: ['haiku', 'sonnet'] },

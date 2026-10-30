@@ -5,9 +5,9 @@ const { test, after } = require('node:test'),
 const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
-const { createDrive, parseClient, checkClient, explain } = require('../electron/gdrive.cjs');
+const { createDrive, parseClient, checkClient, explain } = require('../electron/backup/gdrive.cjs');
 const { createFakeGoogle, browse } = require('../scripts/fake-google.cjs');
-const { UserError } = require('../electron/errors.cjs');
+const { UserError } = require('../electron/app/errors.cjs');
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-gd-'));
 const google = createFakeGoogle();
@@ -138,4 +138,26 @@ test('sign-in refused by the person, API disabled in the project: clear messages
     google.disableApi(false);
   }
   assert.match(explain(403, { error: { errors: [{ reason: 'storageQuotaExceeded' }] } }), /cheio/);
+});
+
+test('sign-in: a request without this sign-in’s state is ignored instead of ending the sign-in', async () => {
+  urls ||= await google.listen();
+  const statuses = [];
+  const d = createDrive({
+    file: path.join(tmp(), 'g.json'),
+    seal,
+    unseal,
+    urls,
+    openExternal: async (u) => {
+      const redirect = new URL(u).searchParams.get('redirect_uri');
+      // Another local program pokes the loopback port first (no state, then a forged one).
+      statuses.push((await fetch(redirect + '/')).status);
+      statuses.push((await fetch(redirect + '/?code=forjado&state=outro')).status);
+      await browse(u);
+    },
+  });
+  d.setClient({ clientId: google.clientId, clientSecret: google.clientSecret });
+  const s = await d.connect();
+  assert.deepEqual(statuses, [400, 400]);
+  assert.equal(s.connected, true);
 });

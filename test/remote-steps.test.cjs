@@ -2,7 +2,7 @@
 const { test } = require('node:test'),
   assert = require('node:assert/strict'),
   os = require('node:os');
-const { createBus } = require('../electron/events.cjs');
+const { createBus } = require('../electron/app/events.cjs');
 const { validateArgs } = require('../electron/remote/allowlist.cjs');
 const { createRemote } = require('../electron/remote/index.cjs');
 

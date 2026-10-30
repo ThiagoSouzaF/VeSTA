@@ -48,8 +48,8 @@ process.env.VESTA_DATA_DIR = A;
 process.env.VESTA_SERVICE_TEST = '1';
 const { app } = require('electron');
 const { methods, ctx } = require('../electron/main.cjs');
-const { Memory } = require('../electron/memory.cjs');
-const B = require('../electron/backup.cjs');
+const { Memory } = require('../electron/memory/client.cjs');
+const B = require('../electron/backup/archive.cjs');
 const exe = path.join(__dirname, '../runtime/ai-memory.exe');
 
 app.whenReady().then(async () => {
