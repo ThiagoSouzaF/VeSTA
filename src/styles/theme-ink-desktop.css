@@ -1228,20 +1228,6 @@
   font-family: var(--font-mono);
   font-style: normal;
 }
-:root[data-theme='ink'] .brand-mascot {
-  background: #000;
-  border: 1px solid var(--border);
-  position: relative;
-}
-:root[data-theme='ink'] .brand-mascot strong {
-  font: 700 10px var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-:root[data-theme='ink'] .brand-mascot strong::before {
-  content: '// ';
-  color: var(--faint);
-}
 :root[data-theme='ink'] .activity-mascot {
   background: #0a0a0c var(--dots);
   border: 1px solid var(--border);
@@ -1400,4 +1386,35 @@
 }
 :root[data-theme='ink'] .image-viewer > img {
   border: 1px solid var(--line-strong);
+}
+
+:root[data-theme='ink'] .brand-status b {
+  font: 700 9px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+/* The chosen AI in the new-chat modal is drawn inverted (white): its icon must follow, or it vanishes. */
+:root[data-theme='ink'] .modal-providers button.selected .provider-icon {
+  color: #000 !important;
+}
+:root[data-theme='ink'] .settings-page :is(select, input:is([type='password'], [type='text'], :not([type]))) {
+  background: #000;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+}
+:root[data-theme='ink'] .settings-index {
+  background: #000;
+}
+:root[data-theme='ink'] .settings-index button {
+  border-radius: 0;
+  font: 700 10px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+:root[data-theme='ink'] .settings-index button:hover {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .settings-index {
+  top: -36px;
 }

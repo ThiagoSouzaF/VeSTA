@@ -125,9 +125,9 @@ const RULE =
     console.log('busca:', found.replace(/\s+/g, ' ').slice(0, 220));
     assert.match(found, /_MS|milissegundos/i);
 
-    // Memória screen: the Aprendizados tab lists the consolidated pages; Preferências shows the new switches.
+    // Memória screen: the "Regras e decisões" tab lists the consolidated pages; Preferências shows the new switches.
     await page.locator('nav .nav-item', { hasText: 'Memória' }).click();
-    await page.locator('.memory-toolbar .tabs button', { hasText: 'Aprendizados' }).click();
+    await page.locator('.memory-toolbar .tabs button', { hasText: 'Regras e decisões' }).click();
     await page.locator('.memory-grid .memory-card').first().waitFor();
     await page.screenshot({ path: path.join(shots, 'mem-aprendizados.png') });
     await page.locator('.sidebar-bottom .nav-item').click();

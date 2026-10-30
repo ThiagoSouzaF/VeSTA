@@ -109,8 +109,7 @@ export function MemoryPage({
           {[
             ['all', 'Tudo'],
             ['preferences', 'Preferências'],
-            ['profile', 'Aprendidas pelas IAs'],
-            ['insights', 'Aprendizados'],
+            ['insights', 'Regras e decisões'],
             ['notes', 'Notas'],
             ['sessions', 'Conversas'],
           ].map(([id, label]) => (
@@ -153,9 +152,16 @@ export function MemoryPage({
           <pre>{queryResult}</pre>
         </div>
       )}
-      {memoryFilter === 'profile' && <ProfileList call={call} connected={memoryStatus?.connected} />}
+      {/* Preferências: what the AIs learned (and you edited) in the AI Memory profile, then the ones written here. */}
+      {memoryFilter === 'preferences' && (
+        <>
+          <h2 className="memory-subheading">Aprendidas pelas IAs</h2>
+          <ProfileList call={call} connected={memoryStatus?.connected} />
+          <h2 className="memory-subheading">Escritas por você</h2>
+        </>
+      )}
       <div className="memory-grid">
-        {(memoryFilter === 'profile' ? [] : shownMemories).map((m) => (
+        {shownMemories.map((m) => (
           <button className="memory-card" key={m.id} onClick={() => setModal({ ...m, type: 'memory' })}>
             <div className="memory-card-label">
               <span>
@@ -191,7 +197,7 @@ export function MemoryPage({
           </button>
         ))}
       </div>
-      {!shownMemories.length && memoryFilter !== 'profile' && (
+      {!shownMemories.length && (
         <div className="empty-state">
           <div className="empty-state-icon">
             <Brain size={34} />

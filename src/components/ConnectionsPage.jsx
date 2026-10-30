@@ -3,6 +3,13 @@ import { ArrowUpRight, Brain, Check, Terminal, RefreshCw, ShieldCheck, AlertCirc
 import { PROVIDERS } from '../lib/constants';
 import { ProviderIcon } from './ProviderIcon';
 import { Chapter } from './Chapter';
+// What the card says about each AI: whether the program is here and whether its login works (null = not checked).
+function statusOf(i) {
+  if (!i?.installed) return { ok: false, label: 'Não encontrado', hint: 'Instale o programa para conectar' };
+  if (i.authenticated === false)
+    return { ok: false, label: 'Login necessário', hint: 'Clique em Abrir terminal e entre com sua conta' };
+  return { ok: true, label: i.authenticated ? 'Conectado' : 'Instalado', hint: i.version || '' };
+}
 export function ConnectionsPage({
   setBusy,
   setIntegrations,
@@ -39,52 +46,50 @@ export function ConnectionsPage({
         </button>
       </div>
       <div className="connection-list">
-        {Object.entries(PROVIDERS).map(([id, p]) => (
-          <div className="connection-card" key={id}>
-            <div className="connection-main">
-              <ProviderIcon id={id} />
-              <div>
-                <h2>
-                  {p.name}
-                  <span>{p.engine}</span>
-                </h2>
-                <p>{p.description}</p>
-              </div>
-              <span className={'connection-status ' + (integrations[id]?.installed ? 'connected' : '')}>
-                {integrations[id]?.installed ? <Check size={13} /> : <AlertCircle size={13} />}{' '}
-                {integrations[id]?.installed
-                  ? integrations[id]?.authenticated === false
-                    ? 'Login necessário'
-                    : 'Detectado'
-                  : 'Não encontrado'}
-              </span>
-            </div>
-            <div className="connection-details">
-              <span>
-                <Terminal size={13} />
-                {integrations[id]?.version || 'Instale o programa para conectar'}
-              </span>
-              <button
-                className="text-button"
-                disabled={!integrations[id]?.installed}
-                onClick={action(() => call('openTerminal', { provider: id }))}
-              >
-                Abrir terminal
-                <ArrowUpRight size={13} />
-              </button>
-            </div>
-            {id === 'opencode' && integrations[id]?.models?.length > 0 && (
-              <div className="detected-models">
-                <span>MODELOS CONFIGURADOS</span>
+        {Object.entries(PROVIDERS).map(([id, p]) => {
+          const status = statusOf(integrations[id]);
+          return (
+            <div className="connection-card" key={id} data-connection={id}>
+              <div className="connection-main">
+                <ProviderIcon id={id} />
                 <div>
-                  {integrations[id].models.map((m) => (
-                    <code key={m}>{m}</code>
-                  ))}
+                  <h2>
+                    {p.name}
+                    <span>{p.engine}</span>
+                  </h2>
+                  <p>{p.description}</p>
                 </div>
+                <span className={'connection-status ' + (status.ok ? 'connected' : '')}>
+                  {status.ok ? <Check size={13} /> : <AlertCircle size={13} />} {status.label}
+                </span>
               </div>
-            )}
-          </div>
-        ))}
+              <div className="connection-details">
+                <span>
+                  <Terminal size={13} />
+                  {status.hint}
+                </span>
+                <button
+                  className="text-button"
+                  disabled={!integrations[id]?.installed}
+                  onClick={action(() => call('openTerminal', { provider: id }))}
+                >
+                  Abrir terminal
+                  <ArrowUpRight size={13} />
+                </button>
+              </div>
+              {id === 'opencode' && integrations[id]?.models?.length > 0 && (
+                <div className="detected-models">
+                  <span>MODELOS CONFIGURADOS</span>
+                  <div>
+                    {integrations[id].models.map((m) => (
+                      <code key={m}>{m}</code>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
       <div className="info-card">
         <ShieldCheck size={22} />

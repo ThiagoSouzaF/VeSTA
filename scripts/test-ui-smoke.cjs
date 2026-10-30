@@ -94,16 +94,36 @@ async function emptyStorePhase() {
     await step('navigates Memória, Uso, Conexões and back to Conversas', async () => {
       await nav('Memória').click();
       await heading('Vale a pena lembrar.').waitFor();
+      // One "Preferências" tab holds both what the AIs learned and what you wrote.
+      const tabs = await page.locator('.memory-toolbar .tabs button').allInnerTexts();
+      assert.deepEqual(
+        tabs.map((t) => t.toLowerCase()),
+        ['tudo', 'preferências', 'regras e decisões', 'notas', 'conversas']
+      );
+      await page.locator('.memory-toolbar .tabs button', { hasText: /Preferências/i }).click();
+      await page.locator('[data-testid=profile-list]').waitFor();
       await nav('Uso').click();
       await heading('Seu uso, à vista.').waitFor();
       await nav('Conexões').click();
       await heading('Cada IA, do seu jeito.').waitFor();
+      // Each AI says whether it is here and logged in, not just "detected".
+      assert.match(
+        await page.locator('.connection-status').first().innerText(),
+        /Conectado|Instalado|Login|Não encontrado/i
+      );
       await nav('Conversas').click();
       await page.waitForSelector('.welcome h1');
     });
-    await step('Preferências page opens', async () => {
+    await step('Preferências page opens; its index jumps to a section', async () => {
       await page.locator('.sidebar-bottom .nav-item', { hasText: 'Preferências' }).click();
       await heading('Seu lar. Seu estilo.').waitFor();
+      const index = page.locator('.settings-index button');
+      assert.equal(await index.count(), 7);
+      await index.filter({ hasText: 'Backup' }).click();
+      await page.waitForFunction(() => {
+        const r = document.querySelector('[data-section=backup]').getBoundingClientRect();
+        return r.top >= 0 && r.top < window.innerHeight / 2;
+      });
       await nav('Conversas').click();
     });
     await step('Backup: "Fazer backup agora" writes the .zip and the schedule persists', async () => {

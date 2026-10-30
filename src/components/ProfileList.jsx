@@ -46,16 +46,13 @@ export function ProfileList({ call, connected }) {
     <div className="profile-list" data-testid="profile-list">
       {error && <p className="inline-error">{error}</p>}
       {!entries.length && !error && (
-        <div className="empty-state">
-          <div className="empty-state-icon">
-            <UserRound size={34} />
-          </div>
-          <h2>Nada aprendido ainda.</h2>
-          <p>
-            Quando você disser como gosta de trabalhar ("prefiro respostas curtas", "sempre em português"), as IAs
-            registram aqui, e todas passam a seguir.
-          </p>
-        </div>
+        <p className="profile-empty">
+          <UserRound size={15} />
+          <span>
+            <strong>Nada aprendido ainda.</strong> Quando você disser como gosta de trabalhar ("prefiro respostas
+            curtas", "sempre em português"), as IAs registram aqui, e todas passam a seguir.
+          </span>
+        </p>
       )}
       {entries.map((e) => (
         <article className="memory-card profile-card" key={e.path} data-testid="profile-entry">

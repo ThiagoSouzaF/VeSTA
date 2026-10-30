@@ -1,6 +1,6 @@
 // E2E (real AIs, temporary data dir and AI Memory server): a preference said to Claude is learned into the profile and
 // followed by ANOTHER AI (Codex) in a brand new conversation; then a subagent question that needs the memory.
-//   1. Claude: "prefiro respostas curtas e sempre em português" -> an entry appears in profile/ (Memória > Aprendidas)
+//   1. Claude: "prefiro respostas curtas e sempre em português" -> an entry appears in profile/ (Memória > Preferências)
 //   2. Codex, new chat, question in English -> the profile is in its context and the answer is short and in Portuguese
 //   3. Claude delegates to a subagent a question that only the memory can answer -> the context reaches the subagent
 // Usage: npx electron scripts/test-memory-prefs-e2e.cjs [claude-model] [only=prefs|subagent]

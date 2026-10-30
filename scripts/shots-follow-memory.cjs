@@ -100,7 +100,7 @@ const cleanup = () => {
     }
     await page.waitForFunction(() => !document.querySelector('.thinking'), null, { timeout: 120000 });
     await page.locator('.nav-item', { hasText: 'Memória' }).click();
-    await page.locator('.tabs button', { hasText: 'Aprendidas' }).click();
+    await page.locator('.tabs button', { hasText: 'Preferências' }).click();
     await page.waitForSelector('[data-testid=profile-entry]', { timeout: 30000 });
     await shot('memoria-perfil');
     await page.locator('.nav-item', { hasText: 'Preferências' }).click();

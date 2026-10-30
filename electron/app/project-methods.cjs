@@ -4,36 +4,46 @@ const fs = require('node:fs'),
   os = require('node:os');
 const { randomUUID } = require('node:crypto');
 const { UserError } = require('./errors.cjs');
+// Instruction files each AI reads, and who reads them (shown next to the file so the list explains itself).
+const READERS = {
+  'AGENTS.md': 'Codex, OpenCode e Drael',
+  'AGENTS.override.md': 'Codex',
+  'CLAUDE.md': 'Claude',
+  '.claude/CLAUDE.md': 'Claude',
+  'opencode.json': 'OpenCode',
+  'opencode.jsonc': 'OpenCode',
+};
+// The instruction files that apply to a project: in its folder, in the folders above it, and the global ones.
+// -> [{ name, path }] where name says where the file is and which AI reads it.
 async function inspectProject(ctx, id) {
   const p = ctx.project(id);
   if (!p) return [];
+  const home = os.homedir();
+  const globals = new Map([
+    [path.join(home, '.codex', 'AGENTS.md'), 'Codex · instruções globais'],
+    [path.join(home, '.claude', 'CLAUDE.md'), 'Claude · instruções globais'],
+    [path.join(home, '.config', 'opencode', 'AGENTS.md'), 'OpenCode · instruções globais'],
+  ]);
   const files = [],
     seen = new Set();
-  const add = (base, name, label) => {
-    const file = path.join(base, name);
+  const add = (file, name) => {
     if (!seen.has(file) && fs.existsSync(file) && fs.statSync(file).isFile()) {
       seen.add(file);
-      files.push({ name: label || name, path: file });
+      files.push({ name, path: file });
     }
   };
   let dir = p.path;
   for (let i = 0; i < 20; i++) {
-    for (const name of [
-      'AGENTS.md',
-      'AGENTS.override.md',
-      'CLAUDE.md',
-      '.claude/CLAUDE.md',
-      'opencode.json',
-      'opencode.jsonc',
-    ])
-      add(dir, name);
+    for (const name of Object.keys(READERS)) {
+      const file = path.join(dir, name);
+      const where = dir === p.path ? name : name + ' em ' + (path.basename(dir) || dir);
+      add(file, globals.get(file) || where + ' · ' + READERS[name]);
+    }
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  add(path.join(os.homedir(), '.codex'), 'AGENTS.md', 'Codex · instruções globais');
-  add(path.join(os.homedir(), '.claude'), 'CLAUDE.md', 'Claude · instruções globais');
-  add(path.join(os.homedir(), '.config', 'opencode'), 'AGENTS.md', 'OpenCode · instruções globais');
+  for (const [file, label] of globals) add(file, label);
   return files;
 }
 function projectMethods(ctx) {

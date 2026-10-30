@@ -12,7 +12,6 @@ import {
   Folder,
   ChevronRight,
   Globe,
-  HardDrive,
   BarChart3,
   ShieldAlert,
   Activity,
@@ -43,27 +42,34 @@ export function Sidebar({
   const mascot = useMascot();
   return (
     <aside className="sidebar">
+      {/* The mascot is the logo: her face shows what the AIs are doing, the line below says it (click: Atividade). */}
       <div className="brand">
-        <div className="brand-mark">
-          <Mark size={34} />
-        </div>
-        <div>
+        {mascot.enabled ? (
+          <MascotAvatar onOpen={() => setPage('activity')} />
+        ) : (
+          <div className="brand-mark">
+            <Mark size={34} />
+          </div>
+        )}
+        <div className="brand-text">
           <strong>
             <Wordmark />
             <span className="beta">BETA</span>
           </strong>
-          <span>O centro do seu lar digital.</span>
+          {mascot.enabled ? (
+            <button
+              className="brand-status"
+              data-testid="brand-status"
+              onClick={() => setPage('activity')}
+              title={mascot.phrase}
+            >
+              <b>{STATE_LABEL[mascot.state]}</b> {mascot.phrase}
+            </button>
+          ) : (
+            <span>O centro do seu lar digital.</span>
+          )}
         </div>
       </div>
-      {mascot.enabled && (
-        <div className="brand-mascot">
-          <MascotAvatar onOpen={() => setPage('activity')} />
-          <div>
-            <strong>{STATE_LABEL[mascot.state]}</strong>
-            <span>{mascot.phrase}</span>
-          </div>
-        </div>
-      )}
       <button className="new-chat" onClick={openNew}>
         <Plus size={18} /> Novo chat <kbd>Ctrl N</kbd>
       </button>
@@ -107,22 +113,24 @@ export function Sidebar({
         <Globe size={15} />
         Todos os projetos<span>{data.projects.length}</span>
       </button>
-      {data.projects.map((p) => (
-        <button
-          className={'project-item ' + (projectId === p.id ? 'selected' : '')}
-          title={p.path}
-          key={p.id}
-          onClick={() => {
-            setProjectId(p.id);
-            setActive(null);
-            setPage('chat');
-          }}
-        >
-          <Folder size={15} />
-          <span className="truncate">{p.name}</span>
-          <ChevronRight size={13} />
-        </button>
-      ))}
+      <div className="project-list">
+        {data.projects.map((p) => (
+          <button
+            className={'project-item ' + (projectId === p.id ? 'selected' : '')}
+            title={p.path}
+            key={p.id}
+            onClick={() => {
+              setProjectId(p.id);
+              setActive(null);
+              setPage('chat');
+            }}
+          >
+            <Folder size={15} />
+            <span className="truncate">{p.name}</span>
+            <ChevronRight size={13} />
+          </button>
+        ))}
+      </div>
       {!data.projects.length && (
         <button className="add-project-empty" onClick={action(addProject)}>
           Conecte uma pasta para começar
@@ -190,14 +198,6 @@ export function Sidebar({
           <Settings size={17} />
           Preferências
         </button>
-        <div className="local-status">
-          <span className="status-dot" />
-          <div>
-            <strong>Feito para o seu computador</strong>
-            <span>Conversas salvas localmente</span>
-          </div>
-          <HardDrive size={15} />
-        </div>
       </div>
     </aside>
   );

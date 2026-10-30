@@ -8,6 +8,7 @@ import { DataSection } from './settings/DataSection';
 import { BackupSettings } from './settings/BackupSettings';
 import { RemoteSettings } from './settings/RemoteSettings';
 import { UpdatesSection } from './settings/UpdatesSection';
+import { SettingsIndex } from './settings/SettingsIndex';
 
 export function SettingsPage({ data, setting, call, notify, fontScale, stepFontScale, onAbout }) {
   return (
@@ -20,6 +21,7 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
           <p>Um lugar confortável para pensar, criar e continuar.</p>
         </div>
       </div>
+      <SettingsIndex />
       <AppearanceSection
         settings={data.settings}
         setting={setting}

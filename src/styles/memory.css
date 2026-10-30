@@ -225,3 +225,27 @@
 .profile-list .empty-state {
   grid-column: 1 / -1;
 }
+.memory-subheading {
+  margin: 22px 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+/* Empty profile: one line, so the preferences written by the person stay in view below it. */
+.profile-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.profile-empty strong {
+  color: var(--text);
+}
+.profile-list .profile-empty {
+  grid-column: 1 / -1;
+}

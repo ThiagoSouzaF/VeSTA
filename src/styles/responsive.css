@@ -82,6 +82,9 @@
   .content-page {
     padding: 34px;
   }
+  :root .settings-index {
+    top: -34px;
+  }
   .memory-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
