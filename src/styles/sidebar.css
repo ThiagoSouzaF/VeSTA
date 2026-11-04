@@ -307,3 +307,83 @@ kbd {
   max-height: 118px;
   overflow-y: auto;
 }
+/* Conversas grouped by project (ConversationTree). */
+.tree-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.tree-actions .icon-button {
+  width: 22px;
+  height: 22px;
+}
+.tree-actions .icon-button svg {
+  width: 14px;
+  height: 14px;
+}
+.chat-group {
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+.chat-group.drop-target {
+  outline: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.chat-group-head {
+  display: flex;
+  align-items: center;
+}
+.chat-group-head .icon-button {
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+}
+.chat-group-head:hover .icon-button,
+.chat-group-head .icon-button:focus-visible {
+  opacity: 1;
+}
+.chat-group-head .icon-button svg {
+  width: 14px;
+  height: 14px;
+}
+.chat-group-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: left;
+}
+.chat-group-toggle:hover,
+.chat-group-head.current .chat-group-toggle {
+  color: var(--text);
+}
+.chat-group-toggle small {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--faint);
+}
+.chat-group-items {
+  padding-left: 10px;
+  border-left: 1px solid var(--border-soft);
+  margin-left: 12px;
+}
+.chat-group-items .chat-list-item {
+  padding: 8px 6px;
+}
+.chat-group-empty {
+  display: block;
+  width: 100%;
+  padding: 6px;
+  font-size: 11px;
+  color: var(--faint);
+  text-align: left;
+}
+.chat-group-empty:hover {
+  color: var(--text);
+}

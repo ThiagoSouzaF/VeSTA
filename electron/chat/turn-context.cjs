@@ -125,7 +125,8 @@ function promptFor(chat, { text, atts, intro, cwd }) {
   const body = A.promptWith(chat.provider, text || 'Veja os anexos desta mensagem.', shown);
   let prompt = intro ? intro + '\n\nMensagem do usuário:\n' + body : body;
   if (chat.provider === 'drael') prompt = drael.history(chat.messages, prompt);
-  else if (chat.handoffPending) prompt = conversations.handoff(chat.messages.slice(0, -2), prompt);
+  else if (chat.handoffPending)
+    prompt = conversations.handoff(chat.messages.slice(0, -2), prompt, chat.handoffReason || 'provider');
   return { prompt, cleanup };
 }
 

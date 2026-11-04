@@ -1418,3 +1418,13 @@
 :root[data-theme='ink'] .settings-index {
   top: -36px;
 }
+:root[data-theme='ink'] .chat-group.drop-target {
+  outline: 1px dashed #fff;
+  background: #fff1;
+  border-radius: 0;
+}
+:root[data-theme='ink'] .chat-group-toggle {
+  font: 700 10px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}

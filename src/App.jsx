@@ -56,6 +56,7 @@ export function App() {
     input = drafts[draftKey] || '',
     attachments = pending[draftKey] || [];
   const activeRef = useRef(active);
+  const openQuestRef = useRef(null);
   activeRef.current = page === 'chat' ? active : null;
   const call = useMemo(() => makeCall(notify), [notify]);
   // Stream events are applied once per frame; a full state snapshot already contains whatever was still queued.
@@ -103,6 +104,7 @@ export function App() {
       if (e.type === 'nav') navGo(e.dir < 0 ? -1 : 1);
       if ((e.type === 'update' || e.type === 'remote-notice' || e.type === 'notice') && e.message) notify(e.message);
       // A chat asked to show a part of Preferências (vesta_open_settings).
+      if (e.type === 'open-quest' && e.questId) openQuestRef.current?.(e.questId);
       if (e.type === 'open-settings') {
         setPage('settings');
         setTimeout(
@@ -135,11 +137,12 @@ export function App() {
   useEffect(() => {
     setNewModel(null);
   }, [provider]);
-  function openNew() {
+  // `forProject`: the folder whose "+" was clicked ('' = Espaço pessoal); otherwise the current project.
+  function openNew(forProject) {
     setModal({
       type: 'new',
       provider,
-      projectId,
+      projectId: typeof forProject === 'string' ? forProject : projectId,
       model: provider === 'opencode' ? 'drael/drael-v1' : '',
       mode: 'edit',
       agent: 'build',
@@ -204,6 +207,14 @@ export function App() {
       notify('Projeto conectado: ' + p.name);
     }
   }
+  // Dropped on another folder: the chat moves with its history and memory (moveChat in the main process).
+  async function moveChat(id, toProject) {
+    try {
+      replaceData(await call('moveChat', { id, projectId: toProject }));
+      const name = toProject ? data.projects.find((p) => p.id === toProject)?.name : 'Espaço pessoal';
+      notify('Conversa movida para ' + name + '. A próxima resposta recebe o histórico e a memória dela.');
+    } catch {}
+  }
   async function setting(input) {
     try {
       replaceData(await call('saveSettings', input));
@@ -246,6 +257,8 @@ export function App() {
     setQuestSel(questId);
     setPage('quests');
   }, []);
+  // The event listener is set up once, before openQuest exists: it reaches it through this ref.
+  openQuestRef.current = openQuest;
   const openFromQuestBar = useCallback(
     (chatId, questId) => (chatId ? openChatById(chatId) : openQuestChat(questId)),
     [openChatById, openQuestChat]
@@ -278,7 +291,8 @@ export function App() {
     },
     [data.chats]
   );
-  const filteredChats = filterChats(data.chats, data.quests, { projectId, search });
+  // The sidebar groups chats by project itself, so only the search narrows the list.
+  const filteredChats = filterChats(data.chats, data.quests, { projectId: '', search });
   const shownMemories = filterMemories(data.memories, { filter: memoryFilter, projectId, search: memorySearch });
   const newMemory = () =>
     setModal({ type: 'memory', title: '', body: '', kind: 'preference', projectId: projectId || '' });
@@ -360,6 +374,7 @@ export function App() {
         <Titlebar />
         <div className="app-body">
           <Sidebar
+            moveChat={moveChat}
             openNew={openNew}
             page={page}
             setPage={goPage}
@@ -367,7 +382,6 @@ export function App() {
             addProject={addProject}
             projectId={projectId}
             setProjectId={setProjectId}
-            setActive={setActive}
             filteredChats={filteredChats}
             search={search}
             setSearch={setSearch}

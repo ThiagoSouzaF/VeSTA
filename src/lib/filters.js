@@ -27,3 +27,16 @@ export function filterMemories(memories, { filter, projectId, search }) {
       (m.title + ' ' + m.body).toLowerCase().includes(needle)
   );
 }
+
+// The sidebar's folders: the Espaço pessoal (chats without a project) first, then every project in the order they
+// were added, each with its chats in the list's order. Projects without chats still get a folder (to start one).
+export const PERSONAL = 'personal';
+export function groupChats(chats, projects) {
+  const byProject = new Map(projects.map((p) => [p.id, []]));
+  const personal = [];
+  for (const c of chats) (byProject.get(c.projectId) || personal).push(c);
+  return [
+    { key: PERSONAL, name: 'Espaço pessoal', project: null, chats: personal },
+    ...projects.map((p) => ({ key: p.id, name: p.name, project: p, chats: byProject.get(p.id) })),
+  ];
+}

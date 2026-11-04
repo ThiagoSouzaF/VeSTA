@@ -280,6 +280,31 @@ function createMemorySessions(ctx, deps = {}) {
         })
         .catch(fail);
     },
+    // The chat moved to another project: its open stretch is closed (and consolidated) in the old project, and the new
+    // one gets a handoff, so an AI opening it finds where the conversation stands.
+    handoffOnMove(chat, fromName) {
+      const closed = end(chat.id, 'project-moved').catch(fail);
+      if (!enabled(chat) || !ctx.memory.handoff) return closed;
+      const last = (role) => [...chat.messages].reverse().find((m) => m.role === role && m.text)?.text || '';
+      const summary =
+        'A conversa "' +
+        clip(chat.title, 80) +
+        '" veio do projeto ' +
+        (fromName || 'Espaço pessoal') +
+        '. Último pedido do usuário: ' +
+        clip(last('user'), 300) +
+        ' Última resposta: ' +
+        clip(last('assistant'), 500);
+      const handed = ctx.memory
+        .handoff({
+          projectId: chat.projectId,
+          summary,
+          nextSteps: ['Continuar a conversa "' + clip(chat.title, 80) + '" neste projeto.'],
+          cwd: cwdOf(chat),
+        })
+        .catch(fail);
+      return Promise.all([closed, handed]);
+    },
     // A deleted chat is not consolidated (its content should not outlive it): the timer goes away, its open stretch is
     // closed on the server without an LLM pass, and its pending consolidations end without one (the chat is gone).
     forget(chatId, session) {

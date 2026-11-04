@@ -314,3 +314,27 @@ test('filters: memories by tab, project (preferences are always kept) and text',
   assert.deepEqual(ids({ projectId: 'p2' }), [1]);
   assert.deepEqual(ids({ search: 'CACHE' }), [2, 3], 'title and body are searched together');
 });
+
+test('filters: the sidebar folders are the Espaço pessoal and every project, chats inside their own', async () => {
+  const { groupChats, PERSONAL } = await lib('filters');
+  const projects = [
+    { id: 'p1', name: 'api' },
+    { id: 'p2', name: 'site' },
+  ];
+  const chats = [
+    { id: 'a', projectId: 'p2' },
+    { id: 'b', projectId: null },
+    { id: 'c', projectId: 'p2' },
+    { id: 'd', projectId: 'apagado' },
+  ];
+  const groups = groupChats(chats, projects);
+  assert.deepEqual(
+    groups.map((g) => [g.key, g.name, g.chats.map((c) => c.id)]),
+    [
+      [PERSONAL, 'Espaço pessoal', ['b', 'd']],
+      ['p1', 'api', []],
+      ['p2', 'site', ['a', 'c']],
+    ],
+    'order kept; a chat of a removed project falls back to the Espaço pessoal'
+  );
+});

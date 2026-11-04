@@ -603,3 +603,27 @@ test('engine: plan edits work on drafts without recreating the other steps', () 
   assert.equal(q.steps[2].title, 'Resumo final');
   assert.equal(q.status, 'draft');
 });
+
+test('engine: a quest asked from a chat to start does so once its plan is ready (and not after a failed plan)', async () => {
+  const h = harness();
+  const q = h.engine.createQuest({ title: 'Auto', goal: 'g', plan: { provider: 'claude' }, autoStart: true });
+  await h.tick();
+  assert.equal(q.status, 'draft');
+  h.finish(q.planning.chatId, plan([{ title: 'A', instructions: 'i', provider: 'claude' }]));
+  await h.tick();
+  assert.equal(q.status, 'running', 'started without a click');
+  assert.equal(q.steps[0].status, 'running');
+  assert.equal(q.autoStart, undefined);
+  assert.match(JSON.stringify(q.log), /Iniciando, como pedido no chat/);
+  const bad = h.engine.createQuest({ title: 'Ruim', goal: 'g', plan: { provider: 'claude' }, autoStart: true });
+  await h.tick();
+  h.finish(bad.planning.chatId, 'não sei planejar');
+  assert.equal(bad.status, 'draft');
+  assert.equal(bad.autoStart, undefined, 'a later replan waits for the person');
+  const manualPlan = h.engine.createQuest({ title: 'M', goal: 'g', steps: manual, autoStart: true });
+  assert.equal(
+    manualPlan.autoStart,
+    undefined,
+    'only an AI plan starts by itself; a given plan starts with startQuest'
+  );
+});

@@ -38,6 +38,7 @@ Atalhos: **Ctrl+K** busca conversas, **Enter** envia, **Shift+Enter** pula linha
 
 ## O que ele faz
 
+- **Conversas organizadas por projeto.** Na barra lateral, cada projeto é uma pasta que abre e fecha, com as suas conversas e o "+" para começar outra ali. Dá para recolher tudo de uma vez e arrastar uma conversa para outro projeto: ela leva o histórico e a memória junto, e a próxima resposta já trabalha na pasta nova.
 - **Várias IAs, uma conversa.** ChatGPT (Codex), Claude e Drael. Troque de IA ou de modelo no meio do chat e o histórico vai junto.
 - **Memória compartilhada (AI Memory).** Guarda suas preferências e o contexto de cada projeto, aprende com as conversas e passa tudo entre as IAs. Funciona offline.
 - **Atividade.** Veja ao vivo tudo o que as IAs estão fazendo em paralelo: respostas, subagentes, comandos e tarefas em segundo plano. Dá para parar qualquer uma.
@@ -45,7 +46,7 @@ Atalhos: **Ctrl+K** busca conversas, **Enter** envia, **Shift+Enter** pula linha
 - **Processos longos acompanhados.** Pediu algo demorado (um build, um servidor, uma tarefa em segundo plano)? A IA volta sozinha quando termina.
 - **Anexos.** Imagens e documentos (PDF, texto, Word, Excel, PowerPoint e código) nos chats, no desktop e no celular.
 - **Backup em .zip e no Google Drive.** Suas conversas, memórias e preferências num .zip compacto, legíveis em Markdown fora do VeSTA, feito todo dia em segundo plano e enviado direto ao seu Google Drive (com a sua própria chave do Google Cloud, que a tela de Backup ensina a criar). Em outro computador, conecte a mesma conta e restaure de lá.
-- **Configure conversando.** Peça num chat ("mude o tema para Papel", "faça um backup agora") e a IA ajusta as preferências do VeSTA. Login no Google, restauração e controle pelo celular continuam só na tela Preferências.
+- **Peça ao próprio VeSTA, numa conversa.** "Mude o tema para Papel", "faça um backup agora", "monte uma quest para lançar o site e já inicie": a IA ajusta as preferências e cria, inicia e acompanha quests no projeto da conversa. Login no Google, restauração e controle pelo celular continuam só na tela Preferências.
 - **Uso e limites.** Veja quanto resta do plano do Claude e do Codex, e quantos tokens cada IA gastou por dia.
 - **Controle pelo celular.** Acompanhe e responda pedidos de permissão do sofá, por uma rede privada (Tailscale). Vem desligado.
 - **Visual Tinta Mangá e a Vesta.** Preto e branco, traço de mangá, chuva de código em tinta. A mascote muda de pose conforme as IAs trabalham, pensam, acertam ou erram (e pode ser escondida).
@@ -123,6 +124,8 @@ Desenvolvimento do app móvel: `npm run dev:mobile` (Vite) e `npm run build` (ge
 - `npm test`: unidades, inclusive servidor HTTP/WS real em localhost.
 - `test-providers.cjs`: duas chamadas curtas em cada conta configurada.
 - `test-permissions.cjs` (`claude`, `codex` ou `opencode`, mais `allow`, `deny`, `subagent`, `always` ou `stop`): a IA real pede permissão para um `mkdir` e o teste confere o efeito de cada resposta.
+- `test-tree-e2e.cjs` (com `node`): conversas por projeto na barra lateral, recolher tudo, "+" do projeto e arrastar uma conversa (a próxima resposta roda na pasta nova com o histórico).
+- `test-chat-quest-e2e.cjs` (com `npx electron`, Claude real): um chat cria e inicia uma quest pelo VeSTA e ela roda até o fim no projeto.
 - `test-drive-e2e.cjs` (com `npx electron`; `ai` inclui chats reais): Google Drive contra um Google falso local (login, envio, lista, restauração) e preferências mudadas por chats do Claude e do Codex.
 - `test-backup-e2e.cjs` (com `npx electron`; `from=<pasta>` mede com uma cópia de outros dados): backup com o AI Memory real e restauração numa pasta vazia, conferindo que a memória restaurada responde.
 - `test-memory-agent.cjs` (`claude`, `codex` ou `opencode`): o agente real consulta e grava no AI Memory por MCP numa pasta temporária.

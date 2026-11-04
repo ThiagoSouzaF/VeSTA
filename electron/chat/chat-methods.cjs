@@ -49,6 +49,22 @@ function chatMethods(ctx) {
       }
       return state();
     },
+    // Drag a conversation onto another project: the history and the memory go with it (see moveToProject).
+    moveChat: ({ id, projectId }) => {
+      if (jobs.has(id)) throw new UserError('Aguarde a resposta terminar antes de mover a conversa');
+      const target = projectId ? project(projectId) : null;
+      if (projectId && !target) throw new UserError('Projeto inválido');
+      const c = ctx.store.chat(id);
+      if (c.questId) throw new UserError('Conversas de quest ficam no projeto da quest');
+      const from = c.projectId ? project(c.projectId)?.name : null;
+      ctx.endFollowing?.(id, 'silent');
+      if (conversations.moveToProject(c, target?.id || null)) {
+        ctx.memorySessions?.handoffOnMove?.(c, from);
+        ctx.store.save();
+        sync();
+      }
+      return state();
+    },
     updateChat: ({ id, model, mode }) => {
       if (jobs.has(id)) throw new UserError('Aguarde a resposta terminar para trocar o modelo');
       const c = ctx.store.chat(id);

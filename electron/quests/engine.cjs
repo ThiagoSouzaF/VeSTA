@@ -124,19 +124,29 @@ function createQuestEngine(ctx, deps = {}) {
     const planning = { ...q.planning };
     if (q.status !== 'draft') return;
     if (status !== 'done' || !reply?.text) {
+      delete q.autoStart;
       q.planning = { ...planning, status: 'error', error: reply?.error || 'O planejamento não terminou.' };
       Q.addLog(q, 'Falha no planejamento: ' + q.planning.error, now());
       return;
     }
     const plan = Q.parsePlan(reply.text, installed());
     if (!plan.ok) {
+      delete q.autoStart;
       q.planning = { ...planning, status: 'error', error: plan.error };
       Q.addLog(q, 'Plano inválido: ' + plan.error, now());
       return;
     }
     q.steps = plan.steps;
     q.planning = { ...planning, status: 'done', error: null, warnings: plan.warnings };
-    Q.addLog(q, 'Plano pronto: ' + plan.steps.length + ' etapa(s). Revise e inicie.', now());
+    if (!q.autoStart) return Q.addLog(q, 'Plano pronto: ' + plan.steps.length + ' etapa(s). Revise e inicie.', now());
+    delete q.autoStart;
+    Q.addLog(q, 'Plano pronto: ' + plan.steps.length + ' etapa(s). Iniciando, como pedido no chat.', now());
+    try {
+      Q.start(q, now());
+      advance(q);
+    } catch (e) {
+      Q.addLog(q, 'Não foi possível iniciar: ' + redact(e.message), now());
+    }
   }
   // Called for every finished turn; only chats that belong to a quest matter.
   function onChatDone({ chatId, status }) {
@@ -253,6 +263,8 @@ function createQuestEngine(ctx, deps = {}) {
         maxParallel: input.maxParallel,
       });
       if (input.steps?.length) apply(q, { steps: input.steps });
+      // Asked from a chat (vesta_quest_create, start=true): starts as soon as the AI's plan is ready.
+      if (input.autoStart && input.plan) q.autoStart = true;
       if (!q.goal && !q.steps.length) throw new UserError('Descreva o objetivo da quest');
       Q.addLog(q, 'Quest criada.', now());
       if (input.plan) plan(q, input.plan);

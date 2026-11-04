@@ -1,27 +1,9 @@
 import { Mark, Wordmark } from './Brand';
 import { MascotAvatar, useMascot } from './Mascot';
 import { STATE_LABEL } from '../lib/mascot';
-import {
-  ArrowUpRight,
-  Plus,
-  Search,
-  MessageSquare,
-  Brain,
-  Layers,
-  Settings,
-  Folder,
-  ChevronRight,
-  Globe,
-  BarChart3,
-  ShieldAlert,
-  Activity,
-  Swords,
-} from 'lucide-react';
-import { IconButton } from './IconButton';
+import { Plus, MessageSquare, Brain, Layers, Settings, BarChart3, Activity, Swords } from 'lucide-react';
+import { ConversationTree } from './ConversationTree';
 import { action } from '../lib/api';
-import { ProviderIcon } from './ProviderIcon';
-import { PROVIDERS } from '../lib/constants';
-import { formatDate } from '../lib/format';
 export function Sidebar({
   openNew,
   page,
@@ -30,12 +12,12 @@ export function Sidebar({
   addProject,
   projectId,
   setProjectId,
-  setActive,
   filteredChats,
   search,
   setSearch,
   active,
   goChat,
+  moveChat,
   taskCounts,
   questsRunning = 0,
 }) {
@@ -99,100 +81,21 @@ export function Sidebar({
           </button>
         ))}
       </nav>
-      <div className="sidebar-section">
-        <span>PROJETOS</span>
-        <IconButton icon={Plus} label="Adicionar projeto" onClick={action(addProject)} />
-      </div>
-      <button
-        className={'project-item ' + (!projectId ? 'selected' : '')}
-        onClick={() => {
-          setProjectId('');
-          setActive(null);
-        }}
-      >
-        <Globe size={15} />
-        Todos os projetos<span>{data.projects.length}</span>
-      </button>
-      <div className="project-list">
-        {data.projects.map((p) => (
-          <button
-            className={'project-item ' + (projectId === p.id ? 'selected' : '')}
-            title={p.path}
-            key={p.id}
-            onClick={() => {
-              setProjectId(p.id);
-              setActive(null);
-              setPage('chat');
-            }}
-          >
-            <Folder size={15} />
-            <span className="truncate">{p.name}</span>
-            <ChevronRight size={13} />
-          </button>
-        ))}
-      </div>
-      {!data.projects.length && (
-        <button className="add-project-empty" onClick={action(addProject)}>
-          Conecte uma pasta para começar
-          <ArrowUpRight size={14} />
-        </button>
-      )}
-      <div className="sidebar-section conversation-heading">
-        <span>CONVERSAS</span>
-        <span className="muted">{filteredChats.length.toString().padStart(2, '0')}</span>
-      </div>
-      <label className="search-field">
-        <Search size={14} />
-        <input
-          id="search-chats"
-          placeholder="Buscar conversas"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <kbd>⌃ K</kbd>
-      </label>
-      <div className="chat-list">
-        {filteredChats.map((c) => (
-          <button
-            key={c.id}
-            className={'chat-list-item ' + (active === c.id && page === 'chat' ? 'selected' : '')}
-            onClick={() => goChat(c)}
-          >
-            <ProviderIcon id={c.provider} small />
-            <div>
-              <span>{c.title}</span>
-              <small>
-                {PROVIDERS[c.provider].name} · {formatDate(c.updatedAt)}
-              </small>
-            </div>
-            {c.messages.some((m) => m.permissions?.some((x) => x.status === 'pending')) ? (
-              <span className="permission-dot" title="Aguardando sua permissão">
-                <ShieldAlert size={12} />
-              </span>
-            ) : taskCounts.byChat[c.id] ? (
-              <span
-                className="task-badge"
-                title={
-                  taskCounts.byChat[c.id] + (taskCounts.byChat[c.id] === 1 ? ' tarefa rodando' : ' tarefas rodando')
-                }
-              >
-                {taskCounts.byChat[c.id]}
-              </span>
-            ) : (
-              (data.running.includes(c.id) && <span className="pulse-dot" />) ||
-              (data.following?.some((f) => f.chatId === c.id) && (
-                <span className="follow-dot" title="Acompanhando processos em segundo plano" />
-              ))
-            )}
-          </button>
-        ))}
-        {!filteredChats.length && (
-          <div className="empty-chats">
-            <MessageSquare size={20} />
-            <span>{search ? 'Nenhuma conversa encontrada' : 'As boas ideias começam\ncom uma conversa.'}</span>
-          </div>
-        )}
-      </div>
+      <ConversationTree
+        data={data}
+        chats={filteredChats}
+        search={search}
+        setSearch={setSearch}
+        active={active}
+        page={page}
+        goChat={goChat}
+        projectId={projectId}
+        setProjectId={setProjectId}
+        openNew={openNew}
+        addProject={action(addProject)}
+        moveChat={moveChat}
+        taskCounts={taskCounts}
+      />
       <div className="sidebar-bottom">
         <button className={'nav-item ' + (page === 'settings' ? 'active' : '')} onClick={() => setPage('settings')}>
           <Settings size={17} />

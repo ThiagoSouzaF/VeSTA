@@ -59,3 +59,48 @@ test('handoff transfers completed text with attribution, excludes partial failur
   assert.doesNotMatch(prompt, /partial failure/);
   assert.ok(prompt.endsWith('current prompt'));
 });
+
+test('moving a chat to another project: fresh native session, history in the next prompt, rules reset', () => {
+  const { moveToProject, handoff } = require('../electron/chat/conversations.cjs');
+  const chat = {
+    provider: 'claude',
+    model: 'claude-sonnet-5-5',
+    projectId: 'p1',
+    sessionId: 'sess-antiga',
+    permissionRules: [{ tool: 'Bash', pattern: 'npm test' }],
+    messages: [
+      { role: 'user', text: 'Ajuste o login' },
+      { role: 'assistant', text: 'Feito no arquivo auth.js', status: 'done' },
+    ],
+  };
+  assert.equal(moveToProject(chat, 'p1'), false, 'same project: nothing changes');
+  assert.equal(moveToProject(chat, 'p2'), true);
+  assert.equal(chat.projectId, 'p2');
+  assert.equal(chat.sessionId, null);
+  assert.deepEqual(chat.permissionRules, []);
+  assert.equal(chat.handoffPending, true);
+  assert.equal(chat.handoffReason, 'project');
+  assert.deepEqual(chat.providerHistory.at(-1).projectId, 'p1');
+  assert.equal(chat.providerHistory.at(-1).sessionId, 'sess-antiga');
+  const prompt = handoff(chat.messages, 'continue', chat.handoffReason);
+  assert.match(prompt, /movida para outro projeto/);
+  assert.match(prompt, /Ajuste o login/);
+  assert.ok(prompt.endsWith('continue'));
+  assert.equal(moveToProject(chat, null), true, 'to the Espaço pessoal');
+  assert.equal(chat.projectId, null);
+});
+
+test('a moved chat with a huge history keeps its most recent messages instead of being blocked', () => {
+  const { handoff } = require('../electron/chat/conversations.cjs');
+  const big = 'x'.repeat(30000);
+  const messages = Array.from({ length: 8 }, (_, i) => ({
+    role: i % 2 ? 'assistant' : 'user',
+    text: i + big,
+    status: 'done',
+  }));
+  messages.push({ role: 'user', text: 'ULTIMA-MENSAGEM' });
+  assert.throws(() => handoff(messages, 'p'), /120 mil/, 'a switch of AI still refuses it');
+  const prompt = handoff(messages, 'p', 'project');
+  assert.match(prompt, /ULTIMA-MENSAGEM/);
+  assert.ok(prompt.length < 125000);
+});

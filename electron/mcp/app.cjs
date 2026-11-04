@@ -4,10 +4,12 @@
 //   - change appearance, memory, background-process and backup preferences (not in "Só consulta" chats);
 //   - run a backup now (it also goes to Google Drive when connected) and list the backups;
 //   - open Preferências at a section, for what needs the person: Google sign-in, restoring, folders, the phone.
+//   - create, start, pause and follow quests in this chat's project (app-quests.cjs);
 // Restoring, the phone remote control and the Drive sign-in are never done by a chat. Each change shows a notice.
 const { createMcpHost } = require('./host.cjs');
 const { THEMES } = require('../app/store.cjs');
 const B = require('../backup/archive.cjs');
+const { QUEST_TOOLS, QUEST_READ_ONLY, questHandlers } = require('./app-quests.cjs');
 
 const NAME = 'vesta-app';
 const BACKGROUNDS = ['none', 'ember', 'rain', 'inkrain', 'stream'];
@@ -58,7 +60,8 @@ const TOOLS = [
     obj({ section: { type: 'string', enum: SECTIONS, description: 'Seção de Preferências.' } }, ['section']),
   ],
 ];
-const READ_ONLY = ['vesta_settings_get', 'vesta_backup_list', 'vesta_open_settings'];
+TOOLS.push(...QUEST_TOOLS);
+const READ_ONLY = ['vesta_settings_get', 'vesta_backup_list', 'vesta_open_settings', ...QUEST_READ_ONLY];
 
 function snapshot(ctx) {
   const s = ctx.store.state.settings;
@@ -179,6 +182,7 @@ function createAppMcp(ctx, { methods }) {
       ctx.emit({ type: 'open-settings', section: a.section });
       return { ok: true, aberto: 'Preferências → ' + a.section };
     },
+    ...questHandlers(ctx, notice),
   };
   return createMcpHost({
     name: NAME,
@@ -200,10 +204,10 @@ function appHint(mode) {
   return mode === 'read'
     ? 'Pelas ferramentas do servidor "' +
         NAME +
-        '" você pode consultar as preferências do VeSTA e abrir a tela Preferências; neste modo, não altere nada.'
+        '" você pode consultar as preferências e as quests do VeSTA e abrir as telas dele; neste modo, não altere nada.'
     : 'Pelas ferramentas do servidor "' +
         NAME +
-        '" você pode consultar e mudar as preferências do VeSTA (aparência, memória, segundo plano e backup) e fazer backups, quando a pessoa pedir. Não mude preferências por conta própria.';
+        '" você pode consultar e mudar as preferências do VeSTA (aparência, memória, segundo plano e backup), fazer backups e criar, iniciar e acompanhar quests (vesta_quest_*), quando a pessoa pedir. Não faça nada disso por conta própria.';
 }
 
 module.exports = { createAppMcp, appHint, TOOLS, NAME, UPDATE, SECTIONS, READ_ONLY };
