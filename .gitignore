@@ -8,7 +8,7 @@ runtime/
 !.env.example
 *.pem
 *.key
-vesta.json
-memory/
+/vesta.json
+/memory/
 .vesta-tests/
 dist-mobile/
