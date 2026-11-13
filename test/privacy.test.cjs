@@ -196,3 +196,24 @@ test('providers are found where their installers put them (paths keep their back
     else process.env.NODE_EXE = saved.NODE_EXE;
   }
 });
+
+test('OpenCode installed under another nvm Node version (not the active one) is still found', () => {
+  const nvm = tmp();
+  const exe = (v) => path.join(nvm, v, 'node_modules', 'opencode-ai', 'bin', 'opencode.exe');
+  for (const v of ['v22.9.0', 'v22.14.0']) {
+    fs.mkdirSync(path.dirname(exe(v)), { recursive: true });
+    fs.writeFileSync(exe(v), '');
+  }
+  fs.mkdirSync(path.join(nvm, 'v22.19.0'));
+  const saved = { PATH: process.env.PATH, NODE_EXE: process.env.NODE_EXE, NVM_HOME: process.env.NVM_HOME };
+  try {
+    process.env.PATH = '';
+    process.env.NODE_EXE = path.join(tmp(), 'node.exe');
+    process.env.NVM_HOME = nvm;
+    assert.equal(providers.locate('opencode'), exe('v22.14.0'), 'the newest version that has it');
+  } finally {
+    for (const [k, v] of Object.entries(saved))
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+  }
+});

@@ -16,12 +16,28 @@ function locate(name) {
     .split(path.delimiter)
     .flatMap((dir) => names.map((n) => path.join(dir, n)));
   candidates.push(path.join(home, '.local', 'bin', name + '.exe'));
-  if (name === 'opencode')
+  if (name === 'opencode') {
+    // `npm i -g opencode-ai` leaves only an opencode.cmd shim on PATH; the real executable sits in the package, next
+    // to the shim. With nvm, the package belongs to the Node version it was installed with, which may not be the
+    // active one: every installed version is tried, newest first.
+    let nvm = [];
+    const nvmHome =
+      process.env.NVM_HOME || path.join(process.env.APPDATA || path.join(home, 'AppData', 'Roaming'), 'nvm');
+    try {
+      nvm = fs
+        .readdirSync(nvmHome)
+        .filter((d) => /^v\d/.test(d))
+        .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+        .map((d) => path.join(nvmHome, d));
+    } catch {}
     for (const dir of [
       process.env.NODE_EXE ? path.dirname(process.env.NODE_EXE) : DEFAULT_NODE_DIR,
       process.env.APPDATA && path.join(process.env.APPDATA, 'npm'),
+      ...(process.env.PATH || '').split(path.delimiter),
+      ...nvm,
     ].filter(Boolean))
       candidates.push(path.join(dir, 'node_modules', 'opencode-ai', 'bin', 'opencode.exe'));
+  }
   if (name === 'codex') {
     const base = path.join(local, 'OpenAI', 'Codex', 'bin');
     try {

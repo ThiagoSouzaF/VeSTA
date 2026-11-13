@@ -11,7 +11,15 @@ const { sleep, freePort, portFree } = require('../util/sys.cjs');
 const { lastLine, slug } = require('../util/text.cjs');
 const { redact } = require('./redact.cjs');
 const { PRODUCER, agentName, ingestKey, batchItem, scope } = require('./protocol.cjs');
-const { readIdentity, writeIdentity, alive, imageOf, killPid, reclaim, explainStartError } = require('./server-lock.cjs');
+const {
+  readIdentity,
+  writeIdentity,
+  alive,
+  imageOf,
+  killPid,
+  reclaim,
+  explainStartError,
+} = require('./server-lock.cjs');
 const { spoolCount, retargetSpool } = require('./spool.cjs');
 const { briefingText, payloadError, STOP_WORDS } = require('./text.cjs');
 // One HTTP server owns the data dir (ai-memory refuses a second `serve` on it); the app and every agent it launches share it.
