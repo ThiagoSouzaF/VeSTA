@@ -160,6 +160,22 @@ const step = async (name, fn) => {
       assert.equal(after.handoffPending, false, 'the history goes only once');
     });
 
+    await step('the effort picked in the model menu reaches the next turn', async () => {
+      await page.locator('.model-chip[title="Trocar modelo"]').click();
+      await page.getByRole('group', { name: 'Esforço' }).getByRole('button', { name: 'Alto', exact: true }).click();
+      await page.locator('.model-chip[title="Trocar modelo"]').filter({ hasText: 'Alto' }).waitFor();
+      const before = await app.evaluate(() => globalThis.__turns.length);
+      await page.locator('textarea[aria-label="Mensagem"]').fill('Pense mais nesta.');
+      await page.keyboard.press('Enter');
+      let turns = [];
+      for (let i = 0; i < 100 && turns.length <= before; i++) {
+        turns = await app.evaluate(() => globalThis.__turns);
+        if (turns.length <= before) await new Promise((r) => setTimeout(r, 100));
+      }
+      const args = turns.at(-1).args;
+      assert.equal(args[args.indexOf('--effort') + 1], 'high');
+    });
+
     await step('dropping a chat back on its own folder does nothing', async () => {
       const before = await app.evaluate(() => globalThis.__turns.length);
       await itemsOf('pb').filter({ hasText: 'Landing page' }).dragTo(group('pb').locator('.chat-group-head'));

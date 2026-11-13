@@ -3,7 +3,7 @@ const { run, kill } = require('../util/proc.cjs');
 const { locate } = require('./providers/locate.cjs');
 const mcp = require('./providers/mcp-servers.cjs');
 const { memoryHint, PROFILE_CATEGORIES } = require('./providers/hints.cjs');
-const { MODES, modeOf, command } = require('./providers/command.cjs');
+const { MODES, modeOf, EFFORTS, effortOf, command } = require('./providers/command.cjs');
 const { parser } = require('./providers/parser.cjs');
 const { rateWindows, normWindow } = require('./providers/rate-windows.cjs');
 const { upsertSubagent, upsertActivity, applyToMessage } = require('./providers/message-merge.cjs');
@@ -12,6 +12,8 @@ module.exports = {
   applyToMessage,
   MODES,
   modeOf,
+  EFFORTS,
+  effortOf,
   locate,
   run,
   kill,

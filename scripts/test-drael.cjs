@@ -2,11 +2,10 @@
 const { _electron: electron } = require('playwright');
 const { mainWindow } = require('./test-windows.cjs');
 const fs = require('node:fs'),
-  os = require('node:os'),
   path = require('node:path'),
   assert = require('node:assert/strict');
 (async () => {
-  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-drael-ui-'));
+  const data = require('./test-scratch.cjs')('drael-ui');
   const env = { ...process.env, VESTA_DATA_DIR: data, VESTA_SERVICE_TEST: '1', VESTA_NO_UPDATE: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await electron.launch({ args: ['.'], env });

@@ -103,3 +103,34 @@
   margin: 6px 6px 2px;
   line-height: 1.4;
 }
+.model-chip-effort {
+  color: var(--faint);
+}
+.model-effort {
+  border-top: 1px solid var(--border-soft);
+  margin-top: 6px;
+  padding-top: 4px;
+}
+.model-effort-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 4px;
+}
+.model-effort-options button {
+  font: inherit;
+  font-size: 10px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.model-effort-options button:hover {
+  background: var(--accent-bg);
+}
+.model-effort-options button.selected {
+  color: var(--accent);
+  border-color: var(--accent);
+}

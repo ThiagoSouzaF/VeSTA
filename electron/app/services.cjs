@@ -71,8 +71,10 @@ async function openServices(ctx, { electron, bus, methods }) {
       AI_MEMORY_LLM_PROVIDER: 'codex',
       AI_MEMORY_CAPTURE_ASSISTANT: 'true',
       AI_MEMORY_AUTO_IMPROVE__SCHEDULER__ENABLED: 'false',
-      // The profile (how the user works) learns from a single project too: VeSTA is one personal assistant.
-      AI_MEMORY_PROFILE__MIN_PROJECTS: '1',
+      // The profile (how the user works, sent to every project) learns on its own only what was said in two projects
+      // or more. With 1, every rule of a single project (a game engine, a course, a database) became global.
+      // Preferences the person states outright still reach the profile at once: the agents write them there.
+      AI_MEMORY_PROFILE__MIN_PROJECTS: '2',
     }),
   });
   // VESTA_MEMORY_IDLE_MS only shortens the 30 min idle close for the E2E tests.

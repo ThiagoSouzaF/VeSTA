@@ -13,7 +13,7 @@ const { redact } = require('./redact.cjs');
 const { PRODUCER, agentName, ingestKey, batchItem, scope } = require('./protocol.cjs');
 const { readIdentity, writeIdentity, alive, imageOf, killPid, reclaim, explainStartError } = require('./server-lock.cjs');
 const { spoolCount, retargetSpool } = require('./spool.cjs');
-const { briefingText, payloadError } = require('./text.cjs');
+const { briefingText, payloadError, STOP_WORDS } = require('./text.cjs');
 // One HTTP server owns the data dir (ai-memory refuses a second `serve` on it); the app and every agent it launches share it.
 class Memory {
   // `options.env()` adds server environment read at every start (the consolidation LLM comes from the preferences).
@@ -180,10 +180,14 @@ class Memory {
     }
   }
   async query(query, projectId) {
-    const terms =
-      String(query)
-        .match(/[\p{L}\p{N}_-]{3,}/gu)
-        ?.slice(0, 12) || [];
+    // Words like "com" or "para" match almost every page: the search keeps only the words that carry meaning.
+    const terms = [
+      ...new Set(
+        (String(query).match(/[\p{L}\p{N}_-]{3,}/gu) || [])
+          .map((t) => t.toLowerCase())
+          .filter((t) => !STOP_WORDS.has(t))
+      ),
+    ].slice(0, 12);
     if (!terms.length) return '';
     const expression = terms.map((t) => '"' + t.replace(/"/g, '') + '"').join(' OR ');
     const args = { query: expression, ...scope(projectId), limit: 6 };

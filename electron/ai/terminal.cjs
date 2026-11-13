@@ -1,7 +1,7 @@
 const os = require('node:os');
 const { childEnv } = require('../app/privacy.cjs');
 const { spawn } = require('node:child_process');
-const { MODES } = require('./providers.cjs');
+const { MODES, effortOf } = require('./providers.cjs');
 const drael = require('./drael.cjs');
 const quote = (s) => "'" + String(s).replace(/'/g, "''") + "'";
 // Access flags of each CLI's interactive mode, matching what providers.command() uses for the chat:
@@ -48,6 +48,7 @@ function terminalCommand({ id, exe, chat, cwd, noExit = true }) {
     : [];
   if (id === 'drael') args = [drael.script(exe)];
   else if (chat?.model) args.push('--model', chat.model);
+  if (id === 'claude' && chat && effortOf(chat)) args.push('--effort', effortOf(chat));
   args.push(...modeFlags(id, mode));
   const script = 'Set-Location -LiteralPath ' + quote(cwd) + '; & ' + quote(exe) + ' ' + args.map(quote).join(' ');
   return {

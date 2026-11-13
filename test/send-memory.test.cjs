@@ -220,3 +220,91 @@ test('a profile write during a turn is stored with its origin in the app state',
     await h.stop();
   }
 });
+
+// Later turns: the native session already holds the profile, the briefing and the tool instructions.
+const turnContext = require('../electron/chat/turn-context.cjs');
+const { queryText, profileText, STOP_WORDS } = require('../electron/memory/text.cjs');
+function contextHarness(chat) {
+  const calls = [];
+  const ctx = {
+    store: { state: { settings: { memoryEnabled: true, memoryTools: true }, memories: [] } },
+    memory: {
+      profile: async () => (calls.push('profile'), [{ category: 'workflow', statement: 'Faça git pull antes.' }]),
+      briefing: async () => (calls.push('briefing'), 'Projeto p: 2 páginas.'),
+      query: async () => (
+        calls.push('query'),
+        JSON.stringify({
+          hits: [
+            { path: 'decisions/drive.md', title: 'Token do Drive', snippet: '# Token\n\nRenova o <mark>token</mark>' },
+          ],
+          global_scope_hits: [{ path: 'profile/x.md', title: 'Perfil', snippet: 'não deve vir' }],
+        })
+      ),
+    },
+  };
+  const assistant = { activities: [] };
+  const servers = { extra: [], hints: ['DICA-DAS-FERRAMENTAS'] };
+  const run = async (text) => {
+    const context = await turnContext.memoryContext(ctx, chat, text, assistant);
+    return turnContext.preamble({}, chat, { servers, context, assistant });
+  };
+  return { calls, run };
+}
+
+test('a turn in an existing native session gets only the matching project notes, without profile or hints', async () => {
+  const chat = {
+    id: 'c',
+    provider: 'claude',
+    mode: 'edit',
+    memory: true,
+    projectId: 'p',
+    sessionId: null,
+    messages: [],
+  };
+  const h = contextHarness(chat);
+  const first = await h.run('olá');
+  assert.match(first, /Faça git pull antes/);
+  assert.match(first, /DICA-DAS-FERRAMENTAS/);
+  assert.match(first, /Projeto p: 2 páginas/);
+  chat.sessionId = 'sess-1';
+  const later = await h.run('o token do drive expira');
+  assert.doesNotMatch(later, /git pull|DICA-DAS-FERRAMENTAS|2 páginas/);
+  assert.match(later, /- Token do Drive \(decisions\/drive\.md\): Renova o token/);
+  assert.doesNotMatch(later, /<mark>|não deve vir|"hits"/);
+  // A mode change sends the tool instructions again (they depend on the mode).
+  chat.mode = 'read';
+  assert.match(await h.run('mais uma'), /DICA-DAS-FERRAMENTAS/);
+  // A handoff (another AI or project) starts a new native session: everything goes again.
+  chat.handoffPending = true;
+  assert.match(await h.run('trocou'), /Faça git pull antes/);
+});
+
+test('Drael has no native session: every turn carries the whole context', async () => {
+  const chat = { id: 'd', provider: 'drael', mode: 'edit', memory: true, projectId: 'p', sessionId: 'x', messages: [] };
+  const h = contextHarness(chat);
+  await h.run('um');
+  assert.match(await h.run('dois'), /Faça git pull antes/);
+});
+
+test('search results become short lines; nothing in the project means no text', () => {
+  assert.equal(queryText(JSON.stringify({ hits: [], global_scope_hits: [{ title: 'x' }] })), '');
+  const t = queryText(
+    JSON.stringify({ hits: Array.from({ length: 9 }, (_, i) => ({ title: 'T' + i, snippet: 'x'.repeat(900) })) })
+  );
+  assert.equal(t.split('\n').length, 5, 'header + 4 hits');
+  assert.ok(t.length < 1200);
+  assert.ok(STOP_WORDS.has('para') && STOP_WORDS.has('com') && !STOP_WORDS.has('backup'));
+});
+
+test('the profile puts how the person works first, drops quoted evidence and fits the limit', () => {
+  const entries = [
+    { category: 'architecture', statement: 'Crie 3 módulos por curso.' },
+    { category: 'workflow', statement: 'Faça git pull antes. - "faça pull" (vesta/inbox, 2026-10-23)' },
+    ...Array.from({ length: 40 }, (_, i) => ({ category: 'habits', statement: 'Hábito ' + i + ' ' + 'y'.repeat(150) })),
+  ];
+  const t = profileText(entries, 3000);
+  assert.ok(t.startsWith('- [workflow] Faça git pull antes.\n'));
+  assert.doesNotMatch(t, /vesta\/inbox/);
+  assert.ok(t.length <= 3000);
+  assert.doesNotMatch(t, /3 módulos/, 'project-like categories are cut first');
+});

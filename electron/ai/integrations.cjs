@@ -35,7 +35,7 @@ async function discover(ctx) {
   }
   integrations.drael.models = ['drael-v1'];
   integrations.drael.authenticated = !!drael.authEnv().DRAEL_KEY;
-  integrations.claude.models = ['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
+  integrations.claude.models = ['claude-fable-5-2', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
   if (integrations.opencode.installed)
     try {
       integrations.opencode.models = (await providers.run(integrations.opencode.exe, ['models']))

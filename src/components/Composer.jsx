@@ -1,6 +1,6 @@
 import { PROVIDERS } from '../lib/constants';
 import { ProviderPicker } from './ProviderPicker';
-import { ModelPicker } from './ModelPicker';
+import { ModelPicker, EFFORT_LABELS } from './ModelPicker';
 import { modelLabel } from '../lib/format';
 import { ModeChip } from './ModeChip';
 import { MODES, modeOf } from '../lib/modes';
@@ -99,6 +99,16 @@ export function Composer({
                         notify('Modelo: ' + modelLabel(m));
                       })
                     : setNewModel(m)
+                }
+                effort={chat?.effort || ''}
+                onEffort={
+                  chat && ['claude', 'codex'].includes(currentProvider)
+                    ? (effort) =>
+                        call('updateChat', { id: chat.id, effort }).then((r) => {
+                          setData(r);
+                          notify('Esforço: ' + EFFORT_LABELS[effort]);
+                        })
+                    : null
                 }
               />
             )}{' '}

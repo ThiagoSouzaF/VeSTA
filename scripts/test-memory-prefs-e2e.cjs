@@ -69,7 +69,7 @@ app.whenReady().then(async () => {
       const m2 = await turn(b.id, 'What is the capital of Australia, and why is it not Sydney?');
       console.log('Codex:', m2.status, JSON.stringify(m2.text.slice(0, 300)));
       assert.equal(m2.status, 'done', m2.error);
-      assert.match(m2.text, /Canberra/);
+      assert.match(m2.text, /Canberra|Camberra/, 'a capital (grafia inglesa ou portuguesa)');
       assert.match(m2.text, /\b(é|não|porque|capital|foi|uma)\b/i, 'deveria responder em português');
       assert.doesNotMatch(m2.text, /\b(because|the capital|is not)\b/i, 'não deveria responder em inglês');
       assert.ok(m2.text.length < 700, 'resposta curta: ' + m2.text.length);

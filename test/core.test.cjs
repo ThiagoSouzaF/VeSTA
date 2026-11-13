@@ -56,3 +56,19 @@ test('project scope never becomes a global search; common keys are redacted', ()
   assert.equal(redact('token=very-secret'), 'token=[removido]');
   assert.ok(!redact('dk-01234567890123456789').includes('012345'));
 });
+test('the effort of a chat reaches Claude (--effort) and Codex (capped at xhigh); unknown values are ignored', () => {
+  const at = (args, flag) => args[args.indexOf(flag) + 1];
+  assert.equal(at(command({ provider: 'claude', effort: 'max' }, 'claude.exe').args, '--effort'), 'max');
+  assert.ok(!command({ provider: 'claude' }, 'claude.exe').args.includes('--effort'));
+  assert.ok(!command({ provider: 'claude', effort: 'turbo' }, 'claude.exe').args.includes('--effort'));
+  const codex = command({ provider: 'codex', effort: 'max' }, 'codex.exe').args;
+  assert.ok(codex.includes('model_reasoning_effort="xhigh"'));
+  assert.ok(command({ provider: 'codex', effort: 'low' }, 'codex.exe').args.includes('model_reasoning_effort="low"'));
+});
+test('E2E scratch cleanup targets only the Claude Code folders of its own dir', () => {
+  const { claudeProjectName } = require('../scripts/test-scratch.cjs');
+  assert.equal(
+    claudeProjectName(['C:', 'Users', 'x', 'AppData', 'Local', 'Temp', 'vesta-tree-Ab1'].join(path.sep)),
+    'C--Users-x-AppData-Local-Temp-vesta-tree-Ab1'
+  );
+});

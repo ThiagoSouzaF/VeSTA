@@ -13,7 +13,7 @@ function memoryHint(projectId, { mode = 'edit', handoff = false } = {}) {
       '" (AI Memory). Nelas, passe workspace "vesta" e project "' +
       project +
       '" (exceto nas gravações com scope "profile", que valem para todos os projetos e não levam workspace/project).',
-    'No início da conversa, consulte com memory_query decisões, fatos e preferências relevantes. Antes de delegar a um subagente, consulte a memória você mesmo e repasse no prompt dele o contexto relevante: subagentes com lista de ferramentas própria podem não ter acesso à memória. Se o subagente tiver acesso, mande-o usar workspace "vesta" e project "' +
+    'O perfil do usuário e o resumo do projeto já vêm junto desta mensagem, quando existem: use memory_query só quando precisar de algo específico que não esteja ali. Antes de delegar a um subagente, consulte a memória você mesmo e repasse no prompt dele o contexto relevante: subagentes com lista de ferramentas própria podem não ter acesso à memória. Se o subagente tiver acesso, mande-o usar workspace "vesta" e project "' +
       project +
       '".',
   ];
@@ -32,7 +32,7 @@ function memoryHint(projectId, { mode = 'edit', handoff = false } = {}) {
       'Use memory_write_page para registrar decisões, fatos e lições duráveis deste projeto (caminhos como "agentes/<assunto>.md"); tags e entities são listas (arrays), por exemplo tags: ["decisao"], entities: ["VeSTA"]. Não grave segredos nem trechos longos de código.',
       'Quando o usuário expressar uma preferência durável (como gosta de trabalhar, stack, estilo, ferramentas, idioma), grave-a no perfil: memory_write_page com scope "profile" e path "<categoria>/<assunto>.md" (categorias: ' +
         PROFILE_CATEGORIES.join(', ') +
-        '; sem o prefixo profile/), uma preferência por página, o corpo começando com "# Título" e a frase da preferência na linha seguinte. Antes, consulte (memory_query) se o assunto já existe: se existir, atualize a mesma página (expected_page_id da leitura) em vez de duplicar; para uma nova, use create_only true. Só preferências que o usuário disse de fato, nunca suposições.'
+        '; sem o prefixo profile/), uma preferência por página, o corpo começando com "# Título" e a frase da preferência na linha seguinte. Antes, consulte (memory_query) se o assunto já existe: se existir, atualize a mesma página (expected_page_id da leitura) em vez de duplicar; para uma nova, use create_only true. Só preferências que o usuário disse de fato, nunca suposições. O perfil vale para todos os projetos: decisões, regras e fatos de um projeto (banco, engine, cursos, deploy, um jogo) vão no projeto, nunca no perfil.'
     );
   return lines.join(' ');
 }

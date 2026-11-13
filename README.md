@@ -39,7 +39,7 @@ Atalhos: **Ctrl+K** busca conversas, **Enter** envia, **Shift+Enter** pula linha
 ## O que ele faz
 
 - **Conversas organizadas por projeto.** Na barra lateral, cada projeto é uma pasta que abre e fecha, com as suas conversas e o "+" para começar outra ali. Dá para recolher tudo de uma vez e arrastar uma conversa para outro projeto: ela leva o histórico e a memória junto, e a próxima resposta já trabalha na pasta nova.
-- **Várias IAs, uma conversa.** ChatGPT (Codex), Claude e Drael. Troque de IA ou de modelo no meio do chat e o histórico vai junto.
+- **Várias IAs, uma conversa.** ChatGPT (Codex), Claude e Drael. Troque de IA ou de modelo no meio do chat e o histórico vai junto. No menu do modelo, escolha também o **esforço** da conversa no Claude e no Codex: baixo para respostas rápidas, alto ou máximo quando a tarefa pede mais raciocínio.
 - **Memória compartilhada (AI Memory).** Guarda suas preferências e o contexto de cada projeto, aprende com as conversas e passa tudo entre as IAs. Funciona offline.
 - **Atividade.** Veja ao vivo tudo o que as IAs estão fazendo em paralelo: respostas, subagentes, comandos e tarefas em segundo plano. Dá para parar qualquer uma.
 - **Quests.** Dê um objetivo e várias IAs trabalham juntas: uma planeja, cada etapa vai para a IA escolhida e os resultados passam de uma para a outra. O **chat da quest** conhece tudo o que está acontecendo e reorganiza o plano conforme você conversa.
@@ -120,11 +120,12 @@ Desenvolvimento do app móvel: `npm run dev:mobile` (Vite) e `npm run build` (ge
 
 ## Testes
 
-- Os testes de integração usam pastas temporárias próprias, independentes da localização do checkout. **Os testes E2E abrem janelas do app fora da tela.**
+- Os testes de integração usam pastas temporárias próprias, independentes da localização do checkout. **Os testes E2E abrem janelas do app fora da tela.** Ao terminar, cada E2E apaga a sua pasta temporária (mantida quando falha, para inspeção) e as sessões que o Claude Code gravou para ela em `~/.claude/projects`; `VESTA_KEEP_SCRATCH=1` guarda tudo.
 - `npm test`: unidades, inclusive servidor HTTP/WS real em localhost.
 - `test-providers.cjs`: duas chamadas curtas em cada conta configurada.
 - `test-permissions.cjs` (`claude`, `codex` ou `opencode`, mais `allow`, `deny`, `subagent`, `always` ou `stop`): a IA real pede permissão para um `mkdir` e o teste confere o efeito de cada resposta.
-- `test-tree-e2e.cjs` (com `node`): conversas por projeto na barra lateral, recolher tudo, "+" do projeto e arrastar uma conversa (a próxima resposta roda na pasta nova com o histórico).
+- `test-tree-e2e.cjs` (com `node`): conversas por projeto na barra lateral, recolher tudo, "+" do projeto, arrastar uma conversa (a próxima resposta roda na pasta nova com o histórico) e o esforço escolhido no menu do modelo chegando à IA.
+- `test-effort-e2e.cjs` (com `npx electron`, Claude e Codex reais): cada IA responde com esforço baixo e máximo.
 - `test-chat-quest-e2e.cjs` (com `npx electron`, Claude real): um chat cria e inicia uma quest pelo VeSTA e ela roda até o fim no projeto.
 - `test-drive-e2e.cjs` (com `npx electron`; `ai` inclui chats reais): Google Drive contra um Google falso local (login, envio, lista, restauração) e preferências mudadas por chats do Claude e do Codex.
 - `test-backup-e2e.cjs` (com `npx electron`; `from=<pasta>` mede com uma cópia de outros dados): backup com o AI Memory real e restauração numa pasta vazia, conferindo que a memória restaurada responde.
@@ -175,7 +176,9 @@ Os dados ficam em `%APPDATA%/VeSTA`. A pasta pode ser aberta nas preferências. 
 
 - **AI Memory 3.0.0** real, incluído no executável. O VeSTA inicia um único servidor MCP HTTP só em `127.0.0.1`, numa porta livre e com token aleatório a cada execução; o aplicativo e os agentes que ele abre usam esse mesmo servidor.
 - **Agentes com acesso à memória** (opção nas preferências, ligada por padrão): Claude, Codex e OpenCode recebem as ferramentas do AI Memory (`memory_query`, `memory_write_page` e as demais) apenas nas sessões abertas pelo VeSTA, via `--mcp-config`, `-c mcp_servers...` e `OPENCODE_CONFIG_CONTENT`. Cada chat é orientado a usar o workspace `vesta` e o projeto do chat.
-- Busca no contexto do projeto; preferências pessoais compartilhadas entre todas as IAs; gravação, edição e exclusão de memórias. As notas de um projeto são isoladas das de outro. A busca acrescenta apenas um contexto limitado ao próximo pedido da IA.
+- Busca no contexto do projeto; preferências pessoais compartilhadas entre todas as IAs; gravação, edição e exclusão de memórias. As notas de um projeto são isoladas das de outro.
+- **Pouco texto para as IAs.** O perfil (as preferências mais importantes primeiro), o resumo do projeto e as instruções das ferramentas vão uma vez, quando a IA abre a sessão da conversa, e de novo só se a conversa trocar de IA, de projeto ou de modo. Depois disso, cada mensagem leva no máximo 4 notas curtas do próprio projeto ligadas ao que você escreveu, e nada quando nenhuma combina; palavras vazias como "com" e "para" ficam fora da busca.
+- **Perfil só com o que vale para tudo.** As IAs gravam no perfil as preferências que você diz; regras de um projeto ficam no projeto. O AI Memory só promove sozinho ao perfil o que aparece em dois projetos ou mais.
 - O motor funciona offline por busca textual (FTS), sem API, conta adicional ou download de modelo de embeddings. O suporte do AI Memory nativo ao Windows é experimental. A integração não instala hooks nem altera as configurações globais de outros agentes (`~/.claude`, `~/.codex`, configuração global do OpenCode); vale para os chats iniciados aqui.
 - **Aprender com as conversas:** cada conversa vira uma sessão do AI Memory. O VeSTA faz o papel dos hooks nativos, para todas as IAs, e envia ao servidor local seus pedidos, as ferramentas usadas e um trecho da resposta (até 2 KB, higienizado pelo próprio `ai-memory hook`). A sessão é encerrada depois de 30 minutos sem mensagens, ao trocar de IA ou de projeto, ou na próxima abertura do app.
 - **Consolidar com IA (Codex):** o encerramento chama `memory_consolidate`, que usa o login do Codex CLI (`AI_MEMORY_LLM_PROVIDER=codex`, sem chave de API, consumindo a cota do ChatGPT) para reescrever a sessão e extrair regras, armadilhas e decisões em páginas próprias, visíveis na aba **Aprendizados** da tela Memória. O conteúdo da conversa vai para a OpenAI nessa etapa, inclusive em chats do Claude. A assinatura do Claude não serve aqui, porque a Anthropic recusa o token em apps de terceiros. Sem a consolidação, cada sessão fica com um resumo automático, sem IA.

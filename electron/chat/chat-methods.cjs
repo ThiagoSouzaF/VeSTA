@@ -65,11 +65,16 @@ function chatMethods(ctx) {
       }
       return state();
     },
-    updateChat: ({ id, model, mode }) => {
+    updateChat: ({ id, model, mode, effort }) => {
       if (jobs.has(id)) throw new UserError('Aguarde a resposta terminar para trocar o modelo');
       const c = ctx.store.chat(id);
       ctx.endFollowing?.(id, 'silent');
       if (model !== undefined) c.model = bounded(model, 120).trim();
+      if (effort !== undefined) {
+        if (effort && !providers.EFFORTS.includes(effort)) throw new UserError('Esforço desconhecido: ' + effort);
+        if (effort) c.effort = effort;
+        else delete c.effort;
+      }
       if (c.provider === 'drael' && mode === 'ask')
         throw new UserError('Use Consultar, Acesso completo ou o terminal nativo do Drael');
       if (mode !== undefined) c.mode = providers.MODES.includes(mode) ? mode : 'edit';

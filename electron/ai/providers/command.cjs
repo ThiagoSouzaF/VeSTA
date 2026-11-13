@@ -9,6 +9,10 @@ const LEAD_DENIED_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'Bash',
 // Chat modes: 'edit' = full access, 'ask' = the agent asks the user before acting, 'read' = consultation only.
 const MODES = ['ask', 'edit', 'read'];
 const modeOf = (chat) => (MODES.includes(chat.mode) ? chat.mode : 'edit');
+// Reasoning effort of a chat ('' = the CLI's default). Claude takes all of them; Codex tops out at xhigh.
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+const effortOf = (chat) => (EFFORTS.includes(chat.effort) ? chat.effort : '');
+const codexEffort = (e) => (e === 'max' ? 'xhigh' : e);
 // How each CLI is launched. Claude speaks stream-json both ways (its permission requests arrive on stdout and are
 // answered on stdin); Codex runs its app-server (JSON-RPC with approval requests); OpenCode runs its HTTP server.
 // `endpoint` = AI Memory; `extra` = more MCP servers (entries, see questServer), e.g. the quest chat's own.
@@ -24,7 +28,12 @@ function command(chat, exe, endpoint, { attachDir = null, extra = [] } = {}) {
         : { approvalPolicy: 'never', sandbox: mode === 'edit' ? 'danger-full-access' : 'read-only' };
     return {
       exe,
-      args: ['app-server', ...CODEX_PRIVATE_ARGS, ...mem.args],
+      args: [
+        'app-server',
+        ...CODEX_PRIVATE_ARGS,
+        ...(effortOf(chat) ? ['-c', 'model_reasoning_effort="' + codexEffort(effortOf(chat)) + '"'] : []),
+        ...mem.args,
+      ],
       env: mem.env,
       thread: { ...policy, ...(chat.model ? { model: chat.model } : {}) },
       resume: chat.sessionId || null,
@@ -56,6 +65,7 @@ function command(chat, exe, endpoint, { attachDir = null, extra = [] } = {}) {
         // The chat's attachments live outside the project folder: let Claude read them without asking.
         ...(attachDir && fs.existsSync(attachDir) ? ['--add-dir', attachDir] : []),
         ...(chat.model ? ['--model', chat.model] : []),
+        ...(effortOf(chat) ? ['--effort', effortOf(chat)] : []),
         ...(chat.sessionId ? ['--resume', chat.sessionId] : []),
       ],
       env: mem.env,
@@ -80,4 +90,4 @@ function command(chat, exe, endpoint, { attachDir = null, extra = [] } = {}) {
     resume: chat.sessionId || null,
   };
 }
-module.exports = { MODES, modeOf, LEAD_DENIED_TOOLS, command };
+module.exports = { MODES, modeOf, EFFORTS, effortOf, LEAD_DENIED_TOOLS, command };

@@ -46,6 +46,7 @@ export const empty = {
   running: [],
 };
 export const MODEL_LABELS = {
+  'claude-fable-5-2': 'Fable 5.2',
   'claude-fable-5-1': 'Fable 5.1',
   'claude-opus-5-5': 'Opus 5.5',
   'claude-sonnet-5-5': 'Sonnet 5.5',
