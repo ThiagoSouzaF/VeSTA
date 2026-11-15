@@ -72,6 +72,8 @@ function createDrive({
   urls = GOOGLE,
   fetch = globalThis.fetch,
   timeoutMs = 60000,
+  // Waits before each new attempt after a network failure, 408, 429 or 5xx (Google asks clients to back off and retry).
+  retryDelays = [1000, 4000],
 }) {
   let access = null, // { token, until }
     signingIn = null;
@@ -96,8 +98,29 @@ function createDrive({
     return d.clientId ? { clientId: d.clientId, clientSecret: secret(d.clientSecret) } : null;
   };
 
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const transient = (status) => status === 408 || status === 429 || status >= 500;
+  // fetch with the retries: a transient failure is tried again (the bodies sent here are strings or buffers, so they
+  // can be sent again); anything else, or the last attempt, is returned or thrown as is.
+  async function send(url, init) {
+    for (let attempt = 0; ; attempt++) {
+      const last = attempt >= retryDelays.length;
+      let r;
+      try {
+        r = await fetch(url, { ...init, signal: init.signal || AbortSignal.timeout(timeoutMs) });
+      } catch (e) {
+        if (last || e.name === 'AbortError' || e.name === 'TimeoutError') throw e;
+        await sleep(retryDelays[attempt]);
+        continue;
+      }
+      if (last || !transient(r.status)) return r;
+      const after = Number(r.headers.get('retry-after'));
+      await r.body?.cancel().catch(() => {});
+      await sleep(after > 0 ? Math.min(after * 1000, 30000) : retryDelays[attempt]);
+    }
+  }
   async function request(url, init = {}, { raw = false } = {}) {
-    const r = await fetch(url, { ...init, signal: init.signal || AbortSignal.timeout(timeoutMs) });
+    const r = await send(url, init);
     if (raw && r.ok) return r;
     const text = await r.text();
     let body = null;
@@ -111,6 +134,51 @@ function createDrive({
       throw new UserError(message);
     }
     return raw ? r : body;
+  }
+  // Resumable upload (Google's protocol): the file is streamed from disk, never read whole into memory. When a PUT
+  // breaks, the session is asked how much arrived (Content-Range: bytes */size -> 308 with Range) and the rest is sent.
+  async function resumable(session, localFile, size, mime) {
+    let offset = 0;
+    for (let attempt = 0; ; attempt++) {
+      let r = null;
+      try {
+        r = await fetch(session, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': mime,
+            'Content-Length': String(size - offset),
+            ...(offset ? { 'Content-Range': 'bytes ' + offset + '-' + (size - 1) + '/' + size } : {}),
+          },
+          body: size ? Readable.toWeb(fs.createReadStream(localFile, { start: offset })) : '',
+          duplex: 'half',
+          signal: AbortSignal.timeout(Math.max(timeoutMs, 10 * 60e3)),
+        });
+      } catch (e) {
+        if (attempt >= retryDelays.length) throw e;
+      }
+      if (r && (r.status === 200 || r.status === 201)) return r.json();
+      if (r && !transient(r.status) && r.status !== 308) {
+        const text = await r.text();
+        let body = null;
+        try {
+          body = text ? JSON.parse(text) : null;
+        } catch {}
+        throw new UserError(explain(r.status, body));
+      }
+      await r?.body?.cancel().catch(() => {});
+      if (attempt >= retryDelays.length)
+        throw new UserError('O envio ao Google Drive falhou depois de várias tentativas');
+      await sleep(retryDelays[attempt]);
+      const status = await send(session, {
+        method: 'PUT',
+        headers: { 'Content-Length': '0', 'Content-Range': 'bytes */' + size },
+      });
+      if (status.status === 200 || status.status === 201) return status.json();
+      if (status.status !== 308) throw new UserError(explain(status.status, null));
+      const range = /bytes=0-(\d+)/.exec(status.headers.get('range') || '');
+      offset = range ? Number(range[1]) + 1 : 0;
+      await status.body?.cancel().catch(() => {});
+    }
   }
   const form = (fields) => ({
     method: 'POST',
@@ -339,16 +407,7 @@ function createDrive({
       );
       const session = start.headers.get('location');
       if (!session) throw new UserError('O Google Drive não abriu o envio');
-      const done = await request(
-        session,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': mime, 'Content-Length': String(size) },
-          body: fs.readFileSync(localFile),
-          signal: AbortSignal.timeout(Math.max(timeoutMs, 10 * 60e3)),
-        },
-        {}
-      );
+      const done = await resumable(session, localFile, size, mime);
       return { id: done.id, name: done.name || name, size: Number(done.size) || size };
     },
     // Backups in the Drive folder, newest first: [{ id, name, size, createdAt, computer }].
@@ -393,7 +452,15 @@ function createDrive({
         { raw: true }
       );
       fs.mkdirSync(path.dirname(dest), { recursive: true });
-      await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(dest));
+      // Written next to the destination and renamed at the end: a failed download never leaves half a backup there.
+      const part = dest + '.part';
+      try {
+        await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(part));
+        fs.renameSync(part, dest);
+      } catch (e) {
+        fs.rmSync(part, { force: true });
+        throw e;
+      }
       return dest;
     },
   };

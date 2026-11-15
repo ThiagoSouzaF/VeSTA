@@ -39,14 +39,20 @@ export function Sidebar({
             <span className="beta">BETA</span>
           </strong>
           {mascot.enabled ? (
-            <button
-              className="brand-status"
-              data-testid="brand-status"
-              onClick={() => setPage('activity')}
-              title={mascot.phrase}
-            >
-              <b>{STATE_LABEL[mascot.state]}</b> {mascot.phrase}
-            </button>
+            <>
+              <button
+                className="brand-status"
+                data-testid="brand-status"
+                onClick={() => setPage('activity')}
+                title={mascot.phrase}
+              >
+                <b>{STATE_LABEL[mascot.state]}</b> {mascot.phrase}
+              </button>
+              {/* Screen readers hear when the AIs start or stop working (the state, not every phrase). */}
+              <span className="sr-only" role="status">
+                {STATE_LABEL[mascot.state]}
+              </span>
+            </>
           ) : (
             <span>O centro do seu lar digital.</span>
           )}

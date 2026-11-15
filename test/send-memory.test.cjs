@@ -48,6 +48,7 @@ function harness({ mode = 'edit', briefing, profile } = {}) {
     },
     chat: () => chat,
     save() {},
+    saveSoon() {},
   };
   ctx.memory = {
     agentEndpoint: async () => ({
@@ -307,4 +308,44 @@ test('the profile puts how the person works first, drops quoted evidence and fit
   assert.doesNotMatch(t, /vesta\/inbox/);
   assert.ok(t.length <= 3000);
   assert.doesNotMatch(t, /3 módulos/, 'project-like categories are cut first');
+});
+
+test('a note already sent in this native session is not sent again; a new session starts over', async () => {
+  const chat = {
+    id: 'n',
+    provider: 'claude',
+    mode: 'edit',
+    memory: true,
+    projectId: 'p',
+    sessionId: 's1',
+    messages: [],
+  };
+  const h = contextHarness(chat);
+  assert.match(await h.run('o token do drive'), /Token do Drive/);
+  assert.doesNotMatch(await h.run('o token do drive de novo'), /Token do Drive/);
+  chat.sessionId = null;
+  await h.run('sessão nova');
+  chat.sessionId = 's2';
+  assert.match(await h.run('o token do drive'), /Token do Drive/);
+});
+
+test('a broken connection to the AI Memory is reopened once; a timeout is not retried', async () => {
+  const { Memory } = require('../electron/memory/client.cjs');
+  const m = new Memory('ai-memory.exe', __dirname);
+  let calls = 0;
+  const client = (fail) => ({
+    close: async () => {},
+    callTool: async () => {
+      calls++;
+      if (fail) throw new Error(fail);
+      return { content: [{ type: 'text', text: 'ok' }] };
+    },
+  });
+  const queue = [client('fetch failed'), client('')];
+  m.connect = async () => (m.client = queue.shift());
+  assert.equal(await m.call('memory_status', {}), 'ok');
+  assert.equal(calls, 2);
+  m.connect = async () => (m.client = client('Request timed out'));
+  await assert.rejects(m.call('memory_status', {}), /timed out/);
+  assert.equal(calls, 3, 'no second attempt after a timeout');
 });

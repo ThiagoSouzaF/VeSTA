@@ -15,7 +15,9 @@ function createFakeGoogle({
   const log = [];
   let seq = 0,
     deny = false,
-    disabledApi = false;
+    disabledApi = false,
+    failApi = 0, // the next N Drive API calls answer 503
+    breakUpload = false; // the next upload PUT keeps half of the bytes and answers 503
   const id = () => 'f' + String(++seq).padStart(12, '0');
   const json = (res, status, body, headers = {}) => {
     res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
@@ -93,11 +95,38 @@ function createFakeGoogle({
     const session = /^\/upload\/session\/(\w+)$/.exec(p);
     if (session && req.method === 'PUT') {
       const f = files.get(session[1]);
-      f.content = await body(req);
+      const data = await body(req);
+      const range = /^bytes (\*|(\d+)-(\d+))\/(\d+)$/.exec(req.headers['content-range'] || '');
+      const total = range ? Number(range[4]) : data.length;
+      // Status query: how much of the file arrived so far.
+      if (range && range[1] === '*') {
+        const have = f.partial?.length || 0;
+        if (f.content && !f.partial) return json(res, 200, view(f, ['id', 'name', 'size']));
+        res.writeHead(308, have ? { Range: 'bytes=0-' + (have - 1) } : {});
+        return res.end();
+      }
+      const start = range ? Number(range[2]) : 0;
+      const sofar = Buffer.concat([(f.partial || Buffer.alloc(0)).subarray(0, start), data]);
+      if (breakUpload) {
+        breakUpload = false;
+        f.partial = sofar.subarray(0, Math.floor(sofar.length / 2));
+        return json(res, 503, { error: { message: 'Backend Error' } });
+      }
+      if (sofar.length < total) {
+        f.partial = sofar;
+        res.writeHead(308, { Range: 'bytes=0-' + (sofar.length - 1) });
+        return res.end();
+      }
+      delete f.partial;
+      f.content = sofar;
       return json(res, 200, view(f, ['id', 'name', 'size']));
     }
     const bearer = /^Bearer (.+)$/.exec(req.headers.authorization || '')?.[1];
     if (!tokens.has(bearer)) return json(res, 401, { error: { code: 401, message: 'Invalid Credentials' } });
+    if (failApi > 0) {
+      failApi--;
+      return json(res, 503, { error: { message: 'Backend Error' } });
+    }
     if (disabledApi)
       return json(res, 403, {
         error: { message: 'Google Drive API has not been used', errors: [{ reason: 'accessNotConfigured' }] },
@@ -152,6 +181,8 @@ function createFakeGoogle({
     log,
     deny: (v = true) => (deny = v),
     disableApi: (v = true) => (disabledApi = v),
+    failApi: (n = 1) => (failApi = n),
+    breakUpload: () => (breakUpload = true),
     revokeAll: () => refresh.clear(),
     expireAccess: () => tokens.clear(),
     async listen() {

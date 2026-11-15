@@ -22,6 +22,9 @@ const {
 } = require('./server-lock.cjs');
 const { spoolCount, retargetSpool } = require('./spool.cjs');
 const { briefingText, payloadError, STOP_WORDS } = require('./text.cjs');
+// Transport failures worth one reconnect (never a timeout: the call may still be running on the server).
+const BROKEN_CONNECTION =
+  /fetch failed|ECONNREFUSED|ECONNRESET|socket hang up|HTTP 40[14]|session not found|not connected/i;
 // One HTTP server owns the data dir (ai-memory refuses a second `serve` on it); the app and every agent it launches share it.
 class Memory {
   // `options.env()` adds server environment read at every start (the consolidation LLM comes from the preferences).
@@ -162,9 +165,19 @@ class Memory {
     return this.endpoint;
   }
   // A failure is a JSON-RPC error (thrown by the SDK), `result.isError`, or a JSON payload carrying `error`.
+  // A connection that broke (server restarted, MCP session expired) is reopened once; a slow answer is not retried.
   async call(name, args, { timeout = 20000 } = {}) {
-    const client = await this.connect();
-    const result = await client.callTool({ name, arguments: args }, undefined, { timeout });
+    let client = await this.connect(),
+      result;
+    try {
+      result = await client.callTool({ name, arguments: args }, undefined, { timeout });
+    } catch (e) {
+      if (!BROKEN_CONNECTION.test(e.message || '')) throw e;
+      if (this.client === client) this.client = null;
+      Promise.resolve(client.close?.()).catch(() => {});
+      client = await this.connect();
+      result = await client.callTool({ name, arguments: args }, undefined, { timeout });
+    }
     const text = (result.content || [])
       .filter((x) => x.type === 'text')
       .map((x) => x.text)
@@ -175,7 +188,16 @@ class Memory {
     return text;
   }
   // A fresh project has no wiki yet: memory_query/memory_status fail until its first page exists.
+  // Checked once per project while the app runs (a project, once created, stays); query/briefing re-create it if the
+  // server lost it.
   async ensureProject(projectId) {
+    this.ensured ??= new Set();
+    const key = projectId || '';
+    if (this.ensured.has(key)) return;
+    await this.createProjectIfMissing(projectId);
+    this.ensured.add(key);
+  }
+  async createProjectIfMissing(projectId) {
     try {
       await this.call('memory_status', scope(projectId));
     } catch (e) {
@@ -203,7 +225,7 @@ class Memory {
       return await this.call('memory_query', args);
     } catch (e) {
       if (!/project .+ not found in workspace/.test(e.message)) throw e;
-      await this.ensureProject(projectId);
+      await this.createProjectIfMissing(projectId);
       return this.call('memory_query', args);
     }
   }
@@ -216,7 +238,7 @@ class Memory {
       raw = await this.call('memory_briefing', args);
     } catch (e) {
       if (!/not found in workspace/.test(e.message)) throw e;
-      await this.ensureProject(projectId);
+      await this.createProjectIfMissing(projectId);
       raw = await this.call('memory_briefing', args);
     }
     return briefingText(raw);

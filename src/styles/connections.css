@@ -43,7 +43,7 @@
   line-height: 1.7;
 }
 .connection-status {
-  font-size: 9px;
+  font-size: 10px;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -71,14 +71,14 @@
   align-items: center;
   gap: 7px;
   color: var(--faint);
-  font-size: 9px;
+  font-size: 10px;
 }
 .detected-models {
   padding: 15px 24px;
   border-top: 1px solid var(--border-soft);
 }
 .detected-models > span {
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 1px;
   color: var(--faint);
 }
@@ -91,7 +91,7 @@
   overflow: auto;
 }
 .detected-models code {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--muted);
   border: 1px solid var(--border);
   background: var(--surface);

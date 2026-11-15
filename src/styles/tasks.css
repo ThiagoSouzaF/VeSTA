@@ -393,7 +393,7 @@
   place-items: center;
   background: var(--accent-bg);
   color: var(--accent);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   animation: permission-pulse 1.6s ease-in-out infinite;
 }

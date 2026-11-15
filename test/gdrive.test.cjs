@@ -23,6 +23,7 @@ async function connected(dir = tmp()) {
     seal,
     unseal,
     urls,
+    retryDelays: [10, 10, 10],
     openExternal: async (u) => {
       opened.push(u);
       await browse(u);
@@ -160,4 +161,27 @@ test('sign-in: a request without this sign-in’s state is ignored instead of en
   const s = await d.connect();
   assert.deepEqual(statuses, [400, 400]);
   assert.equal(s.connected, true);
+});
+
+test('Drive answering 503 for a while, an upload broken halfway: retried, resumed, same bytes; no .part left', async () => {
+  const { d } = await connected();
+  const local = tmp();
+  const bytes = Buffer.alloc(200000, 7).toString('latin1') + 'fim';
+  google.failApi(2);
+  google.breakUpload();
+  const up = await d.upload(zip(local, 'VeSTA-backup-2026-11-01-0900.zip', bytes), { computer: 'PC' });
+  const stored = google.files.get(up.id);
+  assert.equal(stored.content.length, Buffer.byteLength(bytes, 'latin1'));
+  assert.ok(
+    google.log.filter((l) => l.startsWith('PUT /upload/session/')).length >= 3,
+    'broken PUT, status query, rest'
+  );
+  const dest = path.join(local, 'b.zip');
+  google.failApi(1);
+  await d.download(up.id, dest);
+  assert.equal(fs.readFileSync(dest, 'latin1'), bytes);
+  assert.ok(!fs.existsSync(dest + '.part'));
+  // Errors that are not transient are not retried.
+  await assert.rejects(d.download('f999999999999', path.join(local, 'x.zip')));
+  assert.ok(!fs.existsSync(path.join(local, 'x.zip')) && !fs.existsSync(path.join(local, 'x.zip.part')));
 });

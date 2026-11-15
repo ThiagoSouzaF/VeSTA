@@ -9,6 +9,7 @@ const { lines, json } = require('./ndjson.cjs');
 // when a command started in the background ends (checked in the Codex app-server schema: only output deltas and
 // terminal interaction of commands that belong to a running turn), so nothing could start the next turn. Both are
 // closed when the turn ends, as before; a detached command finishes unseen and the user asks again.
+const REQUEST_TIMEOUT_MS = 120000;
 function runCodex(spec, ctx) {
   const child = spawn(spec.exe, spec.args, {
     cwd: ctx.cwd,
@@ -30,12 +31,26 @@ function runCodex(spec, ctx) {
   const send = (o) => {
     if (child.stdin.writable) child.stdin.write(JSON.stringify(o) + '\n');
   };
+  // Requests answer at once (the turn itself streams as notifications): one that never answers is a stuck app-server.
   const request = (method, params) =>
     new Promise((resolve, reject) => {
       const id = ++seq;
-      pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        reject(new Error('O Codex não respondeu a ' + method + ' a tempo'));
+      }, ctx.requestTimeoutMs ?? REQUEST_TIMEOUT_MS);
+      timer.unref?.();
+      pending.set(id, {
+        resolve: (v) => (clearTimeout(timer), resolve(v)),
+        reject: (e) => (clearTimeout(timer), reject(e)),
+      });
       send({ jsonrpc: '2.0', id, method, params });
     });
+  // The process is gone: nothing will answer what is still waiting.
+  const failPending = (why) => {
+    for (const p of pending.values()) p.reject(new Error(why));
+    pending.clear();
+  };
   // The app-server keeps running after the turn: it is closed once the turn completes.
   const end = () => {
     if (ended) return;
@@ -146,8 +161,14 @@ function runCodex(spec, ctx) {
     end();
   });
   const done = new Promise((resolve) => {
-    child.on('error', (err) => resolve({ code: -1, stderr: err.message }));
-    child.on('close', (code) => resolve({ code: finished ? 0 : (code ?? 1), stderr }));
+    child.on('error', (err) => {
+      failPending(err.message);
+      resolve({ code: -1, stderr: err.message });
+    });
+    child.on('close', (code) => {
+      failPending('O Codex encerrou');
+      resolve({ code: finished ? 0 : (code ?? 1), stderr });
+    });
   });
   return {
     done,

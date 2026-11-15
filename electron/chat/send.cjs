@@ -65,7 +65,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
   chat.updatedAt = Date.now();
   delete chat.notice;
   if (resume) ctx.follows.drop(chatId);
-  store.save();
+  store.saveSoon();
   sync();
 
   // ---- The session of this process -------------------------------------------------------------------------------
@@ -101,7 +101,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
   const persistSoon = () => {
     clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
-      store.save();
+      store.saveSoon();
       sync();
     }, 400);
     persistTimer.unref?.();
@@ -134,7 +134,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
       if (m !== a || session.phase === 'following') persistSoon();
     }
     if (event.type === 'usage' && usage.recordRateLimit(store.state.usage, event)) {
-      store.save();
+      store.saveSoon();
       sync();
     }
     if (event.type === 'cost') usage.recordCost(store.state.usage, event);
@@ -190,7 +190,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
       tasks.detachRunning?.(chat);
     }
     ctx.memorySessions?.turnEnd(chat, a).catch(() => {});
-    store.save();
+    store.saveSoon();
     sync();
     // Lets other parts of the main process (quests) react to the end of a turn without coupling to this function.
     emit({ type: 'chat-done', chatId, status: a.status });
@@ -223,7 +223,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
     } catch (e) {
       a.activities.push({ label: 'Não foi possível salvar a memória', detail: e.message });
     }
-    store.save();
+    store.saveSoon();
     sync();
   }
   // The CLI started a turn on its own (a background command finished) or VeSTA nudged it: a new assistant message.
@@ -240,7 +240,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
     jobs.set(chatId, task);
     chat.messages.push(a);
     chat.updatedAt = Date.now();
-    store.save();
+    store.saveSoon();
     sync();
   }
   // The process ended by itself: the turn that was running concludes; a follower is simply over.
@@ -264,8 +264,11 @@ async function send(ctx, { chatId, text, attachments: ids }) {
   }
   (async () => {
     try {
-      const context = await turnContext.memoryContext(ctx, chat, text, assistant);
-      const servers = await turnContext.toolServers(ctx, chat, assistant);
+      // Independent: the memory context and the MCP endpoints are prepared together, not one after the other.
+      const [context, servers] = await Promise.all([
+        turnContext.memoryContext(ctx, chat, text, assistant),
+        turnContext.toolServers(ctx, chat, assistant),
+      ]);
       if (task.cancelled) throw new Error('Resposta interrompida');
       // The conversation is also an AI Memory session (consolidated when it goes idle). Not awaited: the answer never
       // waits for the memory server; the per-chat queue keeps the prompt ahead of the turn end, and failures land in

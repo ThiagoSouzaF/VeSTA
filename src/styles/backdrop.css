@@ -67,7 +67,7 @@
   padding: 6px 4px 0;
 }
 .backdrop-option > span:last-child {
-  font-size: 9.5px;
+  font-size: 10px;
   color: var(--muted);
   padding: 0 4px;
   line-height: 1.4;

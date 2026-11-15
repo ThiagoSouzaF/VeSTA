@@ -106,7 +106,7 @@
     padding: 20px;
   }
   .titlebar-caption {
-    font-size: 9px;
+    font-size: 10px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

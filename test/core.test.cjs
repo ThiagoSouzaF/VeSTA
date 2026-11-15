@@ -72,3 +72,24 @@ test('E2E scratch cleanup targets only the Claude Code folders of its own dir', 
     'C--Users-x-AppData-Local-Temp-vesta-tree-Ab1'
   );
 });
+test('saveSoon merges the writes of a turn into one, and save() writes what is pending at once', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-test-'));
+  const s = new Store(dir);
+  const file = path.join(dir, 'vesta.json');
+  const c = s.addChat({ provider: 'claude' });
+  s.save();
+  const before = fs.statSync(file).mtimeMs;
+  c.title = 'Um';
+  s.saveSoon();
+  c.title = 'Dois';
+  s.saveSoon();
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).chats[0].title, 'Novo chat', 'not written yet');
+  await new Promise((r) => setTimeout(r, 450));
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).chats[0].title, 'Dois');
+  assert.ok(fs.statSync(file).mtimeMs >= before);
+  c.title = 'Três';
+  s.saveSoon();
+  s.save();
+  assert.equal(new Store(dir).chat(c.id).title, 'Três');
+  assert.ok(!fs.readFileSync(file, 'utf8').includes('\n  '), 'compact JSON');
+});

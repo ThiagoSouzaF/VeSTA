@@ -11,7 +11,8 @@ const A = require('../attachments/rules.cjs');
 const { queryText, profileText } = require('../memory/text.cjs');
 
 const MAX_PROFILE = 3000,
-  MAX_CONTEXT = 6000;
+  MAX_CONTEXT = 6000,
+  MAX_SENT_NOTES = 60;
 const note = (assistant, kind, label, detail) => assistant.activities.push({ kind, label, detail });
 
 // Whether the AI starts this turn without a native session holding what VeSTA sent before: the first message, a chat
@@ -38,12 +39,20 @@ async function memoryContext(ctx, chat, text, assistant) {
               .map((n) => ({ category: 'habits', statement: n.title + ': ' + n.body })),
             MAX_PROFILE
           );
+      // A new native session: what earlier sessions received does not count.
+      chat.sentNotes = [];
       try {
         relevant = await memory.briefing(chat.projectId);
       } catch {
-        relevant = queryText(await memory.query(text, chat.projectId));
+        relevant = queryText(await memory.query(text, chat.projectId), { picked: chat.sentNotes });
       }
-    } else relevant = queryText(await memory.query(text, chat.projectId));
+    } else {
+      // The session still holds the notes sent in earlier turns: only new ones go (the list stays bounded).
+      const sent = Array.isArray(chat.sentNotes) ? chat.sentNotes : [];
+      const picked = [];
+      relevant = queryText(await memory.query(text, chat.projectId), { exclude: sent, picked });
+      chat.sentNotes = [...sent, ...picked].slice(-MAX_SENT_NOTES);
+    }
     const context = [personal && 'Preferências do usuário (perfil):\n' + personal, relevant]
       .filter(Boolean)
       .join('\n\n')

@@ -45,7 +45,7 @@ Atalhos: **Ctrl+K** busca conversas, **Enter** envia, **Shift+Enter** pula linha
 - **Quests.** Dê um objetivo e várias IAs trabalham juntas: uma planeja, cada etapa vai para a IA escolhida e os resultados passam de uma para a outra. O **chat da quest** conhece tudo o que está acontecendo e reorganiza o plano conforme você conversa.
 - **Processos longos acompanhados.** Pediu algo demorado (um build, um servidor, uma tarefa em segundo plano)? A IA volta sozinha quando termina.
 - **Anexos.** Imagens e documentos (PDF, texto, Word, Excel, PowerPoint e código) nos chats, no desktop e no celular.
-- **Backup em .zip e no Google Drive.** Suas conversas, memórias e preferências num .zip compacto, legíveis em Markdown fora do VeSTA, feito todo dia em segundo plano e enviado direto ao seu Google Drive (com a sua própria chave do Google Cloud, que a tela de Backup ensina a criar). Em outro computador, conecte a mesma conta e restaure de lá.
+- **Backup em .zip e no Google Drive.** Suas conversas, memórias e preferências num .zip compacto, legíveis em Markdown fora do VeSTA, feito todo dia em segundo plano e enviado direto ao seu Google Drive (com a sua própria chave do Google Cloud, que a tela de Backup ensina a criar). Se a rede cair no meio, o envio continua de onde parou e o download só substitui o arquivo quando chega inteiro. Em outro computador, conecte a mesma conta e restaure de lá.
 - **Peça ao próprio VeSTA, numa conversa.** "Mude o tema para Papel", "faça um backup agora", "monte uma quest para lançar o site e já inicie": a IA ajusta as preferências e cria, inicia e acompanha quests no projeto da conversa. Login no Google, restauração e controle pelo celular continuam só na tela Preferências.
 - **Uso e limites.** Veja quanto resta do plano do Claude e do Codex, e quantos tokens cada IA gastou por dia.
 - **Controle pelo celular.** Acompanhe e responda pedidos de permissão do sofá, por uma rede privada (Tailscale). Vem desligado.
@@ -121,7 +121,7 @@ Desenvolvimento do app móvel: `npm run dev:mobile` (Vite) e `npm run build` (ge
 ## Testes
 
 - Os testes de integração usam pastas temporárias próprias, independentes da localização do checkout. **Os testes E2E abrem janelas do app fora da tela.** Ao terminar, cada E2E apaga a sua pasta temporária (mantida quando falha, para inspeção) e as sessões que o Claude Code gravou para ela em `~/.claude/projects`; `VESTA_KEEP_SCRATCH=1` guarda tudo.
-- `npm test`: unidades, inclusive servidor HTTP/WS real em localhost.
+- `npm test`: unidades, inclusive servidor HTTP/WS real em localhost, Codex e OpenCode falsos que travam ou caem no meio do turno, o Google falso respondendo 503 e cortando o envio, e a tabela de quando o celular precisa de um sim no desktop para dar acesso completo.
 - `test-providers.cjs`: duas chamadas curtas em cada conta configurada.
 - `test-permissions.cjs` (`claude`, `codex` ou `opencode`, mais `allow`, `deny`, `subagent`, `always` ou `stop`): a IA real pede permissão para um `mkdir` e o teste confere o efeito de cada resposta.
 - `test-tree-e2e.cjs` (com `node`): conversas por projeto na barra lateral, recolher tudo, "+" do projeto, arrastar uma conversa (a próxima resposta roda na pasta nova com o histórico) e o esforço escolhido no menu do modelo chegando à IA.

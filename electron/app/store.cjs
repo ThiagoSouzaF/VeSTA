@@ -47,6 +47,7 @@ function migrateStore(state, savedVersion) {
   if (savedVersion < 4) state.settings.theme = 'ink';
   return state;
 }
+const SAVE_DELAY_MS = 300;
 class Store {
   constructor(dir) {
     this.dir = dir;
@@ -77,8 +78,22 @@ class Store {
       }
     }
   }
+  // Writes the whole state now (and whatever saveSoon had pending). Compact JSON: the file holds every conversation, so
+  // indentation only made each write bigger and slower; the readable copy lives in the backups.
   save() {
-    writeAtomic(this.file, JSON.stringify(this.state, null, 2));
+    clearTimeout(this.pendingSave);
+    this.pendingSave = null;
+    writeAtomic(this.file, JSON.stringify(this.state));
+  }
+  // The hot path of a turn (start, end, permission answers) saves several times per message: those writes are merged
+  // into one within SAVE_DELAY_MS, and one still pending is written when the process exits.
+  saveSoon() {
+    if (this.pendingSave) return;
+    this.pendingSave = setTimeout(() => this.save(), SAVE_DELAY_MS);
+    if (!this.flushOnExit) {
+      this.flushOnExit = () => this.pendingSave && this.save();
+      process.once('exit', this.flushOnExit);
+    }
   }
   chat(id) {
     const c = this.state.chats.find((c) => c.id === id);

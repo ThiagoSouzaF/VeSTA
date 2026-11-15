@@ -7,6 +7,7 @@ const { freePort } = require('../../util/sys.cjs');
 const A = require('../../attachments/rules.cjs');
 const { json } = require('./ndjson.cjs');
 
+const API_TIMEOUT_MS = 30000;
 function runOpenCode(spec, ctx) {
   let child = null,
     base = '',
@@ -22,6 +23,8 @@ function runOpenCode(spec, ctx) {
       method,
       headers: { authorization: auth, 'content-type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
+      // Every call of the local API answers at once (the prompt is async): one that hangs means a stuck server.
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
     });
     const t = await r.text();
     if (!r.ok) throw new Error('OpenCode ' + r.status + ': ' + clip(t, 300));
@@ -161,6 +164,9 @@ function runOpenCode(spec, ctx) {
         if (e) handle(e).catch(() => {});
       }
     }
+    // The event stream ended without session.idle: the server went away mid-answer. Without this the chat would stay
+    // "answering" forever with `opencode serve` still alive.
+    if (!finished && !stopped) throw new Error('O OpenCode encerrou a conexão antes de terminar a resposta');
   })().catch((err) => {
     if (!abort.signal.aborted) {
       ctx.parse.accept({ type: 'error', error: { message: err.message } });

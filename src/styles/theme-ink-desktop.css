@@ -53,7 +53,7 @@
   border-bottom: 1px solid var(--border);
 }
 :root[data-theme='ink'] .titlebar-caption {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--faint);
 }
 :root[data-theme='ink'] .titlebar-caption::before {
@@ -108,7 +108,7 @@
   color: #000;
   border: 0;
   padding: 3px 7px 3px 5px;
-  font-size: 8px !important;
+  font-size: 10px !important;
   font-weight: 700;
   clip-path: var(--chamfer-sm);
 }
@@ -154,7 +154,7 @@
   background: transparent;
   border: 1px solid var(--line-strong);
   color: var(--muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 :root[data-theme='ink'] .nav-item.active .count {
   background: #000;
@@ -162,7 +162,7 @@
   color: #fff;
 }
 :root[data-theme='ink'] .sidebar-section {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--muted);
 }
@@ -236,7 +236,7 @@
 }
 :root[data-theme='ink'] .memory-badge {
   border: 1px solid var(--line-strong);
-  font-size: 9px;
+  font-size: 10px;
   clip-path: var(--chamfer-sm);
 }
 
@@ -391,7 +391,7 @@
   text-transform: uppercase;
 }
 :root[data-theme='ink'] .field-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--muted);
 }
@@ -759,7 +759,7 @@
   color: #fff;
 }
 :root[data-theme='ink'] .composer-footnote {
-  font-size: 8.5px;
+  font-size: 10px;
 }
 
 /* ---- context panel ---- */
@@ -773,7 +773,7 @@
   color: #fff;
 }
 :root[data-theme='ink'] .context-label {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--muted);
 }
 :root[data-theme='ink'] .context-label::before {
@@ -1038,7 +1038,7 @@
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 10px;
   padding: 2px 8px 2px 6px;
 }
 :root[data-theme='ink'] .quest-status.running,
@@ -1133,7 +1133,7 @@
   border: 1px solid var(--line-strong);
   color: var(--muted);
   padding: 0 6px;
-  font-size: 9px;
+  font-size: 10px;
 }
 :root[data-theme='ink'] .step-link {
   color: #fff;
@@ -1169,7 +1169,7 @@
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-size: 9px;
+  font-size: 10px;
 }
 :root[data-theme='ink'] .dep-chip.on {
   background: #fff;

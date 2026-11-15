@@ -66,8 +66,9 @@ const unmark = (s) =>
     .replace(/\s+/g, ' ')
     .trim();
 // memory_query JSON -> a few readable lines with the project's own hits. Profile hits (global_scope_hits) stay out:
-// the profile is sent on its own at the start of a session. '' when nothing in the project matched.
-function queryText(raw, { limit = 4, snippet = 220 } = {}) {
+// the profile is sent on its own at the start of a session. `exclude` = paths the session already received; `picked`
+// collects the paths sent now. '' when nothing new in the project matched.
+function queryText(raw, { limit = 4, snippet = 220, exclude = [], picked = [] } = {}) {
   let j;
   try {
     j = JSON.parse(raw);
@@ -76,8 +77,10 @@ function queryText(raw, { limit = 4, snippet = 220 } = {}) {
       .trim()
       .slice(0, 2000);
   }
-  const hits = (Array.isArray(j?.hits) ? j.hits : []).slice(0, limit);
+  const skip = new Set(exclude);
+  const hits = (Array.isArray(j?.hits) ? j.hits : []).filter((h) => !h.path || !skip.has(h.path)).slice(0, limit);
   if (!hits.length) return '';
+  for (const h of hits) if (h.path) picked.push(h.path);
   return (
     'Notas do projeto que parecem relacionadas:\n' +
     hits

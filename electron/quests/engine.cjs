@@ -271,7 +271,10 @@ function createQuestEngine(ctx, deps = {}) {
       else
         try {
           ensureLead(q);
-        } catch {} // no AI installed yet: the chat is opened later, from the quest screen
+        } catch (e) {
+          // No AI installed yet: the chat is opened later, from the quest screen. Anything else is a real failure.
+          if (!(e instanceof UserError)) throw e;
+        }
       quests().unshift(q);
       commit();
       return q;

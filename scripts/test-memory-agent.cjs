@@ -3,8 +3,9 @@
 const path = require('node:path'),
   fs = require('node:fs'),
   assert = require('node:assert/strict');
-const provider = process.argv.find((a) => ['claude', 'codex', 'opencode'].includes(a)) || 'claude';
-const model = process.argv[process.argv.indexOf(provider) + 1] || (provider === 'claude' ? 'claude-haiku-5-5' : '');
+const at = process.argv.findIndex((a) => ['claude', 'codex', 'opencode'].includes(a));
+const provider = at < 0 ? 'claude' : process.argv[at];
+const model = (at < 0 ? '' : process.argv[at + 1]) || (provider === 'claude' ? 'claude-haiku-5-5' : '');
 const data = require('./test-scratch.cjs')('memory-agent'),
   projectDir = path.join(data, 'projeto-e2e');
 fs.mkdirSync(projectDir, { recursive: true });

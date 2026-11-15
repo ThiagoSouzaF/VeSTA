@@ -1,6 +1,8 @@
 import { ArrowUpRight, Plus, Brain, Folder, Check, ShieldCheck, Orbit, ExternalLink, FileText } from 'lucide-react';
 import { action } from '../lib/api';
 import { Mark } from './Brand';
+// A count in the panel's two-digit style; none yet says so in words.
+const countText = (n) => (n ? String(n).padStart(2, '0') : 'Nenhuma ainda');
 export function ContextPanel({
   chat,
   currentProject,
@@ -75,21 +77,11 @@ export function ContextPanel({
         <p>O que você guarda aqui acompanha suas conversas, mesmo quando troca de IA.</p>
         <div className="context-stat">
           <span>Preferências pessoais</span>
-          <strong>
-            {data.memories
-              .filter((m) => m.kind === 'preference')
-              .length.toString()
-              .padStart(2, '0')}
-          </strong>
+          <strong>{countText(data.memories.filter((m) => m.kind === 'preference').length)}</strong>
         </div>
         <div className="context-stat">
           <span>Memórias deste espaço</span>
-          <strong>
-            {data.memories
-              .filter((m) => m.projectId === (currentProjectId || null))
-              .length.toString()
-              .padStart(2, '0')}
-          </strong>
+          <strong>{countText(data.memories.filter((m) => m.projectId === (currentProjectId || null)).length)}</strong>
         </div>
         <button className="text-button" onClick={() => setPage('memory')}>
           Explorar memória

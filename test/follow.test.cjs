@@ -244,6 +244,7 @@ function chatHarness({ settings = {} } = {}) {
     },
     chat: () => chat,
     save() {},
+    saveSoon() {},
   };
   ctx.integrations = { claude: { exe: process.execPath, installed: true } };
   ctx.workdir = () => __dirname;

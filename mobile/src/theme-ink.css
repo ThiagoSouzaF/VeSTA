@@ -141,7 +141,7 @@
   background: transparent;
   border: 1px solid var(--line-strong);
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 :root[data-theme='ink'] .badge.live,
 :root[data-theme='ink'] .badge.good {

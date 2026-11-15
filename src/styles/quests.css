@@ -125,6 +125,22 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+/* Cancelar and Excluir stay quieter than the actions that move the quest on (their confirmation keeps its weight),
+   set apart at the end of the toolbar. */
+:root .quest-controls .danger-button:not(.filled) {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 400;
+  padding-inline: 12px;
+}
+:root .quest-controls .danger-button:not(.filled):hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+:root .quest-controls :not(.danger-button) + .danger-button {
+  margin-left: 8px;
+}
 .quest-brief {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -384,7 +400,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--faint);
@@ -532,7 +548,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--faint);

@@ -1,8 +1,7 @@
 // Remote control of VeSTA from a phone. Off by default. This file wires the pieces and owns the lifecycle:
 //   config (store.remote) -> server (HTTP/WS) -> hub (events) ; dispatch() maps allowlisted calls to the desktop methods.
 const path = require('node:path'),
-  os = require('node:os'),
-  { createHash } = require('node:crypto');
+  os = require('node:os');
 const { Pairing, Devices } = require('./tokens.cjs');
 const { createHub } = require('./hub.cjs');
 const { createRemoteServer } = require('./server.cjs');
@@ -11,8 +10,8 @@ const { sanitizeState, sanitizeChat, sanitizeIntegrations, createStateDiffer } =
 const net = require('./net.cjs');
 const tailscale = require('./tailscale.cjs');
 const { redact } = require('../memory/redact.cjs');
+const approval = require('./approval.cjs');
 
-const MODES = ['edit', 'read', 'ask'];
 const SESSION_GAP_MS = 15 * 60 * 1000; // a device idle for this long is "a new session" for the desktop notice
 const LAN_REMOVED =
   'O modo "Rede local (LAN)" foi removido: era HTTP sem criptografia. O controle remoto foi desligado; para usar o celular, instale o Tailscale e escolha "Somente Tailscale".';
@@ -113,15 +112,8 @@ function createRemote({ ctx, methods, bus, staticRoot = path.join(__dirname, '..
         : 'O acesso completo foi recusado no desktop. Use o modo "Pedir permissão".'
     );
   }
-  const stepsToRun = (q) =>
-    (q.steps || []).filter((s) => s.mode === 'edit' && !['done', 'skipped', 'cancelled'].includes(s.status));
-  const signature = (q) =>
-    createHash('sha256')
-      .update(JSON.stringify(stepsToRun(q).map((s) => [s.id, s.title, s.instructions, s.provider])))
-      .digest('hex');
 
   async function dispatch(name, args, { device, ip } = {}) {
-    let pendingApproval = null;
     if (name === 'bootstrap') {
       const integrations = Object.keys(ctx.integrations || {}).length
         ? ctx.integrations
@@ -132,59 +124,20 @@ function createRemote({ ctx, methods, bus, staticRoot = path.join(__dirname, '..
         serverTime: Date.now(),
       };
     }
-    if (name === 'createChat') {
-      // From a phone a chat is born asking for permission unless the user picks otherwise (Drael cannot ask: it reads).
-      args = { ...args, mode: MODES.includes(args.mode) ? args.mode : args.provider === 'drael' ? 'read' : 'ask' };
-      if (args.mode === 'edit') await requireFullAccess(device, ip, 'a um novo chat (' + args.provider + ')');
-    } else if (name === 'updateChat' && args.mode === 'edit') {
-      const chat = ctx.store.state.chats.find((c) => c.id === args.id);
-      if (chat && chat.mode !== 'edit') await requireFullAccess(device, ip, 'ao chat "' + chat.title + '"');
-    } else if (name === 'createQuest') {
-      const steps = (args.steps || []).map((s) =>
-        s && typeof s === 'object' && !Array.isArray(s) ? { ...s, mode: MODES.includes(s.mode) ? s.mode : 'ask' } : s
-      );
-      if (steps.some((s) => s?.mode === 'edit'))
-        await requireFullAccess(device, ip, 'a etapas da quest "' + args.title + '"');
-      args = { ...args, steps };
-    } else if (name === 'startQuest' || name === 'resumeQuest' || name === 'retryStep') {
-      // Steps can also arrive in edit mode from the planning AI: starting them is the moment to ask.
-      const q = ctx.store.state.quests?.find((x) => x.id === args.id);
-      if (q && stepsToRun(q).length && approvedQuests.get(q.id) !== signature(q)) {
-        await requireFullAccess(
-          device,
-          ip,
-          'à quest "' + q.title + '" (' + stepsToRun(q).length + ' etapa(s) em acesso completo)'
-        );
-        approvedQuests.set(q.id, signature(q));
-      }
-    } else if (name === 'addStep' || name === 'updateStep') {
-      // Same rule as chats: a step that ends up in full access ('edit') because of the phone needs a yes at the desktop.
-      // Desktop has no such confirmation for chats either, so there is none for steps there (precedent only here).
-      const q = ctx.store.state.quests?.find((x) => x.id === args.id);
-      const cur = name === 'updateStep' ? q?.steps?.find((s) => s.id === args.stepId) : null;
-      if (name === 'addStep') args = { ...args, mode: args.mode || (args.provider === 'drael' ? 'read' : 'ask') };
-      const mode = args.mode || cur?.mode;
-      // Editing what an already-edit step does (AI, title, instructions) also changes what runs with full access.
-      const changes =
-        name === 'addStep' ||
-        !cur ||
-        cur.mode !== 'edit' ||
-        ['provider', 'title', 'instructions'].some((k) => args[k] !== undefined && args[k] !== cur[k]);
-      if (q && mode === 'edit' && changes) {
-        const wasApproved = approvedQuests.get(q.id) === signature(q) || stepsToRun(q).every((s) => s.id === cur?.id);
-        await requireFullAccess(device, ip, 'à etapa "' + (cur?.title || args.title) + '" da quest "' + q.title + '"');
-        pendingApproval = wasApproved ? q.id : null;
-      }
-    }
+    // Full access asked from the phone: a yes at the desktop first (policy in approval.cjs).
+    const r = approval.review(name, args, ctx.store.state, approvedQuests);
+    args = r.args;
+    if (r.ask) await requireFullAccess(device, ip, r.ask);
+    const remember = (id) => {
+      const q = ctx.store.state.quests?.find((x) => x.id === id);
+      if (q) approvedQuests.set(q.id, approval.signature(q));
+    };
+    remember(r.rememberNow);
     const out = await methods[name](args);
-    if (pendingApproval) {
-      const q = ctx.store.state.quests?.find((x) => x.id === pendingApproval);
-      if (q) approvedQuests.set(q.id, signature(q)); // the user just approved this very change
-    }
-    if (name === 'createQuest') {
+    if (r.rememberAfter === 'new') {
       const q = ctx.store.state.quests?.[0];
-      if (q && stepsToRun(q).length) approvedQuests.set(q.id, signature(q)); // approved above
-    }
+      if (q && approval.stepsToRun(q).length) remember(q.id); // created just now, approved above
+    } else remember(r.rememberAfter);
     if (name === 'usage' || name === 'refreshUsage' || name === 'attachmentData') return out;
     if (name === 'createChat') return { chat: sanitizeChat(out.chats[0]) };
     return { ok: true };

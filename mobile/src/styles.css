@@ -1074,8 +1074,8 @@ fieldset.plain {
   margin: 0 2px 0 6px;
 }
 .m-chip button {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   color: var(--muted);
