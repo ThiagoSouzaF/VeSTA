@@ -14,11 +14,20 @@ const contentText = (content) =>
     )
     .filter(Boolean)
     .join('\n');
-// The tool's own name: MCP tools come as "<tool> (<server> MCP Server)" in the title.
-const mcpName = (title) => {
-  const m = /^([\w.-]+) \(([\w.-]+) MCP Server\)/.exec(String(title || ''));
-  return m ? 'mcp_' + m[2] + '_' + m[1] : '';
-};
+// An MCP tool call (Gemini CLI 0.68) carries no rawInput: its id names the server and the tool
+// ("mcp_vesta-memory_memory_query__call_<n>") and its title the arguments ("memory_query(workspace: vesta, query: x)").
+const mcpName = (toolCallId) => /^(mcp_[\w.-]+?)__call_/.exec(String(toolCallId || ''))?.[1] || '';
+// "tool(a: 1, b: x, y)" -> { a: '1', b: 'x, y' }: a comma starts a new argument only before "<name>: ".
+function argsOf(title) {
+  const m = /^[\w.-]+\(([\s\S]*)\)$/.exec(String(title || ''));
+  if (!m) return {};
+  const args = {};
+  for (const part of m[1].split(/, (?=[A-Za-z_]\w*: )/)) {
+    const at = part.indexOf(': ');
+    if (at > 0) args[part.slice(0, at)] = part.slice(at + 2);
+  }
+  return args;
+}
 
 function geminiHandler(core) {
   const { emit, append, activity, activityUpdate, cost, memoryCall } = core;
@@ -32,8 +41,8 @@ function geminiHandler(core) {
         if (u.content?.type === 'text') append(u.content.text || '');
         return;
       case 'tool_call': {
-        const input = u.rawInput || {};
-        const name = mcpName(u.title);
+        const name = mcpName(u.toolCallId);
+        const input = u.rawInput || (name ? argsOf(u.title) : {});
         calls.set(u.toolCallId, name);
         if (name) memoryCall(name, input, u.toolCallId);
         const status = STATUS[u.status] || 'running';
@@ -74,4 +83,4 @@ function geminiHandler(core) {
     }
   };
 }
-module.exports = { geminiHandler, mcpName };
+module.exports = { geminiHandler, mcpName, argsOf };

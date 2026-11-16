@@ -61,7 +61,9 @@ export const MODEL_LABELS = {
   'claude-sonnet-5-5': 'Sonnet 5.5',
   'claude-haiku-5-5': 'Haiku 5.5',
   auto: 'Automático',
-  'gemini-2.5-pro': 'Gemini 2.5 Pro',
-  'gemini-2.5-flash': 'Gemini 2.5 Flash',
-  'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite',
+  'gemini-3.1-flash-lite': 'Gemini 3.1 Flash-Lite',
+  'gemini-3.8-flash': 'Gemini 3.8 Flash',
+  'gemini-flash-latest': 'Gemini Flash (mais recente)',
+  'gemini-pro-latest': 'Gemini Pro (mais recente)',
+  'gemini-4-argon': 'Gemini 4 Argon',
 };

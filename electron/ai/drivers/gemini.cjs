@@ -13,12 +13,26 @@ const LOGIN_HINT = 'Configure o Gemini: crie uma chave em aistudio.google.com/ap
 // Google refuses personal accounts that log in to the CLI with Google (IneligibleTierError): only a key works.
 const BLOCKED_LOGIN_HINT =
   'O Google não aceita mais o login pessoal do Google no Gemini CLI. Crie uma chave em aistudio.google.com/apikey e salve em Conexões → Gemini.';
+// Quota (429: the free tier gives some models a limit of 0) and a busy model (503) say what to do instead.
+const QUOTA_HINT =
+  'Este modelo não está no plano gratuito da sua chave do Gemini ou o limite de uso acabou. Escolha o Gemini 3.1 Flash-Lite ou ative o faturamento no Google AI Studio.';
+const BUSY_HINT =
+  'O Google está com o modelo sobrecarregado agora. Tente de novo em instantes ou escolha outro modelo do Gemini.';
+// The model Google names in the error, so the person knows which one to switch away from.
+const modelOf = (message) => {
+  const m = /model: ([\w.-]+)/.exec(message);
+  return m ? ' (modelo: ' + m[1] + ')' : '';
+};
 const hintFor = (message) =>
   /no longer supported|IneligibleTier|antigravity/i.test(message)
     ? BLOCKED_LOGIN_HINT
-    : /api key|auth|login|credential/i.test(message)
-      ? LOGIN_HINT + ' (' + message + ')'
-      : message;
+    : /quota|RESOURCE_EXHAUSTED|\b429\b|rate limit/i.test(message)
+      ? QUOTA_HINT + modelOf(message)
+      : /high demand|overloaded|UNAVAILABLE|\b503\b/i.test(message)
+        ? BUSY_HINT
+        : /api key|auth|login|credential/i.test(message)
+          ? LOGIN_HINT + ' (' + message + ')'
+          : message;
 
 // What a tool call is about, for the permission card: the command, the file(s) or the title.
 function describe(tc = {}) {
@@ -162,4 +176,4 @@ function runGemini(spec, ctx) {
     },
   };
 }
-module.exports = { runGemini, LOGIN_HINT, BLOCKED_LOGIN_HINT };
+module.exports = { runGemini, LOGIN_HINT, BLOCKED_LOGIN_HINT, QUOTA_HINT, BUSY_HINT, hintFor };

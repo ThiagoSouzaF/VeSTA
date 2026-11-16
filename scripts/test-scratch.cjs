@@ -33,7 +33,8 @@ process.on('exit', cleanup);
 
 // Sealed keys a run may reuse (VESTA_TEST_KEYS=<data dir of a dev app where the person saved them in Conexões>), so a
 // real key reaches the E2E without being typed into a script. Only these files, never vesta.json or memory.
-const KEY_FILES = ['gemini-key.json'];
+// 'Local State' holds the key Electron's safeStorage seals with in that data dir: without it nothing opens.
+const KEY_FILES = ['gemini-key.json', 'Local State'];
 module.exports = (name) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-' + name + '-'));
   dirs.push(dir);

@@ -87,7 +87,8 @@ function command(chat, exe, endpoint, { attachDir = null, extra = [] } = {}) {
     ]);
     return {
       ...launch,
-      env: { GEMINI_CLI_SYSTEM_SETTINGS_PATH: gemini.privateSettings() },
+      // Gemini's home, settings and key come from auth-env.cjs (they need the app's data folder).
+      env: {},
       mcpServers: mem.acp,
       readOnly: mode === 'read',
       resume: chat.sessionId || null,

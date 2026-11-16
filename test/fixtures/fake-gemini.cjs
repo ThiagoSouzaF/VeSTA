@@ -73,13 +73,21 @@ async function handle(m) {
       status: o.optionId === 'proceed_once' ? 'completed' : 'failed',
       content: [{ type: 'content', content: { type: 'text', text: 'saída do comando' } }],
     });
+    // An MCP call as Gemini CLI 0.68 sends it: server and tool in the id, the arguments only in the title.
     update(sid, {
       sessionUpdate: 'tool_call',
-      toolCallId: 'tc2',
-      title: 'memory_write_page (vesta-memory MCP Server)',
+      toolCallId: 'mcp_vesta-memory_memory_write_page__call_42',
+      title: 'memory_write_page(path: notas/x.md, body: # Nota\n\nUm, dois, project: proj-1, workspace: vesta)',
       kind: 'other',
+      status: 'in_progress',
+      content: [],
+      locations: [],
+    });
+    update(sid, {
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'mcp_vesta-memory_memory_write_page__call_42',
       status: 'completed',
-      rawInput: { path: 'notas/x.md', body: 'b' },
+      content: [{ type: 'content', content: { type: 'text', text: '{"path":"notas/x.md"}' } }],
     });
     update(sid, {
       sessionUpdate: 'agent_message_chunk',

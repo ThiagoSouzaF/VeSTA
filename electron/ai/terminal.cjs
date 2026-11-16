@@ -33,7 +33,6 @@ function modeFlags(id, mode) {
 }
 // OpenCode takes its permissions from the environment, like in the chat.
 function modeEnv(id, mode) {
-  if (id === 'gemini') return { GEMINI_CLI_SYSTEM_SETTINGS_PATH: gemini.privateSettings() };
   if (id !== 'opencode') return {};
   const permission =
     mode === 'read'

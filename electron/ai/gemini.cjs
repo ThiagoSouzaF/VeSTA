@@ -2,9 +2,12 @@
 // The CLI is a Node script (bundle/gemini.js), not an executable: `exe` in the integrations is that script and it runs
 // with the node.exe of the same install. VeSTA talks to it over ACP (`gemini --acp`, see drivers/gemini.cjs).
 //
-// Everything VeSTA needs goes per launch, never into ~/.gemini:
-//   - privateSettings(): a settings file passed as GEMINI_CLI_SYSTEM_SETTINGS_PATH (the highest-precedence layer) with
-//     usage statistics, telemetry and self-update off. The person's own ~/.gemini/settings.json (login, model) stays.
+// Gemini runs with a home folder of its own inside VeSTA's data (GEMINI_CLI_HOME = <dados>/gemini-home): its settings,
+// login and sessions live there, chats and the native terminal share them, and ~/.gemini is neither read nor changed.
+// Why not ~/.gemini plus a settings layer: the CLI skips a GEMINI_CLI_SYSTEM_SETTINGS_PATH file outside an
+// admin-owned folder ("insecure"), and a Google login left in ~/.gemini wins over the key. In its own home:
+//   - settings.json (the "user" layer): usage statistics, telemetry and self-update off; with a key, key auth and a
+//     model the free tier serves. Keys the CLI itself writes there (a login from the terminal) are kept.
 //   - policy(): a policy file (--policy) that lets VeSTA's own MCP servers (vesta-memory, vesta-quest, vesta-app) run
 //     without a prompt, as Claude (--allowedTools) and Codex (default_tools_approval_mode) do.
 //   - --skip-trust: the project folder is trusted for that session only. Without it Gemini forces every chat into
@@ -72,10 +75,13 @@ function launch(script, args = []) {
   return { exe: node, args: [script, ...args] };
 }
 
-// Signed in: Google login (oauth_creds.json) or an API key in the environment. null = cannot tell.
-function authenticated(env = process.env, home = os.homedir()) {
-  if (env.GEMINI_API_KEY || env.GOOGLE_API_KEY) return true;
-  return isFile(path.join(home, '.gemini', 'oauth_creds.json'));
+// Gemini's home inside VeSTA's data (see the top of this file).
+const homeOf = (ctx) => path.join(ctx.app.getPath('userData'), 'gemini-home');
+
+// Signed in: a saved key, a key in the environment or a Google login made in VeSTA's Gemini home.
+function authenticated(ctx, env = process.env) {
+  if (env.GEMINI_API_KEY || env.GOOGLE_API_KEY || hasKey(ctx)) return true;
+  return !!ctx?.app && isFile(path.join(homeOf(ctx), '.gemini', 'oauth_creds.json'));
 }
 
 // The person's Gemini API key (Google AI Studio), saved from Conexões. Google no longer lets personal accounts use the
@@ -83,66 +89,97 @@ function authenticated(env = process.env, home = os.homedir()) {
 // Sealed by the OS keychain in a file of its own like the backup password: never in vesta.json (so never in a backup),
 // never on a command line, never in ~/.gemini.
 const apiKey = (ctx) => sealedFile(path.join(ctx.app.getPath('userData'), 'gemini-key.json'), ctx.secrets);
-const KEY_PATTERN = /^[\w-]{30,200}$/;
+// Keys come as "AIza…" (older) or "AQ.…" (AI Studio since 2026, with dots).
+const KEY_PATTERN = /^[\w.-]{30,200}$/;
+// AI Studio's quick start hands out a curl command with the key in a header (X-goog-api-key: …) or in ?key=…:
+// pasting the whole command works too.
+const IN_SNIPPET = /(?:x-goog-api-key:\s*|[?&]key=|GEMINI_API_KEY\s*=\s*["']?)([\w.-]{30,200})/i;
+function keyFrom(text) {
+  const value = String(text || '').trim();
+  return KEY_PATTERN.test(value) ? value : IN_SNIPPET.exec(value)?.[1] || '';
+}
 function saveKey(ctx, key) {
-  const value = String(key || '').trim();
-  if (!KEY_PATTERN.test(value))
-    throw new UserError('Isso não parece uma chave do Gemini. Copie a chave inteira do Google AI Studio.');
+  const value = keyFrom(key);
+  if (!value) throw new UserError('Isso não parece uma chave do Gemini. Copie a chave inteira do Google AI Studio.');
   apiKey(ctx).set(value);
 }
 const hasKey = (ctx) => !!ctx?.secrets && apiKey(ctx).has();
 
-// The models the picker offers. "auto" lets the CLI route between Pro and Flash; any other id goes to `--model`.
-const MODELS = ['auto', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+// The models the picker offers (checked against a new AI Studio key, 2026-11). Google closed the 2.5 models to new
+// keys, and the free tier gives Pro, "latest Pro" and Gemini 4 a quota of 0: only the Flash ones answer without billing.
+// The CLI's "auto" routes to those paid models, so with a key the default ("Padrão da conta") is Flash-Lite instead.
+const FREE_MODEL = 'gemini-3.1-flash-lite';
+const MODELS = [FREE_MODEL, 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-pro-latest', 'gemini-4-argon'];
 
 const PRIVATE_SETTINGS = {
   privacy: { usageStatisticsEnabled: false },
   telemetry: { enabled: false, logPrompts: false },
-  general: { enableAutoUpdate: false, enableAutoUpdateNotification: false },
+  // The CLI retries a busy (503) or over-quota (429) model up to 10 times, 30 s apart, silently: a chat looked frozen.
+  // 3 attempts still ride out a blip, then the error reaches the chat.
+  general: { enableAutoUpdate: false, enableAutoUpdateNotification: false, maxAttempts: 3 },
 };
-// The ids VeSTA's MCP servers have in Gemini's policy engine.
+// The ids VeSTA's MCP servers have in Gemini's policy engine. A rule needs a toolName ("*" = every tool of the server).
 const OWN_SERVERS = [MEMORY_SERVER, QUEST_SERVER, APP_SERVER];
 const POLICY =
   '# Written by VeSTA for each launch: its own MCP servers run without asking.\n' +
-  OWN_SERVERS.map((name) => `[[rule]]\nmcpName = "${name}"\ndecision = "allow"\npriority = 900\n`).join('\n');
+  OWN_SERVERS.map((name) => `[[rule]]\nmcpName = "${name}"\ntoolName = "*"\ndecision = "allow"\npriority = 900\n`).join(
+    '\n'
+  );
 
-// Files VeSTA hands the CLI, written (again) to a folder of its own in the temp dir: the content never changes.
-function writeOnce(name, content, dir) {
-  const file = path.join(dir, name);
+const write = (file, content) => {
   try {
     if (fs.readFileSync(file, 'utf8') === content) return file;
   } catch {}
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, content);
   return file;
+};
+// The policy file goes to a folder of VeSTA's own in the temp dir: its content never changes.
+const policy = (dir = path.join(os.tmpdir(), 'vesta-gemini')) => write(path.join(dir, 'vesta-policy.toml'), POLICY);
+
+// settings.json in Gemini's home: VeSTA's privacy on top of what is there (a login the CLI saved, a model the person
+// picked in the terminal). With a key: key auth, and the free-tier model when no model was chosen.
+function settingsFor(current = {}, withKey = false) {
+  const next = { ...current };
+  for (const [group, values] of Object.entries(PRIVATE_SETTINGS)) next[group] = { ...current[group], ...values };
+  if (withKey) {
+    next.security = { ...current.security, auth: { ...current.security?.auth, selectedType: 'gemini-api-key' } };
+    next.model = { name: FREE_MODEL, ...current.model };
+  }
+  return next;
 }
-const filesDir = () => path.join(os.tmpdir(), 'vesta-gemini');
-const privateSettings = (dir = filesDir()) =>
-  writeOnce('settings.json', JSON.stringify(PRIVATE_SETTINGS, null, 2), dir);
-const policy = (dir = filesDir()) => writeOnce('vesta-policy.toml', POLICY, dir);
-// With a saved key the same private layer also picks API-key auth, over the login chosen in ~/.gemini/settings.json.
-const KEY_SETTINGS = { ...PRIVATE_SETTINGS, security: { auth: { selectedType: 'gemini-api-key' } } };
-const keySettings = (dir = filesDir()) => writeOnce('settings-key.json', JSON.stringify(KEY_SETTINGS, null, 2), dir);
-// What a chat or terminal adds to the environment: the saved key and the settings that use it ({} without a key).
+function writeSettings(ctx, withKey) {
+  const file = path.join(homeOf(ctx), '.gemini', 'settings.json');
+  let current = {};
+  try {
+    current = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {}
+  return write(file, JSON.stringify(settingsFor(current, withKey), null, 2));
+}
+// What a chat or the native terminal adds to the environment: Gemini's home (settings written first) and the saved key.
 function authEnv(ctx) {
-  const key = ctx?.secrets ? apiKey(ctx).get() : '';
-  return key ? { GEMINI_API_KEY: key, GEMINI_CLI_SYSTEM_SETTINGS_PATH: keySettings() } : {};
+  if (!ctx?.app) return {};
+  const key = ctx.secrets ? apiKey(ctx).get() : '';
+  writeSettings(ctx, !!key);
+  return { GEMINI_CLI_HOME: homeOf(ctx), ...(key ? { GEMINI_API_KEY: key } : {}) };
 }
 
 module.exports = {
   locate,
   nodeFor,
   launch,
+  homeOf,
   authenticated,
   apiKey,
   saveKey,
+  keyFrom,
   hasKey,
   authEnv,
-  KEY_SETTINGS,
+  settingsFor,
   MODELS,
+  FREE_MODEL,
   OWN_SERVERS,
   POLICY,
   PRIVATE_SETTINGS,
-  privateSettings,
   policy,
 };

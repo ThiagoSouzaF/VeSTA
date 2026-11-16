@@ -47,7 +47,7 @@ export function GeminiKey({ integration, call, setIntegrations, notify }) {
         >
           <input
             aria-label="Chave do Gemini"
-            placeholder="Cole a chave (AIza…)"
+            placeholder="Cole a chave (AQ.… ou AIza…)"
             type="password"
             autoComplete="off"
             spellCheck={false}

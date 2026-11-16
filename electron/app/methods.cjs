@@ -24,7 +24,7 @@ function createMethods(ctx) {
     },
     refreshConnections: () => discover(ctx),
     // The Gemini API key goes in and out sealed; the interface only learns whether one is saved.
-    saveGeminiKey: ({ key } = {}) => (gemini.saveKey(ctx, ctx.bounded(key, 300)), discover(ctx)),
+    saveGeminiKey: ({ key } = {}) => (gemini.saveKey(ctx, ctx.bounded(key, 4000)), discover(ctx)),
     removeGeminiKey: () => (gemini.apiKey(ctx).clear(), discover(ctx)),
     ...chatMethods(ctx),
     ...questMethods(ctx),

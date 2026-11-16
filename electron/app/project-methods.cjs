@@ -4,6 +4,7 @@ const fs = require('node:fs'),
   os = require('node:os');
 const { randomUUID } = require('node:crypto');
 const { UserError } = require('./errors.cjs');
+const gemini = require('../ai/gemini.cjs');
 // Instruction files each AI reads, and who reads them (shown next to the file so the list explains itself).
 const READERS = {
   'AGENTS.md': 'Codex, OpenCode e Drael',
@@ -24,7 +25,8 @@ async function inspectProject(ctx, id) {
     [path.join(home, '.codex', 'AGENTS.md'), 'Codex · instruções globais'],
     [path.join(home, '.claude', 'CLAUDE.md'), 'Claude · instruções globais'],
     [path.join(home, '.config', 'opencode', 'AGENTS.md'), 'OpenCode · instruções globais'],
-    [path.join(home, '.gemini', 'GEMINI.md'), 'Gemini · instruções globais'],
+    // VeSTA's Gemini reads its global GEMINI.md from its own home, not ~/.gemini (see ai/gemini.cjs).
+    [path.join(gemini.homeOf(ctx), '.gemini', 'GEMINI.md'), 'Gemini · instruções globais'],
   ]);
   const files = [],
     seen = new Set();
