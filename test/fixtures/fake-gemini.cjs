@@ -2,6 +2,7 @@
 // FAKE_GEMINI=normal (default): a turn with text, one tool call that needs permission and the usage at the end.
 //   session/load of "old-session" replays an old message first (it must not reach the chat); other ids fail.
 // FAKE_GEMINI=auth: session/new fails as the real CLI does without a login.
+// FAKE_GEMINI=blocked: session/new fails as Google answers a personal Google login since 2026.
 // The permission answer is echoed in the text ("permissão: <optionId|cancelled>"); argv is echoed too.
 const mode = process.env.FAKE_GEMINI || 'normal';
 let buf = '';
@@ -22,6 +23,15 @@ async function handle(m) {
   if (m.method === 'initialize')
     return send({ id: m.id, result: { protocolVersion: 1, agentCapabilities: { loadSession: true } } });
   if (m.method === 'session/new') {
+    if (mode === 'blocked')
+      return send({
+        id: m.id,
+        error: {
+          code: -32603,
+          message:
+            'IneligibleTierError: This client is no longer supported for Gemini Code Assist for individuals. To continue using Gemini, please migrate to the Antigravity suite of products: https://antigravity.google',
+        },
+      });
     if (mode === 'auth')
       return send({ id: m.id, error: { code: -32000, message: 'Gemini API key is missing or not configured.' } });
     return send({ id: m.id, result: { sessionId: 'new-session', mcp: p.mcpServers } });

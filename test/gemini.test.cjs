@@ -10,6 +10,10 @@ const drivers = require('../electron/ai/drivers.cjs');
 const providers = require('../electron/ai/providers.cjs');
 const gemini = require('../electron/ai/gemini.cjs');
 const { terminalCommand } = require('../electron/ai/terminal.cjs');
+const { BLOCKED_LOGIN_HINT } = require('../electron/ai/drivers/gemini.cjs');
+const { authEnv } = require('../electron/ai/auth-env.cjs');
+const { createSecrets } = require('../electron/app/secrets.cjs');
+const { UserError } = require('../electron/app/errors.cjs');
 
 const FAKE = path.join(__dirname, 'fixtures', 'fake-gemini.cjs');
 function turn({ mode = 'normal', resume = null, readOnly = false, allow = true } = {}) {
@@ -80,10 +84,12 @@ test('resume: the chat session is loaded and its replayed history stays out; an 
   );
 });
 
-test('without a login the turn fails with how to log in', async () => {
+test('without a login the turn says where to save the key; a refused Google login says why', async () => {
   const { res, events } = await turn({ mode: 'auth' });
   assert.notEqual(res.code, 0);
-  assert.match(of(events, 'provider-error')[0].message, /Login with Google/);
+  assert.match(of(events, 'provider-error')[0].message, /Conexões → Gemini/);
+  const blocked = await turn({ mode: 'blocked' });
+  assert.equal(of(blocked.events, 'provider-error')[0].message, BLOCKED_LOGIN_HINT);
 });
 
 test('launch: node + script, flags per mode, MCP servers in session/new (token never on the line), privacy file', () => {
@@ -129,4 +135,29 @@ test('login: Google credentials on disk or an API key in the environment', () =>
   fs.mkdirSync(path.join(home, '.gemini'));
   fs.writeFileSync(path.join(home, '.gemini', 'oauth_creds.json'), '{}');
   assert.equal(gemini.authenticated({}, home), true);
+});
+
+test('API key: sealed on this computer, refused when malformed, handed over only through the environment', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-gem-key-'));
+  const keychain = {
+    isEncryptionAvailable: () => true,
+    encryptString: (s) => Buffer.from(s).reverse(),
+    decryptString: (b) => Buffer.from(b).reverse().toString(),
+  };
+  const ctx = { app: { getPath: () => dir }, secrets: createSecrets(keychain) };
+  assert.deepEqual(authEnv('gemini', ctx), {}, 'no key: the CLI keeps its own login');
+  assert.equal(gemini.hasKey(ctx), false);
+  assert.throws(() => gemini.saveKey(ctx, 'curta demais'), UserError);
+  const key = 'AIzaSyTESTE_chave-de-exemplo-0123456789';
+  gemini.saveKey(ctx, '  ' + key + '\n');
+  assert.equal(gemini.hasKey(ctx), true);
+  assert.ok(!fs.readFileSync(path.join(dir, 'gemini-key.json'), 'utf8').includes(key), 'never in plain text');
+  const env = authEnv('gemini', ctx);
+  assert.equal(env.GEMINI_API_KEY, key);
+  const settings = JSON.parse(fs.readFileSync(env.GEMINI_CLI_SYSTEM_SETTINGS_PATH, 'utf8'));
+  assert.equal(settings.security.auth.selectedType, 'gemini-api-key', 'the key wins over the login in ~/.gemini');
+  assert.equal(settings.telemetry.enabled, false, 'and privacy stays off');
+  assert.deepEqual(authEnv('claude', ctx), {});
+  gemini.apiKey(ctx).clear();
+  assert.deepEqual(authEnv('gemini', ctx), {});
 });

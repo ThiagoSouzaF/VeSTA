@@ -4,6 +4,7 @@ const { spawn } = require('node:child_process');
 const { MODES, effortOf } = require('./providers.cjs');
 const drael = require('./drael.cjs');
 const gemini = require('./gemini.cjs');
+const { authEnv } = require('./auth-env.cjs');
 const quote = (s) => "'" + String(s).replace(/'/g, "''") + "'";
 // Access flags of each CLI's interactive mode, matching what providers.command() uses for the chat:
 // edit = full access, read = consultation (plan / read-only), ask = the CLI's own default prompts.
@@ -91,7 +92,8 @@ function openTerminal(ctx, { chatId, provider }) {
   if (!exe) throw new Error('Programa não encontrado');
   const cwd = chat ? ctx.workdir(chat) : os.homedir();
   const cmd = terminalCommand({ id, exe, chat, cwd });
-  spawnTerminal(cmd, childEnv(id === 'drael' ? drael.authEnv() : {}));
+  // The login VeSTA keeps (Drael's key, the Gemini key) goes last: it picks the settings that use it.
+  spawnTerminal({ ...cmd, env: { ...cmd.env, ...authEnv(id, ctx) } });
   return true;
 }
 module.exports = { terminalCommand, spawnTerminal, openTerminal, modeFlags };

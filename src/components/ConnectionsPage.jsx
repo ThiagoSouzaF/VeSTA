@@ -3,6 +3,7 @@ import { ArrowUpRight, Brain, Check, Terminal, RefreshCw, ShieldCheck, AlertCirc
 import { PROVIDERS } from '../lib/constants';
 import { ProviderIcon } from './ProviderIcon';
 import { Chapter } from './Chapter';
+import { GeminiKey } from './GeminiKey';
 // What the card says about each AI: whether the program is here and whether its login works (null = not checked).
 function statusOf(i, p) {
   if (!i?.installed)
@@ -12,7 +13,11 @@ function statusOf(i, p) {
       hint: p.install ? 'Instale com: ' + p.install + ' e clique em Verificar' : 'Instale o programa para conectar',
     };
   if (i.authenticated === false)
-    return { ok: false, label: 'Login necessário', hint: 'Clique em Abrir terminal e entre com sua conta' };
+    return {
+      ok: false,
+      label: 'Login necessário',
+      hint: p.keyLogin ? 'Salve sua chave abaixo' : 'Clique em Abrir terminal e entre com sua conta',
+    };
   return { ok: true, label: i.authenticated ? 'Conectado' : 'Instalado', hint: i.version || '' };
 }
 export function ConnectionsPage({
@@ -92,6 +97,14 @@ export function ConnectionsPage({
                   </div>
                 </div>
               )}
+              {id === 'gemini' && integrations.gemini?.installed && (
+                <GeminiKey
+                  integration={integrations.gemini}
+                  call={call}
+                  setIntegrations={setIntegrations}
+                  notify={notify}
+                />
+              )}
             </div>
           );
         })}
@@ -103,8 +116,8 @@ export function ConnectionsPage({
           <p>
             O VeSTA executa Codex, Claude Code, Gemini CLI, Drael e OpenCode na pasta do projeto. Cada programa usa suas
             configurações e instruções nativas. ChatGPT usa o login do Codex; seus chats anteriores do site não são
-            importados. Gemini usa o login do Google feito no Gemini CLI (ou a GEMINI_API_KEY). Drael reutiliza o login
-            nativo ou a chave já configurada no OpenCode.
+            importados. Gemini usa a chave do Google AI Studio salva aqui. Drael reutiliza o login nativo ou a chave já
+            configurada no OpenCode.
           </p>
         </div>
       </div>

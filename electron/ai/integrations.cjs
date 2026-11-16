@@ -43,7 +43,9 @@ async function discover(ctx) {
   }
   integrations.drael.models = ['drael-v1'];
   integrations.gemini.models = gemini.MODELS;
-  if (integrations.gemini.installed) integrations.gemini.authenticated = gemini.authenticated();
+  integrations.gemini.keySaved = gemini.hasKey(ctx);
+  if (integrations.gemini.installed)
+    integrations.gemini.authenticated = integrations.gemini.keySaved || gemini.authenticated();
   integrations.drael.authenticated = !!drael.authEnv().DRAEL_KEY;
   integrations.claude.models = ['claude-fable-5-2', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
   if (integrations.opencode.installed)

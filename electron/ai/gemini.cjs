@@ -14,6 +14,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { DEFAULT_NODE_DIR } = require('./providers/locate.cjs');
 const { APP_SERVER, MEMORY_SERVER, QUEST_SERVER } = require('./providers/mcp-servers.cjs');
+const { sealedFile } = require('../app/secrets.cjs');
+const { UserError } = require('../app/errors.cjs');
 
 const PACKAGE = path.join('node_modules', '@google', 'gemini-cli');
 const SCRIPT = path.join(PACKAGE, 'bundle', 'gemini.js');
@@ -76,6 +78,20 @@ function authenticated(env = process.env, home = os.homedir()) {
   return isFile(path.join(home, '.gemini', 'oauth_creds.json'));
 }
 
+// The person's Gemini API key (Google AI Studio), saved from Conexões. Google no longer lets personal accounts use the
+// CLI through "Login with Google" (it answers "This client is no longer supported…"), so the key is the way in.
+// Sealed by the OS keychain in a file of its own like the backup password: never in vesta.json (so never in a backup),
+// never on a command line, never in ~/.gemini.
+const apiKey = (ctx) => sealedFile(path.join(ctx.app.getPath('userData'), 'gemini-key.json'), ctx.secrets);
+const KEY_PATTERN = /^[\w-]{30,200}$/;
+function saveKey(ctx, key) {
+  const value = String(key || '').trim();
+  if (!KEY_PATTERN.test(value))
+    throw new UserError('Isso não parece uma chave do Gemini. Copie a chave inteira do Google AI Studio.');
+  apiKey(ctx).set(value);
+}
+const hasKey = (ctx) => !!ctx?.secrets && apiKey(ctx).has();
+
 // The models the picker offers. "auto" lets the CLI route between Pro and Flash; any other id goes to `--model`.
 const MODELS = ['auto', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
@@ -104,12 +120,25 @@ const filesDir = () => path.join(os.tmpdir(), 'vesta-gemini');
 const privateSettings = (dir = filesDir()) =>
   writeOnce('settings.json', JSON.stringify(PRIVATE_SETTINGS, null, 2), dir);
 const policy = (dir = filesDir()) => writeOnce('vesta-policy.toml', POLICY, dir);
+// With a saved key the same private layer also picks API-key auth, over the login chosen in ~/.gemini/settings.json.
+const KEY_SETTINGS = { ...PRIVATE_SETTINGS, security: { auth: { selectedType: 'gemini-api-key' } } };
+const keySettings = (dir = filesDir()) => writeOnce('settings-key.json', JSON.stringify(KEY_SETTINGS, null, 2), dir);
+// What a chat or terminal adds to the environment: the saved key and the settings that use it ({} without a key).
+function authEnv(ctx) {
+  const key = ctx?.secrets ? apiKey(ctx).get() : '';
+  return key ? { GEMINI_API_KEY: key, GEMINI_CLI_SYSTEM_SETTINGS_PATH: keySettings() } : {};
+}
 
 module.exports = {
   locate,
   nodeFor,
   launch,
   authenticated,
+  apiKey,
+  saveKey,
+  hasKey,
+  authEnv,
+  KEY_SETTINGS,
   MODELS,
   OWN_SERVERS,
   POLICY,

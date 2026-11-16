@@ -1,6 +1,7 @@
 // Every renderer-callable operation. The IPC handler dispatches into this object; the phone reaches the subset in
 // remote/allowlist.cjs. Each domain lives in its own *-methods module.
 const { discover } = require('../ai/integrations.cjs');
+const gemini = require('../ai/gemini.cjs');
 const { questMethods } = require('../quests/methods.cjs');
 const { attachmentMethods } = require('../attachments/methods.cjs');
 const { backupMethods } = require('../backup/methods.cjs');
@@ -22,6 +23,9 @@ function createMethods(ctx) {
       };
     },
     refreshConnections: () => discover(ctx),
+    // The Gemini API key goes in and out sealed; the interface only learns whether one is saved.
+    saveGeminiKey: ({ key } = {}) => (gemini.saveKey(ctx, ctx.bounded(key, 300)), discover(ctx)),
+    removeGeminiKey: () => (gemini.apiKey(ctx).clear(), discover(ctx)),
     ...chatMethods(ctx),
     ...questMethods(ctx),
     ...attachmentMethods(ctx),

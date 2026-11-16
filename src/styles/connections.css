@@ -123,3 +123,36 @@
 .memory-connection {
   margin-bottom: 25px;
 }
+.gemini-key {
+  padding: 15px 24px;
+  border-top: 1px solid var(--border-soft);
+}
+.gemini-key > span {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--faint);
+}
+.gemini-key p {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.gemini-key-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.gemini-key-row input {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.gemini-key-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+}

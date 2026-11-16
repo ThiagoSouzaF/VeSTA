@@ -25,8 +25,9 @@ export const PROVIDERS = {
     engine: 'via Gemini CLI',
     letter: '✦',
     color: 'blue',
-    description: 'Seu login do Google e o contexto longo do Gemini.',
+    description: 'O contexto longo do Gemini, com a sua chave do Google AI Studio.',
     install: 'npm i -g @google/gemini-cli',
+    keyLogin: true,
   },
   opencode: {
     name: 'Drael (OpenCode)',

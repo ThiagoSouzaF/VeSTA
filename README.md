@@ -247,7 +247,7 @@ O modo de leitura usa `plan`; acesso completo usa `bypass`, respeitando as regra
 
 ## Gemini
 
-Instale o Gemini CLI com `npm i -g @google/gemini-cli`, rode `gemini` uma vez num terminal e escolha **Login with Google** (ou defina `GEMINI_API_KEY`). Depois clique em **Verificar** em Conexões: o card mostra a versão e se o login foi encontrado (`~/.gemini/oauth_creds.json` ou a chave no ambiente).
+Instale o Gemini CLI com `npm i -g @google/gemini-cli` e clique em **Verificar** em Conexões. Crie uma chave em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) e cole no card do Gemini: o Google não aceita mais o "Login with Google" de contas pessoais no CLI (responde "This client is no longer supported…" e indica o Antigravity). A chave fica selada pelo Windows (DPAPI) em `gemini-key.json`, fora do `vesta.json` e dos backups, e chega ao CLI só pelo ambiente (`GEMINI_API_KEY`), com a configuração privada do VeSTA escolhendo a autenticação por chave sem mexer em `~/.gemini/settings.json`. Contas que ainda entram pelo Google (Workspace, Code Assist pago) continuam funcionando sem chave.
 
 O VeSTA abre o `gemini --acp` com `--skip-trust` (a pasta do chat vale só para aquela sessão, nada fica gravado em `~/.gemini/trustedFolders.json`), um arquivo de configuração de sistema próprio que desliga estatísticas de uso, telemetria e atualização automática, e uma política que libera só as ferramentas MCP do próprio VeSTA (memória, quests e app). Os pedidos de permissão do Gemini aparecem na conversa como os das outras IAs. O modelo "Automático" deixa o Gemini CLI escolher.
 

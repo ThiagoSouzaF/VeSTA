@@ -9,8 +9,16 @@ const { lines, json } = require('./ndjson.cjs');
 
 // Every request but the prompt answers at once; one that does not is a stuck CLI.
 const REQUEST_TIMEOUT_MS = 120000;
-const LOGIN_HINT =
-  'Entre na sua conta do Gemini: abra um terminal, rode `gemini` e escolha "Login with Google" (ou defina GEMINI_API_KEY).';
+const LOGIN_HINT = 'Configure o Gemini: crie uma chave em aistudio.google.com/apikey e salve em Conexões → Gemini.';
+// Google refuses personal accounts that log in to the CLI with Google (IneligibleTierError): only a key works.
+const BLOCKED_LOGIN_HINT =
+  'O Google não aceita mais o login pessoal do Google no Gemini CLI. Crie uma chave em aistudio.google.com/apikey e salve em Conexões → Gemini.';
+const hintFor = (message) =>
+  /no longer supported|IneligibleTier|antigravity/i.test(message)
+    ? BLOCKED_LOGIN_HINT
+    : /api key|auth|login|credential/i.test(message)
+      ? LOGIN_HINT + ' (' + message + ')'
+      : message;
 
 // What a tool call is about, for the permission card: the command, the file(s) or the title.
 function describe(tc = {}) {
@@ -132,10 +140,7 @@ function runGemini(spec, ctx) {
     finished = result?.stopReason !== 'cancelled' && result?.stopReason !== 'refusal';
     end();
   })().catch((err) => {
-    const message = /api key|auth|login|credential/i.test(err.message || '')
-      ? LOGIN_HINT + ' (' + err.message + ')'
-      : err.message || String(err);
-    ctx.parse.accept({ sessionUpdate: 'error', message });
+    ctx.parse.accept({ sessionUpdate: 'error', message: hintFor(err.message || String(err)) });
     end();
   });
   const done = new Promise((resolve) => {
@@ -157,4 +162,4 @@ function runGemini(spec, ctx) {
     },
   };
 }
-module.exports = { runGemini, LOGIN_HINT };
+module.exports = { runGemini, LOGIN_HINT, BLOCKED_LOGIN_HINT };
