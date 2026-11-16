@@ -3,6 +3,7 @@ const { childEnv } = require('../app/privacy.cjs');
 const { spawn } = require('node:child_process');
 const { MODES, effortOf } = require('./providers.cjs');
 const drael = require('./drael.cjs');
+const gemini = require('./gemini.cjs');
 const quote = (s) => "'" + String(s).replace(/'/g, "''") + "'";
 // Access flags of each CLI's interactive mode, matching what providers.command() uses for the chat:
 // edit = full access, read = consultation (plan / read-only), ask = the CLI's own default prompts.
@@ -20,10 +21,18 @@ function modeFlags(id, mode) {
         ? ['--permission-mode', 'plan']
         : [];
   if (id === 'drael') return mode === 'edit' ? ['--mode', 'bypass'] : mode === 'read' ? ['--mode', 'plan'] : [];
-  return mode === 'read' ? ['--agent', 'plan'] : [];
+  // Gemini: the project is trusted for the session (as in the chat); read = its plan mode (read-only).
+  if (id === 'gemini')
+    return [
+      '--skip-trust',
+      ...(mode === 'edit' ? ['--approval-mode', 'yolo'] : mode === 'read' ? ['--approval-mode', 'plan'] : []),
+    ];
+  if (id === 'opencode') return mode === 'read' ? ['--agent', 'plan'] : [];
+  throw new Error('IA desconhecida: ' + id);
 }
 // OpenCode takes its permissions from the environment, like in the chat.
 function modeEnv(id, mode) {
+  if (id === 'gemini') return { GEMINI_CLI_SYSTEM_SETTINGS_PATH: gemini.privateSettings() };
   if (id !== 'opencode') return {};
   const permission =
     mode === 'read'
@@ -44,12 +53,16 @@ function terminalCommand({ id, exe, chat, cwd, noExit = true }) {
         ? ['--resume', chat.sessionId]
         : id === 'drael'
           ? []
-          : ['--session', chat.sessionId]
+          : id === 'gemini'
+            ? ['--resume', chat.sessionId]
+            : ['--session', chat.sessionId]
     : [];
   if (id === 'drael') args = [drael.script(exe)];
-  else if (chat?.model) args.push('--model', chat.model);
+  else if (chat?.model && chat.model !== 'auto') args.push('--model', chat.model);
   if (id === 'claude' && chat && effortOf(chat)) args.push('--effort', effortOf(chat));
   args.push(...modeFlags(id, mode));
+  // Gemini is a Node script: the terminal runs node.exe with it.
+  if (id === 'gemini') ({ exe, args } = gemini.launch(exe, args));
   const script = 'Set-Location -LiteralPath ' + quote(cwd) + '; & ' + quote(exe) + ' ' + args.map(quote).join(' ');
   return {
     exe: 'powershell.exe',

@@ -239,7 +239,7 @@ async function emptyStorePhase() {
     await step('Uso with no data shows one section per AI without errors', async () => {
       await nav('Uso').click();
       await heading('Seu uso, à vista.').waitFor();
-      assert.equal(await page.locator('.usage-provider').count(), 4);
+      assert.equal(await page.locator('.usage-provider').count(), 5);
       assert.equal(await page.locator('.usage-bar-card').count(), 0);
     });
     await wait(500);
@@ -431,6 +431,7 @@ async function seededPhase() {
       assert.deepEqual(await page.locator('.usage-provider').evaluateAll((els) => els.map((e) => e.dataset.provider)), [
         'codex',
         'claude',
+        'gemini',
         'drael',
         'opencode',
       ]);

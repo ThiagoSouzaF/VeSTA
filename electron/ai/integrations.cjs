@@ -3,17 +3,25 @@ const fs = require('node:fs'),
   os = require('node:os');
 const providers = require('./providers.cjs');
 const drael = require('./drael.cjs');
+const gemini = require('./gemini.cjs');
+const { PROVIDER_IDS } = require('../shared/quests.cjs');
+
+// How to ask a CLI its version: Drael and Gemini are Node scripts run by a node.exe.
+function versionCall(id, exe) {
+  if (id === 'drael') return { exe, args: [drael.script(exe), '--version'] };
+  if (id === 'gemini') return gemini.launch(exe, ['--version']);
+  return { exe, args: ['--version'] };
+}
 async function discover(ctx) {
   const entries = await Promise.all(
-    ['codex', 'claude', 'drael', 'opencode'].map(async (id) => {
+    PROVIDER_IDS.map(async (id) => {
       const exe = providers.locate(id);
       let version = '',
         authenticated = null;
       if (exe)
         try {
-          version = (await providers.run(exe, id === 'drael' ? [drael.script(exe), '--version'] : ['--version']))
-            .trim()
-            .split('\n')[0];
+          const v = versionCall(id, exe);
+          version = (await providers.run(v.exe, v.args)).trim().split('\n')[0];
           if (id === 'codex') {
             await providers.run(exe, ['login', 'status']);
             authenticated = true;
@@ -34,6 +42,8 @@ async function discover(ctx) {
     integrations.codex.models = [];
   }
   integrations.drael.models = ['drael-v1'];
+  integrations.gemini.models = gemini.MODELS;
+  if (integrations.gemini.installed) integrations.gemini.authenticated = gemini.authenticated();
   integrations.drael.authenticated = !!drael.authEnv().DRAEL_KEY;
   integrations.claude.models = ['claude-fable-5-2', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
   if (integrations.opencode.installed)

@@ -1,4 +1,5 @@
 const { createMcpHost } = require('../mcp/host.cjs');
+const { PROVIDER_IDS } = require('../shared/quests.cjs');
 
 // "vesta-quest": the MCP server the quest's own chat uses to run its quest (inspect, reorganize, steer the step chats).
 // Served by mcp-host.cjs; the token maps to one lead chat, and that chat's quest is the only thing any tool can touch.
@@ -10,7 +11,7 @@ const str = (description) => ({ type: 'string', description });
 const stepId = str('Id da etapa (ex.: "s2"), como em quest_get.');
 const PROVIDER = {
   type: 'string',
-  enum: ['claude', 'codex', 'opencode', 'drael'],
+  enum: PROVIDER_IDS,
   description: 'IA da etapa (instalada).',
 };
 const MODE = {

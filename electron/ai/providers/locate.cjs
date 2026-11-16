@@ -9,6 +9,8 @@ const DEFAULT_NODE_DIR = 'C:\\Program Files\\nodejs';
 
 function locate(name) {
   if (name === 'drael') return drael.locate();
+  // A Node script, found in the npm folders (required here: gemini.cjs itself needs this module).
+  if (name === 'gemini') return require('../gemini.cjs').locate();
   const home = os.homedir(),
     local = process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local');
   const names = [name + '.exe'];

@@ -1,6 +1,6 @@
 # VeSTA: instruções para agentes
 
-App desktop (Electron + React/Vite) que reúne Claude Code, Codex, OpenCode e Drael com uma memória compartilhada (AI Memory). Responda e escreva textos de interface em português do Brasil.
+App desktop (Electron + React/Vite) que reúne Claude Code, Codex, Gemini CLI, OpenCode e Drael com uma memória compartilhada (AI Memory). Responda e escreva textos de interface em português do Brasil.
 
 ## Regras que não se quebram
 

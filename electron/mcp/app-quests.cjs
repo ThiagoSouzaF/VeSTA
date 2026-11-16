@@ -1,7 +1,7 @@
 // Quests from inside a conversation (part of vesta-app): "monte uma quest para lançar o site e já inicie" turns into a
 // quest of this chat's project, planned by an AI (or with the steps the chat already wrote), started when asked.
 // The person sees each quest appear and can follow it on the Quests screen; "Só consulta" chats only list and open.
-const PROVIDERS = ['claude', 'codex', 'opencode', 'drael'];
+const { PROVIDER_IDS: PROVIDERS } = require('../shared/quests.cjs');
 const MODES = ['edit', 'read', 'ask'];
 
 const str = (description, extra = {}) => ({ type: 'string', description, ...extra });

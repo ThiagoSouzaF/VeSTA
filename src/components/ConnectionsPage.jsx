@@ -4,8 +4,13 @@ import { PROVIDERS } from '../lib/constants';
 import { ProviderIcon } from './ProviderIcon';
 import { Chapter } from './Chapter';
 // What the card says about each AI: whether the program is here and whether its login works (null = not checked).
-function statusOf(i) {
-  if (!i?.installed) return { ok: false, label: 'Não encontrado', hint: 'Instale o programa para conectar' };
+function statusOf(i, p) {
+  if (!i?.installed)
+    return {
+      ok: false,
+      label: 'Não encontrado',
+      hint: p.install ? 'Instale com: ' + p.install + ' e clique em Verificar' : 'Instale o programa para conectar',
+    };
   if (i.authenticated === false)
     return { ok: false, label: 'Login necessário', hint: 'Clique em Abrir terminal e entre com sua conta' };
   return { ok: true, label: i.authenticated ? 'Conectado' : 'Instalado', hint: i.version || '' };
@@ -47,7 +52,7 @@ export function ConnectionsPage({
       </div>
       <div className="connection-list">
         {Object.entries(PROVIDERS).map(([id, p]) => {
-          const status = statusOf(integrations[id]);
+          const status = statusOf(integrations[id], p);
           return (
             <div className="connection-card" key={id} data-connection={id}>
               <div className="connection-main">
@@ -77,7 +82,7 @@ export function ConnectionsPage({
                   <ArrowUpRight size={13} />
                 </button>
               </div>
-              {id === 'opencode' && integrations[id]?.models?.length > 0 && (
+              {(id === 'opencode' || id === 'gemini') && integrations[id]?.models?.length > 0 && (
                 <div className="detected-models">
                   <span>MODELOS CONFIGURADOS</span>
                   <div>
@@ -96,9 +101,10 @@ export function ConnectionsPage({
         <div>
           <h3>Seu chat continua sendo seu.</h3>
           <p>
-            O VeSTA executa Codex, Claude Code, Drael e OpenCode na pasta do projeto. Cada programa usa suas
+            O VeSTA executa Codex, Claude Code, Gemini CLI, Drael e OpenCode na pasta do projeto. Cada programa usa suas
             configurações e instruções nativas. ChatGPT usa o login do Codex; seus chats anteriores do site não são
-            importados. Drael reutiliza o login nativo ou a chave já configurada no OpenCode.
+            importados. Gemini usa o login do Google feito no Gemini CLI (ou a GEMINI_API_KEY). Drael reutiliza o login
+            nativo ou a chave já configurada no OpenCode.
           </p>
         </div>
       </div>

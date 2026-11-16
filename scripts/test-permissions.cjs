@@ -1,10 +1,10 @@
 // E2E: in "ask" mode a real agent (or its subagent) asks before running a command; the answer given in VeSTA
 // decides whether it runs. Isolated data dir; answers are clicked programmatically, like the user would.
-// Usage: npx electron scripts/test-permissions.cjs <claude|codex|opencode> [allow|deny|subagent|always|stop] [model]
+// Usage: npx electron scripts/test-permissions.cjs <claude|codex|gemini|opencode> [allow|deny|subagent|always|stop] [model]
 const path = require('node:path'),
   fs = require('node:fs'),
   assert = require('node:assert/strict');
-const provider = process.argv.find((a) => ['claude', 'codex', 'opencode'].includes(a)) || 'claude';
+const provider = process.argv.find((a) => ['claude', 'codex', 'gemini', 'opencode'].includes(a)) || 'claude';
 const scenario = process.argv.find((a) => ['allow', 'deny', 'subagent', 'always', 'stop'].includes(a)) || 'allow';
 const model =
   process.argv

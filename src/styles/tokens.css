@@ -17,6 +17,7 @@
   --accent-strong: #a18ae8;
   --green: #9fcdb9;
   --orange: #d9a386;
+  --blue: #9fb6e0;
   --danger: #e07a7a;
   --danger-solid: #ae4052;
   --shadow: 0 16px 60px #0006;
@@ -54,6 +55,7 @@
   --accent-strong: #8067bd;
   --green: #48856f;
   --orange: #ac7556;
+  --blue: #4d6a9c;
   --shadow: 0 16px 60px #3b324022;
 }
 :root[data-accent='mint'] {

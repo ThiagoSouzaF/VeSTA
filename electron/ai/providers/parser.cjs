@@ -5,18 +5,20 @@ const { claudeHandler } = require('./parser/claude.cjs');
 const { codexHandler } = require('./parser/codex.cjs');
 const { opencodeHandler } = require('./parser/opencode.cjs');
 const { draelHandler } = require('./parser/drael.cjs');
+const { geminiHandler } = require('./parser/gemini.cjs');
+
+const HANDLERS = {
+  claude: claudeHandler,
+  codex: codexHandler,
+  opencode: opencodeHandler,
+  gemini: geminiHandler,
+  drael: draelHandler,
+};
 
 function parser(provider, emit) {
   const core = createCore(provider, emit);
-  const accept = (
-    provider === 'drael'
-      ? draelHandler
-      : provider === 'codex'
-        ? codexHandler
-        : provider === 'claude'
-          ? claudeHandler
-          : opencodeHandler
-  )(core);
+  if (!HANDLERS[provider]) throw new Error('IA desconhecida: ' + provider);
+  const accept = HANDLERS[provider](core);
   return {
     get text() {
       return core.text;

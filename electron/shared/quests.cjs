@@ -12,7 +12,9 @@ const userError = (message) => Object.assign(new Error(message), { name: 'UserEr
 const QUEST_STATUS = ['draft', 'running', 'paused', 'done', 'failed', 'cancelled'];
 const STEP_STATUS = ['pending', 'running', 'done', 'error', 'skipped'];
 const MODES = ['edit', 'read', 'ask'];
-const PROVIDER_IDS = ['claude', 'codex', 'opencode', 'drael'];
+// Every AI VeSTA runs. The one list: the backend's other lists (chats, phone, MCP tools) come from here. The order is
+// also the fallback order when a quest needs an AI and none was asked for.
+const PROVIDER_IDS = ['claude', 'codex', 'opencode', 'drael', 'gemini'];
 const MAX_STEPS = 12;
 const MAX_LOG = 200;
 const MAX_RESULT = 1500;
@@ -23,6 +25,7 @@ const STRENGTHS = {
   codex: 'implementação rápida de código, testes e correções pontuais',
   opencode: 'tarefas gerais de código e automação com o modelo configurado no OpenCode',
   drael: 'consulta e análise com o harness nativo Drael (somente leitura/consulta)',
+  gemini: 'contexto muito longo, leitura de muitos arquivos e pesquisa na web com o Gemini do Google',
 };
 
 const text = (v, max) =>

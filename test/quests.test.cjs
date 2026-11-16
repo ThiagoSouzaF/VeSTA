@@ -159,7 +159,7 @@ test('plan: valid JSON in a fenced block, with noise around it', () => {
 
 test('plan: bare JSON, array form, trailing comma and unknown provider/model are normalized', () => {
   const bare = Q.parsePlan(
-    'texto {"steps":[{"title":"A","instructions":"i","provider":"gemini","model":"inexistente"},],} fim',
+    'texto {"steps":[{"title":"A","instructions":"i","provider":"mistral","model":"inexistente"},],} fim',
     INSTALLED
   );
   assert.equal(bare.ok, true, bare.error);

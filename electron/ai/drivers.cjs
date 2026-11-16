@@ -8,15 +8,13 @@ const drael = require('./drael.cjs');
 const { runClaude, claudeDetail } = require('./drivers/claude.cjs');
 const { runCodex } = require('./drivers/codex.cjs');
 const { runOpenCode } = require('./drivers/opencode.cjs');
+const { runGemini } = require('./drivers/gemini.cjs');
 const { lines, json } = require('./drivers/ndjson.cjs');
 
+const RUN = { claude: runClaude, codex: runCodex, opencode: runOpenCode, gemini: runGemini, drael: drael.start };
 function start(provider, spec, ctx) {
-  return provider === 'drael'
-    ? drael.start(spec, ctx)
-    : provider === 'claude'
-      ? runClaude(spec, ctx)
-      : provider === 'codex'
-        ? runCodex(spec, ctx)
-        : runOpenCode(spec, ctx);
+  const run = RUN[provider];
+  if (!run) throw new Error('IA desconhecida: ' + provider);
+  return run(spec, ctx);
 }
 module.exports = { start, claudeDetail, lines, json };

@@ -146,7 +146,7 @@ test('usage view: percent of a window, zero once it reset, null without data', a
   assert.equal(windowPercent({ utilization: 0.9, resetsAt: null }, 1000), 90);
   assert.equal(windowPercent({ utilization: null }, 1000), null);
   assert.equal(windowPercent(null, 1000), null);
-  assert.deepEqual(USAGE_PROVIDERS.order, ['codex', 'claude', 'drael', 'opencode']);
+  assert.deepEqual(USAGE_PROVIDERS.order, ['codex', 'claude', 'gemini', 'drael', 'opencode']);
   assert.ok(USAGE_PROVIDERS.codex.windows && USAGE_PROVIDERS.claude.windows);
   assert.equal(USAGE_PROVIDERS.drael.windows, null);
 });

@@ -20,7 +20,7 @@ O nome vem de Vesta, a deusa romana do lar e do fogo no centro da casa. O **e** 
 
 ## Instalar
 
-1. Tenha pelo menos uma destas IAs instalada e com login feito: **Claude Code** (Claude), **Codex** (ChatGPT) ou **OpenCode** / **Drael**.
+1. Tenha pelo menos uma destas IAs instalada e com login feito: **Claude Code** (Claude), **Codex** (ChatGPT), **Gemini CLI** (Gemini) ou **OpenCode** / **Drael**.
 2. Baixe o `VeSTA-Setup-<versão>.exe` na [última Release](https://github.com/ThiagoSouzaF/VeSTA/releases/latest).
 3. Execute. O atalho **VeSTA** aparece no menu Iniciar.
 
@@ -39,7 +39,7 @@ Atalhos: **Ctrl+K** busca conversas, **Enter** envia, **Shift+Enter** pula linha
 ## O que ele faz
 
 - **Conversas organizadas por projeto.** Na barra lateral, cada projeto é uma pasta que abre e fecha, com as suas conversas e o "+" para começar outra ali. Dá para recolher tudo de uma vez e arrastar uma conversa para outro projeto: ela leva o histórico e a memória junto, e a próxima resposta já trabalha na pasta nova.
-- **Várias IAs, uma conversa.** ChatGPT (Codex), Claude e Drael. Troque de IA ou de modelo no meio do chat e o histórico vai junto. No menu do modelo, escolha também o **esforço** da conversa no Claude e no Codex: baixo para respostas rápidas, alto ou máximo quando a tarefa pede mais raciocínio.
+- **Várias IAs, uma conversa.** ChatGPT (Codex), Claude, Gemini e Drael. Troque de IA ou de modelo no meio do chat e o histórico vai junto. No menu do modelo, escolha também o **esforço** da conversa no Claude e no Codex: baixo para respostas rápidas, alto ou máximo quando a tarefa pede mais raciocínio.
 - **Memória compartilhada (AI Memory).** Guarda suas preferências e o contexto de cada projeto, aprende com as conversas e passa tudo entre as IAs. Funciona offline.
 - **Atividade.** Veja ao vivo tudo o que as IAs estão fazendo em paralelo: respostas, subagentes, comandos e tarefas em segundo plano. Dá para parar qualquer uma.
 - **Quests.** Dê um objetivo e várias IAs trabalham juntas: uma planeja, cada etapa vai para a IA escolhida e os resultados passam de uma para a outra. O **chat da quest** conhece tudo o que está acontecendo e reorganiza o plano conforme você conversa.
@@ -63,10 +63,10 @@ Atalhos: **Ctrl+K** busca conversas, **Enter** envia, **Shift+Enter** pula linha
 
 - **Tudo local.** Conversas, memória e anexos ficam no seu computador, em `%APPDATA%/VeSTA`. Sem conta no VeSTA, sem nuvem própria.
 - **Backup é seu.** O .zip vai para a pasta que você escolher (por padrão `Documentos\VeSTA-backups`) e, se você conectar, para o seu Google Drive, onde o VeSTA só enxerga os arquivos que ele mesmo criou (escopo `drive.file`). Com **Proteger com senha**, o backup inteiro sai criptografado (AES-256-GCM, chave derivada da senha com scrypt) e nem o Drive nem quem tiver acesso à pasta consegue lê-lo. A senha e a chave do Google ficam seladas pelo cofre do Windows (DPAPI), nunca em texto puro e nunca dentro do backup; o pareamento do celular também fica de fora.
-- **Sem telemetria.** O VeSTA não coleta nada. Os programas que ele abre (Claude Code, Codex, OpenCode) recebem as opções que desligam telemetria, relatórios de erro e envio automático de sessões (o AI Memory não tem telemetria), e o Chromium do app não faz downloads em segundo plano (corretor ortográfico, atualização de componentes, tradução). A única consulta automática é a busca por versão nova no GitHub ao abrir, que pode ser desligada em Preferências → Atualizações.
+- **Sem telemetria.** O VeSTA não coleta nada. Os programas que ele abre (Claude Code, Codex, Gemini CLI, OpenCode) recebem as opções que desligam telemetria, relatórios de erro e envio automático de sessões (o AI Memory não tem telemetria), e o Chromium do app não faz downloads em segundo plano (corretor ortográfico, atualização de componentes, tradução). A única consulta automática é a busca por versão nova no GitHub ao abrir, que pode ser desligada em Preferências → Atualizações.
 - **Memória offline.** O motor de memória busca por texto, sem API e sem baixar modelos.
 - **Cada IA recebe só o que você manda a ela.** As mensagens e o contexto recuperado vão para o provedor escolhido, com a sua assinatura ou chave, e valem os limites e a cobrança dessa conta. Se você ligar **Consolidar com IA (Codex)**, trechos das conversas (inclusive de chats do Claude) vão para a OpenAI nessa etapa.
-- **Nada global é alterado.** O VeSTA não mexe nas configurações dos seus programas de IA (`~/.claude`, `~/.codex`, OpenCode).
+- **Nada global é alterado.** O VeSTA não mexe nas configurações dos seus programas de IA (`~/.claude`, `~/.codex`, `~/.gemini`, OpenCode).
 - **Controle remoto desligado por padrão.** Quando ligado, só aceita aparelhos da sua rede Tailscale, pareados com código de uso único e **autorizados por você no desktop**. Dar Acesso completo pelo celular também pede sua confirmação no desktop.
 
 ---
@@ -121,15 +121,15 @@ Desenvolvimento do app móvel: `npm run dev:mobile` (Vite) e `npm run build` (ge
 ## Testes
 
 - Os testes de integração usam pastas temporárias próprias, independentes da localização do checkout. **Os testes E2E abrem janelas do app fora da tela.** Ao terminar, cada E2E apaga a sua pasta temporária (mantida quando falha, para inspeção) e as sessões que o Claude Code gravou para ela em `~/.claude/projects`; `VESTA_KEEP_SCRATCH=1` guarda tudo.
-- `npm test`: unidades, inclusive servidor HTTP/WS real em localhost, Codex e OpenCode falsos que travam ou caem no meio do turno, o Google falso respondendo 503 e cortando o envio, e a tabela de quando o celular precisa de um sim no desktop para dar acesso completo.
+- `npm test`: unidades, inclusive servidor HTTP/WS real em localhost, Codex, OpenCode e Gemini falsos que travam ou caem no meio do turno, o Google falso respondendo 503 e cortando o envio, e a tabela de quando o celular precisa de um sim no desktop para dar acesso completo.
 - `test-providers.cjs`: duas chamadas curtas em cada conta configurada.
-- `test-permissions.cjs` (`claude`, `codex` ou `opencode`, mais `allow`, `deny`, `subagent`, `always` ou `stop`): a IA real pede permissão para um `mkdir` e o teste confere o efeito de cada resposta.
+- `test-permissions.cjs` (`claude`, `codex`, `gemini` ou `opencode`, mais `allow`, `deny`, `subagent`, `always` ou `stop`): a IA real pede permissão para um `mkdir` e o teste confere o efeito de cada resposta.
 - `test-tree-e2e.cjs` (com `node`): conversas por projeto na barra lateral, recolher tudo, "+" do projeto, arrastar uma conversa (a próxima resposta roda na pasta nova com o histórico) e o esforço escolhido no menu do modelo chegando à IA.
 - `test-effort-e2e.cjs` (com `npx electron`, Claude e Codex reais): cada IA responde com esforço baixo e máximo.
 - `test-chat-quest-e2e.cjs` (com `npx electron`, Claude real): um chat cria e inicia uma quest pelo VeSTA e ela roda até o fim no projeto.
 - `test-drive-e2e.cjs` (com `npx electron`; `ai` inclui chats reais): Google Drive contra um Google falso local (login, envio, lista, restauração) e preferências mudadas por chats do Claude e do Codex.
 - `test-backup-e2e.cjs` (com `npx electron`; `from=<pasta>` mede com uma cópia de outros dados): backup com o AI Memory real e restauração numa pasta vazia, conferindo que a memória restaurada responde.
-- `test-memory-agent.cjs` (`claude`, `codex` ou `opencode`): o agente real consulta e grava no AI Memory por MCP numa pasta temporária.
+- `test-memory-agent.cjs` (`claude`, `codex`, `gemini` ou `opencode`): o agente real consulta e grava no AI Memory por MCP numa pasta temporária.
 - `test-remote-e2e.cjs`: abre o app, pareia e usa o app móvel com Playwright em 390x844. Envia uma mensagem real ao Claude haiku, a menos que `VESTA_E2E_NO_AI=1`; screenshots em `VESTA_SHOTS`. Nunca roda `tailscale serve` e só usa `127.0.0.1`. Responde sozinho aos diálogos de confirmação com `VESTA_TEST_AUTO_CONFIRM=1` (`deny` recusa); a variável é ignorada pelo app empacotado.
 
 ## Atualizações e releases
@@ -142,10 +142,10 @@ Para publicar: aumente `version` no `package.json`, faça commit e push, e rode 
 
 ## Funcionalidades em detalhe
 
-- ChatGPT pelo Codex CLI, Claude pelo Claude Code e Drael pelo harness oficial ou pelo OpenCode configurado no computador.
+- ChatGPT pelo Codex CLI, Claude pelo Claude Code, Gemini pelo Gemini CLI e Drael pelo harness oficial ou pelo OpenCode configurado no computador.
 - Vários chats independentes, inclusive simultâneos, com retomada da sessão nativa e histórico local.
 - Projetos vinculados a pastas, executados com o diretório de trabalho correto.
-- Uso dos arquivos de instruções nativos: AGENTS.md, CLAUDE.md e configuração do OpenCode. O aplicativo não os substitui nem os reescreve.
+- Uso dos arquivos de instruções nativos: AGENTS.md, CLAUDE.md, GEMINI.md e configuração do OpenCode. O aplicativo não os substitui nem os reescreve.
 - Tema **Tinta Mangá** (padrão): preto e branco puros, cantos retos, sombras duras, hachura no lugar do vermelho, fontes Space Grotesk e Space Mono embutidas (funciona offline) e chuva de código em tinta, estilo filme antigo. Seguem disponíveis Obsidiana, Aurora e Papel, com quatro cores de destaque (incluindo **Brasa**); escolhas persistentes.
 - Tela de abertura (splash) com a Vesta e uma barra que acompanha as etapas reais do início: dados, memória, IAs e interface.
 - Markdown, atividades das ferramentas, cancelamento, renomeação, exclusão e exportação de conversas.
@@ -160,26 +160,26 @@ Para publicar: aumente `version` no `package.json`, faça commit e push, e rode 
 
 ### Primeiro uso, em detalhe
 
-O campo Modelo do novo chat lista os modelos da IA escolhida (aliases do Claude, o cache de modelos do Codex, `opencode models`); "Padrão da sua conta" usa o configurado no programa e "Outro modelo…" aceita qualquer id. Para Drael, o modelo inicial é `drael/drael-v1`. ChatGPT aqui é a experiência do Codex CLI, não uma importação dos chats do site do ChatGPT; a Drael continua sendo um serviço pago acessado pelo OpenCode.
+O campo Modelo do novo chat lista os modelos da IA escolhida (aliases do Claude, o cache de modelos do Codex, os modelos do Gemini, `opencode models`); "Padrão da sua conta" usa o configurado no programa e "Outro modelo…" aceita qualquer id. Para Drael, o modelo inicial é `drael/drael-v1`. ChatGPT aqui é a experiência do Codex CLI, não uma importação dos chats do site do ChatGPT; a Drael continua sendo um serviço pago acessado pelo OpenCode.
 
 ## Modos de trabalho
 
-**Consulta** usa sandbox de leitura no Codex, modo plan no Claude e plan com edição e comandos negados no OpenCode. **Pedir permissão** deixa a IA trabalhar, mas cada comando ou alteração de arquivo passa por você na conversa. **Acesso completo** deixa a IA editar arquivos e rodar comandos sem perguntar (sem sandbox no Codex, permissões ignoradas no Claude, edição e comandos liberados no OpenCode); use só em projetos em que confia.
+**Consulta** usa sandbox de leitura no Codex, modo plan no Claude, pedidos recusados sem perguntar no Gemini e plan com edição e comandos negados no OpenCode. **Pedir permissão** deixa a IA trabalhar, mas cada comando ou alteração de arquivo passa por você na conversa. **Acesso completo** deixa a IA editar arquivos e rodar comandos sem perguntar (sem sandbox no Codex, permissões ignoradas no Claude, `--approval-mode yolo` no Gemini, edição e comandos liberados no OpenCode); use só em projetos em que confia.
 
 No modo Pedir permissão, quando a IA ou um dos seus subagentes precisa rodar um comando ou alterar arquivos, o pedido aparece na própria conversa com **Permitir**, **Sempre nesta conversa** (vale para o mesmo programa, como `npm …`, ou para a mesma ferramenta) e **Negar**. A lista de conversas marca as que estão esperando você, e a janela pisca se estiver em segundo plano. No Acesso completo, o Claude ainda pergunta antes de mexer em arquivos protegidos (configurações, `.git`), e esses pedidos também chegam aqui.
 
-Para responder aos pedidos, o VeSTA conversa com cada programa pelo canal próprio dele: o Claude por stream-json (o mesmo protocolo do Agent SDK), o Codex pelo `codex app-server` e o OpenCode pelo `opencode serve` (HTTP só em `127.0.0.1`, com senha aleatória). Nada é gravado nas configurações globais desses programas.
+Para responder aos pedidos, o VeSTA conversa com cada programa pelo canal próprio dele: o Claude por stream-json (o mesmo protocolo do Agent SDK), o Codex pelo `codex app-server`, o Gemini pelo `gemini --acp` (Agent Client Protocol) e o OpenCode pelo `opencode serve` (HTTP só em `127.0.0.1`, com senha aleatória). Nada é gravado nas configurações globais desses programas.
 
 ## Dados e AI Memory
 
 Os dados ficam em `%APPDATA%/VeSTA`. A pasta pode ser aberta nas preferências. `vesta.json` contém chats e o catálogo de notas; `memory/` contém o armazenamento Markdown e o índice do AI Memory. Faça backup da pasta inteira com o aplicativo fechado.
 
 - **AI Memory 3.0.0** real, incluído no executável. O VeSTA inicia um único servidor MCP HTTP só em `127.0.0.1`, numa porta livre e com token aleatório a cada execução; o aplicativo e os agentes que ele abre usam esse mesmo servidor.
-- **Agentes com acesso à memória** (opção nas preferências, ligada por padrão): Claude, Codex e OpenCode recebem as ferramentas do AI Memory (`memory_query`, `memory_write_page` e as demais) apenas nas sessões abertas pelo VeSTA, via `--mcp-config`, `-c mcp_servers...` e `OPENCODE_CONFIG_CONTENT`. Cada chat é orientado a usar o workspace `vesta` e o projeto do chat.
+- **Agentes com acesso à memória** (opção nas preferências, ligada por padrão): Claude, Codex, Gemini e OpenCode recebem as ferramentas do AI Memory (`memory_query`, `memory_write_page` e as demais) apenas nas sessões abertas pelo VeSTA, via `--mcp-config`, `-c mcp_servers...`, `session/new` do ACP e `OPENCODE_CONFIG_CONTENT`. Cada chat é orientado a usar o workspace `vesta` e o projeto do chat.
 - Busca no contexto do projeto; preferências pessoais compartilhadas entre todas as IAs; gravação, edição e exclusão de memórias. As notas de um projeto são isoladas das de outro.
 - **Pouco texto para as IAs.** O perfil (as preferências mais importantes primeiro), o resumo do projeto e as instruções das ferramentas vão uma vez, quando a IA abre a sessão da conversa, e de novo só se a conversa trocar de IA, de projeto ou de modo. Depois disso, cada mensagem leva no máximo 4 notas curtas do próprio projeto ligadas ao que você escreveu, e nada quando nenhuma combina; palavras vazias como "com" e "para" ficam fora da busca.
 - **Perfil só com o que vale para tudo.** As IAs gravam no perfil as preferências que você diz; regras de um projeto ficam no projeto. O AI Memory só promove sozinho ao perfil o que aparece em dois projetos ou mais.
-- O motor funciona offline por busca textual (FTS), sem API, conta adicional ou download de modelo de embeddings. O suporte do AI Memory nativo ao Windows é experimental. A integração não instala hooks nem altera as configurações globais de outros agentes (`~/.claude`, `~/.codex`, configuração global do OpenCode); vale para os chats iniciados aqui.
+- O motor funciona offline por busca textual (FTS), sem API, conta adicional ou download de modelo de embeddings. O suporte do AI Memory nativo ao Windows é experimental. A integração não instala hooks nem altera as configurações globais de outros agentes (`~/.claude`, `~/.codex`, `~/.gemini`, configuração global do OpenCode); vale para os chats iniciados aqui.
 - **Aprender com as conversas:** cada conversa vira uma sessão do AI Memory. O VeSTA faz o papel dos hooks nativos, para todas as IAs, e envia ao servidor local seus pedidos, as ferramentas usadas e um trecho da resposta (até 2 KB, higienizado pelo próprio `ai-memory hook`). A sessão é encerrada depois de 30 minutos sem mensagens, ao trocar de IA ou de projeto, ou na próxima abertura do app.
 - **Consolidar com IA (Codex):** o encerramento chama `memory_consolidate`, que usa o login do Codex CLI (`AI_MEMORY_LLM_PROVIDER=codex`, sem chave de API, consumindo a cota do ChatGPT) para reescrever a sessão e extrair regras, armadilhas e decisões em páginas próprias, visíveis na aba **Aprendizados** da tela Memória. O conteúdo da conversa vai para a OpenAI nessa etapa, inclusive em chats do Claude. A assinatura do Claude não serve aqui, porque a Anthropic recusa o token em apps de terceiros. Sem a consolidação, cada sessão fica com um resumo automático, sem IA.
 - O envelhecimento (`forget-sweep`) e o `lint` rodam sozinhos no servidor. O revisor horário de auto-improve fica desligado, para que o custo seja de uma consolidação por sessão. **Guardar também a conversa bruta** mantém o modo antigo (uma página por resposta) e vem desligado. Detalhes do desenho e do teste em [`docs/memoria-consolidacao.md`](docs/memoria-consolidacao.md).
@@ -239,16 +239,23 @@ O VeSTA pode ser controlado pelo celular com um app web instalável (PWA): conve
 
 ## Trocar de IA no meio da conversa e o harness nativo Drael
 
-Dentro de cada conversa, o seletor de IA ao lado do modelo permite trocar entre ChatGPT, Claude, Drael e Drael (OpenCode). A troca abre uma sessão nativa nova e transfere o histórico textual na próxima mensagem, mantendo a autoria das respostas anteriores. Voltar a uma IA também abre uma sessão nova para incluir as mensagens das outras IAs. O histórico transferido é limitado a 120 mil caracteres; o aplicativo bloqueia a troca acima desse limite sem descartar mensagens. O modelo volta ao padrão da IA escolhida e as permissões lembradas são limpas. O modo de trabalho é mantido, exceto Pedir permissão no Drael nativo, que passa para Consultar. A troca fica bloqueada durante uma resposta. O histórico enviado ao novo provedor pode consumir mais tokens; estados internos, anexos e resultados completos de ferramentas não são transferidos.
+Dentro de cada conversa, o seletor de IA ao lado do modelo permite trocar entre ChatGPT, Claude, Gemini, Drael e Drael (OpenCode). A troca abre uma sessão nativa nova e transfere o histórico textual na próxima mensagem, mantendo a autoria das respostas anteriores. Voltar a uma IA também abre uma sessão nova para incluir as mensagens das outras IAs. O histórico transferido é limitado a 120 mil caracteres; o aplicativo bloqueia a troca acima desse limite sem descartar mensagens. O modelo volta ao padrão da IA escolhida e as permissões lembradas são limpas. O modo de trabalho é mantido, exceto Pedir permissão no Drael nativo, que passa para Consultar. A troca fica bloqueada durante uma resposta. O histórico enviado ao novo provedor pode consumir mais tokens; estados internos, anexos e resultados completos de ferramentas não são transferidos.
 
 Instale o Drael pelo procedimento oficial em https://drael.sh/docs/install. No VeSTA, selecione **Drael · harness nativo** para novos chats. A integração detecta `%LOCALAPPDATA%/Drael` e usa o login nativo, `DRAEL_KEY` ou a chave local já configurada para o host oficial no OpenCode, sem copiá-la para as conversas.
 
 O modo de leitura usa `plan`; acesso completo usa `bypass`, respeitando as regras de negação nativas. O modo automatizado atual não recebe aprovações interativas: use o terminal ou Drael (OpenCode) para esse fluxo. O histórico do chat fica no VeSTA e é reenviado em cada turno (até 120 mil caracteres); o terminal abre uma conversa própria. O modelo é `drael-v1`, com o esforço definido na configuração nativa. MCP recebe o endpoint e token temporários por ambiente; nenhuma configuração do projeto é sobrescrita. Em leitura, o VeSTA fornece contexto recuperado, mas o Drael não recebe ferramentas MCP.
+
+## Gemini
+
+Instale o Gemini CLI com `npm i -g @google/gemini-cli`, rode `gemini` uma vez num terminal e escolha **Login with Google** (ou defina `GEMINI_API_KEY`). Depois clique em **Verificar** em Conexões: o card mostra a versão e se o login foi encontrado (`~/.gemini/oauth_creds.json` ou a chave no ambiente).
+
+O VeSTA abre o `gemini --acp` com `--skip-trust` (a pasta do chat vale só para aquela sessão, nada fica gravado em `~/.gemini/trustedFolders.json`), um arquivo de configuração de sistema próprio que desliga estatísticas de uso, telemetria e atualização automática, e uma política que libera só as ferramentas MCP do próprio VeSTA (memória, quests e app). Os pedidos de permissão do Gemini aparecem na conversa como os das outras IAs. O modelo "Automático" deixa o Gemini CLI escolher.
 
 ## Referências
 
 - [AI Memory](https://aimemory.sh/pt-br/) e [código / licença MIT](https://github.com/akitaonrails/ai-memory)
 - [Codex não interativo](https://learn.chatgpt.com/docs/non-interactive-mode)
 - [Claude Code programático](https://code.claude.com/docs/en/headless)
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli)
 - [OpenCode CLI](https://opencode.ai/docs/cli/)
 - [Drael](https://drael.sh/)

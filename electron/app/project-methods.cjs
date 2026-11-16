@@ -12,6 +12,7 @@ const READERS = {
   '.claude/CLAUDE.md': 'Claude',
   'opencode.json': 'OpenCode',
   'opencode.jsonc': 'OpenCode',
+  'GEMINI.md': 'Gemini',
 };
 // The instruction files that apply to a project: in its folder, in the folders above it, and the global ones.
 // -> [{ name, path }] where name says where the file is and which AI reads it.
@@ -23,6 +24,7 @@ async function inspectProject(ctx, id) {
     [path.join(home, '.codex', 'AGENTS.md'), 'Codex · instruções globais'],
     [path.join(home, '.claude', 'CLAUDE.md'), 'Claude · instruções globais'],
     [path.join(home, '.config', 'opencode', 'AGENTS.md'), 'OpenCode · instruções globais'],
+    [path.join(home, '.gemini', 'GEMINI.md'), 'Gemini · instruções globais'],
   ]);
   const files = [],
     seen = new Set();

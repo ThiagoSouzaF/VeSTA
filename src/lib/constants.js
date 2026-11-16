@@ -20,6 +20,14 @@ export const PROVIDERS = {
     color: 'violet',
     description: 'Terminal oficial Drael e suas ferramentas nativas.',
   },
+  gemini: {
+    name: 'Gemini',
+    engine: 'via Gemini CLI',
+    letter: '✦',
+    color: 'blue',
+    description: 'Seu login do Google e o contexto longo do Gemini.',
+    install: 'npm i -g @google/gemini-cli',
+  },
   opencode: {
     name: 'Drael (OpenCode)',
     engine: 'via OpenCode',
@@ -51,4 +59,8 @@ export const MODEL_LABELS = {
   'claude-opus-5-5': 'Opus 5.5',
   'claude-sonnet-5-5': 'Sonnet 5.5',
   'claude-haiku-5-5': 'Haiku 5.5',
+  auto: 'Automático',
+  'gemini-2.5-pro': 'Gemini 2.5 Pro',
+  'gemini-2.5-flash': 'Gemini 2.5 Flash',
+  'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite',
 };

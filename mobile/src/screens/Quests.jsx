@@ -100,7 +100,7 @@ function NewQuest({ projects, onClose, onCreate }) {
       <label className="field">
         <span className="label">IA que vai planejar</span>
         <select value={planner} onChange={(e) => setPlanner(e.target.value)}>
-          {['claude', 'codex', 'opencode'].map((id) => (
+          {['claude', 'codex', 'gemini', 'opencode'].map((id) => (
             <option key={id} value={id}>
               {PROVIDERS[id].name}
             </option>

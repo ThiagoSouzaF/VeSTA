@@ -27,7 +27,7 @@ test('updateStep: accepts only known fields with valid types and drops the rest'
   assert.deepEqual(out, { id: 'q1', stepId: 's2', provider: 'codex', model: 'gpt-x', mode: 'read', dependsOn: ['s1'] });
   refused('updateStep', { id: 'q1', stepId: 's2' }); // nothing to change
   refused('updateStep', { id: 'q1', provider: 'codex' }); // stepId required
-  refused('updateStep', { id: 'q1', stepId: 's2', provider: 'gemini' });
+  refused('updateStep', { id: 'q1', stepId: 's2', provider: 'mistral' });
   refused('updateStep', { id: 'q1', stepId: 's2', mode: 'root' });
   refused('updateStep', { id: 'q1', stepId: 's2', model: 'm'.repeat(121) });
   refused('updateStep', { id: 'q1', stepId: 's2', title: '  ' });

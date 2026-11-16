@@ -1,5 +1,5 @@
 const { UserError } = require('../app/errors.cjs');
-const PROVIDERS = ['codex', 'claude', 'drael', 'opencode'];
+const { PROVIDER_IDS: PROVIDERS } = require('../shared/quests.cjs');
 // Attachments of a message, as a line the next AI can read (files stay where VeSTA stored them).
 const note = (m) =>
   m.attachments?.length ? '\n[Anexos: ' + m.attachments.map((a) => a.name + ' (' + a.path + ')').join(', ') + ']' : '';

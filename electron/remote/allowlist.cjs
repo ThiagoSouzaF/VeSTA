@@ -55,7 +55,7 @@ const stepIds = (v, k) => {
   return v;
 };
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
-const PROVIDERS = ['claude', 'codex', 'drael', 'opencode'];
+const { PROVIDER_IDS: PROVIDERS } = require('../shared/quests.cjs');
 const MODES = ['edit', 'read', 'ask'];
 const nullable = (fn) => (v, k) => (v === null ? null : fn(v, k));
 

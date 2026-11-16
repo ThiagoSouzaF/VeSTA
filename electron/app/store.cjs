@@ -3,7 +3,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { UserError } = require('./errors.cjs');
 const { emptyUsage, migrate } = require('../ai/usage.cjs');
-const { normalizeQuests } = require('../shared/quests.cjs');
+const { normalizeQuests, PROVIDER_IDS } = require('../shared/quests.cjs');
 const { defaultRemote, normalizeRemote } = require('../remote/index.cjs');
 const { writeAtomic } = require('../util/sys.cjs');
 // Bump when a one-time migration is added below.
@@ -101,7 +101,7 @@ class Store {
     return c;
   }
   addChat(input) {
-    if (!['codex', 'claude', 'drael', 'opencode'].includes(input.provider)) throw new UserError('IA inválida');
+    if (!PROVIDER_IDS.includes(input.provider)) throw new UserError('IA inválida');
     const c = {
       id: randomUUID(),
       title: 'Novo chat',
