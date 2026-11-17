@@ -6,7 +6,7 @@ const PRODUCER = 'vesta.desktop';
 // Event names VeSTA uses internally -> the canonical lifecycle names of the server.
 const CANONICAL = { 'user-prompt': 'user-prompt-submit' };
 // Agent name the server records for each provider (the wire names of the harnesses; drael has its own).
-const AGENTS = { claude: 'claude-code', codex: 'codex', opencode: 'opencode', drael: 'drael', gemini: 'gemini-cli' };
+const AGENTS = { claude: 'claude-code', codex: 'codex', opencode: 'opencode', drael: 'drael' };
 const agentName = (provider) => AGENTS[provider] || 'codex';
 // Stable retry identity (docs): built once from the event's identity, never from its content.
 function ingestKey({ agent, sessionId, event, eventId }) {

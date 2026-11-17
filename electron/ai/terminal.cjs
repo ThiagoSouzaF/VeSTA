@@ -3,7 +3,6 @@ const { childEnv } = require('../app/privacy.cjs');
 const { spawn } = require('node:child_process');
 const { MODES, effortOf } = require('./providers.cjs');
 const drael = require('./drael.cjs');
-const gemini = require('./gemini.cjs');
 const { authEnv } = require('./auth-env.cjs');
 const quote = (s) => "'" + String(s).replace(/'/g, "''") + "'";
 // Access flags of each CLI's interactive mode, matching what providers.command() uses for the chat:
@@ -22,12 +21,6 @@ function modeFlags(id, mode) {
         ? ['--permission-mode', 'plan']
         : [];
   if (id === 'drael') return mode === 'edit' ? ['--mode', 'bypass'] : mode === 'read' ? ['--mode', 'plan'] : [];
-  // Gemini: the project is trusted for the session (as in the chat); read = its plan mode (read-only).
-  if (id === 'gemini')
-    return [
-      '--skip-trust',
-      ...(mode === 'edit' ? ['--approval-mode', 'yolo'] : mode === 'read' ? ['--approval-mode', 'plan'] : []),
-    ];
   if (id === 'opencode') return mode === 'read' ? ['--agent', 'plan'] : [];
   throw new Error('IA desconhecida: ' + id);
 }
@@ -53,16 +46,12 @@ function terminalCommand({ id, exe, chat, cwd, noExit = true }) {
         ? ['--resume', chat.sessionId]
         : id === 'drael'
           ? []
-          : id === 'gemini'
-            ? ['--resume', chat.sessionId]
-            : ['--session', chat.sessionId]
+          : ['--session', chat.sessionId]
     : [];
   if (id === 'drael') args = [drael.script(exe)];
-  else if (chat?.model && chat.model !== 'auto') args.push('--model', chat.model);
+  else if (chat?.model) args.push('--model', chat.model);
   if (id === 'claude' && chat && effortOf(chat)) args.push('--effort', effortOf(chat));
   args.push(...modeFlags(id, mode));
-  // Gemini is a Node script: the terminal runs node.exe with it.
-  if (id === 'gemini') ({ exe, args } = gemini.launch(exe, args));
   const script = 'Set-Location -LiteralPath ' + quote(cwd) + '; & ' + quote(exe) + ' ' + args.map(quote).join(' ');
   return {
     exe: 'powershell.exe',
@@ -91,8 +80,8 @@ function openTerminal(ctx, { chatId, provider }) {
   if (!exe) throw new Error('Programa não encontrado');
   const cwd = chat ? ctx.workdir(chat) : os.homedir();
   const cmd = terminalCommand({ id, exe, chat, cwd });
-  // The login VeSTA keeps (Drael's key, the Gemini key) goes last: it picks the settings that use it.
-  spawnTerminal({ ...cmd, env: { ...cmd.env, ...authEnv(id, ctx) } });
+  // The login VeSTA keeps (Drael's key) goes last: it picks the settings that use it.
+  spawnTerminal({ ...cmd, env: { ...cmd.env, ...authEnv(id) } });
   return true;
 }
 module.exports = { terminalCommand, spawnTerminal, openTerminal, modeFlags };

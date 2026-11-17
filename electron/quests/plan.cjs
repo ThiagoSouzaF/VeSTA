@@ -70,7 +70,6 @@ function parsePlan(reply, installed = {}) {
   const steps = list.map((s, i) => {
     let provider = String(s.provider || s.ia || '').toLowerCase();
     if (provider === 'chatgpt' || provider === 'openai') provider = 'codex';
-    if (provider === 'google') provider = 'gemini';
     if (!installed[provider] && usable.length) {
       if (provider)
         warnings.push(

@@ -146,10 +146,6 @@
   color: var(--orange);
   background: color-mix(in srgb, var(--orange) 8%, transparent);
 }
-.provider-icon.blue {
-  color: var(--blue);
-  background: color-mix(in srgb, var(--blue) 9%, transparent);
-}
 .provider-icon.violet {
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 9%, transparent);

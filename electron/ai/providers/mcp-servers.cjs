@@ -52,18 +52,6 @@ function mcpTools(provider, servers) {
         ];
       }),
     };
-  // Gemini over ACP: the servers go in session/new (stdin), with the header already filled in; nothing on the line.
-  if (provider === 'gemini')
-    return {
-      args: [],
-      env: {},
-      acp: servers.map((x) => ({
-        type: 'http',
-        name: x.name,
-        url: x.url,
-        headers: [{ name: 'Authorization', value: 'Bearer ' + x.token }],
-      })),
-    };
   return {
     args: [],
     env: {

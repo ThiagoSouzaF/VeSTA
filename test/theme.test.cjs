@@ -109,3 +109,37 @@ test('the theme files use only neutral greys and square corners', () => {
   }
   assert.match(text('src/styles/theme-ink.css'), /border-radius:\s*0\s*!important/);
 });
+
+test('v5: Gemini chats are dropped once, and quests forget them', () => {
+  const dir = tmp();
+  write(dir, {
+    version: 4,
+    settings: { theme: 'paper' },
+    chats: [
+      { id: 'a', provider: 'claude', messages: [] },
+      { id: 'g', provider: 'gemini', messages: [] },
+    ],
+    quests: [
+      {
+        id: 'q',
+        title: 'Q',
+        leadChatId: 'g',
+        steps: [{ id: 's1', title: 'S', instructions: 'i', provider: 'gemini', chatId: 'g' }],
+      },
+    ],
+  });
+  const s = new Store(dir);
+  assert.deepEqual(
+    s.state.chats.map((c) => c.id),
+    ['a']
+  );
+  assert.equal(s.state.quests[0].leadChatId, null);
+  assert.equal(s.state.quests[0].steps[0].chatId, null);
+  assert.equal(s.state.quests[0].steps[0].provider, 'claude');
+  assert.equal(s.state.settings.theme, 'paper', 'the v4 theme move is not repeated');
+  assert.deepEqual(
+    read(dir).chats.map((c) => c.id),
+    ['a'],
+    'written to disk'
+  );
+});

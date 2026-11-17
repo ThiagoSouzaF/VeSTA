@@ -3,13 +3,11 @@ const fs = require('node:fs'),
   os = require('node:os');
 const providers = require('./providers.cjs');
 const drael = require('./drael.cjs');
-const gemini = require('./gemini.cjs');
 const { PROVIDER_IDS } = require('../shared/quests.cjs');
 
-// How to ask a CLI its version: Drael and Gemini are Node scripts run by a node.exe.
+// How to ask a CLI its version: Drael is a Node script run by a node.exe.
 function versionCall(id, exe) {
   if (id === 'drael') return { exe, args: [drael.script(exe), '--version'] };
-  if (id === 'gemini') return gemini.launch(exe, ['--version']);
   return { exe, args: ['--version'] };
 }
 async function discover(ctx) {
@@ -42,9 +40,6 @@ async function discover(ctx) {
     integrations.codex.models = [];
   }
   integrations.drael.models = ['drael-v1'];
-  integrations.gemini.models = gemini.MODELS;
-  integrations.gemini.keySaved = gemini.hasKey(ctx);
-  if (integrations.gemini.installed) integrations.gemini.authenticated = gemini.authenticated(ctx);
   integrations.drael.authenticated = !!drael.authEnv().DRAEL_KEY;
   integrations.claude.models = ['claude-fable-5-2', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
   if (integrations.opencode.installed)

@@ -22,8 +22,6 @@ const PRIVATE_ENV = Object.freeze({
   // OpenCode: no self-update and no public share links of sessions.
   OPENCODE_DISABLE_AUTOUPDATE: '1',
   OPENCODE_DISABLE_SHARE: '1',
-  // Gemini CLI: its OpenTelemetry export (usage statistics and self-update go off in gemini.cjs' settings file).
-  GEMINI_TELEMETRY_ENABLED: 'false',
   // Any OpenTelemetry SDK a tool may embed.
   OTEL_SDK_DISABLED: 'true',
 });

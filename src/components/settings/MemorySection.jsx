@@ -36,7 +36,7 @@ const TOGGLES = [
   {
     title: 'Agentes podem consultar e gravar na memória',
     description:
-      'Claude, Codex, Gemini e OpenCode recebem as ferramentas do AI Memory só nas sessões abertas pelo VeSTA, para buscar decisões anteriores e registrar o que aprenderam neste projeto. Nada muda nas configurações globais desses programas.',
+      'Claude, Codex e OpenCode recebem as ferramentas do AI Memory só nas sessões abertas pelo VeSTA, para buscar decisões anteriores e registrar o que aprenderam neste projeto. Nada muda nas configurações globais desses programas.',
     on: (s) => s.memoryTools !== false,
     toggle: (s) => ({ memoryTools: s.memoryTools === false }),
   },

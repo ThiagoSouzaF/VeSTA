@@ -566,9 +566,6 @@ fieldset.plain {
 .provider-icon.violet {
   color: var(--accent);
 }
-.provider-icon.blue {
-  color: var(--blue);
-}
 .provider-icon.small {
   width: 18px;
   height: 18px;

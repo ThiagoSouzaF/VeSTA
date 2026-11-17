@@ -4,7 +4,6 @@ const fs = require('node:fs'),
   os = require('node:os');
 const { randomUUID } = require('node:crypto');
 const { UserError } = require('./errors.cjs');
-const gemini = require('../ai/gemini.cjs');
 // Instruction files each AI reads, and who reads them (shown next to the file so the list explains itself).
 const READERS = {
   'AGENTS.md': 'Codex, OpenCode e Drael',
@@ -13,7 +12,6 @@ const READERS = {
   '.claude/CLAUDE.md': 'Claude',
   'opencode.json': 'OpenCode',
   'opencode.jsonc': 'OpenCode',
-  'GEMINI.md': 'Gemini',
 };
 // The instruction files that apply to a project: in its folder, in the folders above it, and the global ones.
 // -> [{ name, path }] where name says where the file is and which AI reads it.
@@ -25,8 +23,6 @@ async function inspectProject(ctx, id) {
     [path.join(home, '.codex', 'AGENTS.md'), 'Codex · instruções globais'],
     [path.join(home, '.claude', 'CLAUDE.md'), 'Claude · instruções globais'],
     [path.join(home, '.config', 'opencode', 'AGENTS.md'), 'OpenCode · instruções globais'],
-    // VeSTA's Gemini reads its global GEMINI.md from its own home, not ~/.gemini (see ai/gemini.cjs).
-    [path.join(gemini.homeOf(ctx), '.gemini', 'GEMINI.md'), 'Gemini · instruções globais'],
   ]);
   const files = [],
     seen = new Set();

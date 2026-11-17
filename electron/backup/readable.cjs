@@ -4,7 +4,7 @@ const fs = require('node:fs'),
   path = require('node:path');
 const { slug } = require('../util/text.cjs');
 
-const PROVIDER_NAMES = { claude: 'Claude', codex: 'Codex', opencode: 'OpenCode', drael: 'Drael', gemini: 'Gemini' };
+const PROVIDER_NAMES = { claude: 'Claude', codex: 'Codex', opencode: 'OpenCode', drael: 'Drael' };
 const when = (t) => (t ? new Date(t).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '');
 
 function chatMarkdown(chat, projectName) {

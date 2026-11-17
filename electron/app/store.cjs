@@ -7,7 +7,7 @@ const { normalizeQuests, PROVIDER_IDS } = require('../shared/quests.cjs');
 const { defaultRemote, normalizeRemote } = require('../remote/index.cjs');
 const { writeAtomic } = require('../util/sys.cjs');
 // Bump when a one-time migration is added below.
-const STORE_VERSION = 4;
+const STORE_VERSION = 5;
 const THEMES = ['ink', 'obsidian', 'aurora', 'paper'];
 const defaults = () => ({
   version: STORE_VERSION,
@@ -43,8 +43,17 @@ const defaults = () => ({
 });
 // One-time upgrades, keyed by the version a store file was saved with. Mutates and returns `state`.
 // v4: "Tinta Mangá" became the default theme, so existing installs move to it once; their later choice is respected.
+// v5: Gemini left VeSTA (0.19): its chats go away, and quests forget them (their steps already fall back to Claude).
 function migrateStore(state, savedVersion) {
   if (savedVersion < 4) state.settings.theme = 'ink';
+  if (savedVersion < 5 && Array.isArray(state.chats)) {
+    const gone = new Set(state.chats.filter((c) => c.provider === 'gemini').map((c) => c.id));
+    state.chats = state.chats.filter((c) => !gone.has(c.id));
+    for (const q of state.quests || []) {
+      if (gone.has(q.leadChatId)) q.leadChatId = null;
+      for (const st of q.steps || []) if (gone.has(st.chatId)) st.chatId = null;
+    }
+  }
   return state;
 }
 const SAVE_DELAY_MS = 300;

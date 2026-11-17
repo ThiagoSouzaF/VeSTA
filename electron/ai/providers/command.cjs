@@ -2,7 +2,6 @@
 const fs = require('node:fs');
 const { CODEX_PRIVATE_ARGS } = require('../../app/privacy.cjs');
 const drael = require('../drael.cjs');
-const gemini = require('../gemini.cjs');
 const { QUEST_SERVER, memoryServer, mcpTools } = require('./mcp-servers.cjs');
 
 // What the quest's own chat may never do in Claude (it acts on the quest through vesta-quest only).
@@ -72,29 +71,6 @@ function command(chat, exe, endpoint, { attachDir = null, extra = [] } = {}) {
       env: mem.env,
     };
   }
-  if (chat.provider === 'gemini') {
-    // Full access = yolo; ask and read = the default mode, where only reading needs no permission (the driver refuses
-    // every request in read mode). VeSTA's own MCP tools are allowed by policy() in every mode.
-    const launch = gemini.launch(exe, [
-      '--acp',
-      '--skip-trust',
-      '--policy',
-      gemini.policy(),
-      ...(mode === 'edit' ? ['--approval-mode', 'yolo'] : []),
-      // The chat's attachments live outside the project: Gemini only reads folders of its workspace.
-      ...(attachDir && fs.existsSync(attachDir) ? ['--include-directories', attachDir] : []),
-      ...(chat.model && chat.model !== 'auto' ? ['--model', chat.model] : []),
-    ]);
-    return {
-      ...launch,
-      // Gemini's home, settings and key come from auth-env.cjs (they need the app's data folder).
-      env: {},
-      mcpServers: mem.acp,
-      readOnly: mode === 'read',
-      resume: chat.sessionId || null,
-    };
-  }
-  if (chat.provider !== 'opencode') throw new Error('IA desconhecida: ' + chat.provider);
   const permission =
     mode === 'read'
       ? { edit: 'deny', bash: 'deny', webfetch: 'allow', question: 'deny' }

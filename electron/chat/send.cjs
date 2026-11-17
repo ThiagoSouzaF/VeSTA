@@ -281,7 +281,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
       const attachDir = ctx.attachments?.dirOf(chatId) || null;
       const spec = providers.command(chat, exe, servers.endpoint, { attachDir, extra: servers.extra });
       // VeSTA is the producer of this conversation's memory events: the agent's own hooks (if any) stay out of it.
-      const env = childEnv({ ...spec.env, ...authEnv(chat.provider, ctx), AI_MEMORY_CAPTURE_OWNER: PRODUCER });
+      const env = childEnv({ ...spec.env, ...authEnv(chat.provider), AI_MEMORY_CAPTURE_OWNER: PRODUCER });
       delete env.ELECTRON_RUN_AS_NODE;
       session.parse = providers.parser(chat.provider, route);
       // Permission requests (the agent's and its subagents') wait for the user's answer in the chat.
