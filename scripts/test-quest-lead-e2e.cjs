@@ -76,7 +76,11 @@ const CODE = 'ZEBRA-7731';
             CODE +
             '"; em seguida escreva estas 45 linhas, uma por linha, sem alterar nada:\n' +
             pad +
-            '\nPor fim, uma seção "## Resultado" com uma linha: nota.txt criado.',
+            '\nPor fim, uma seção "## Resultado" com uma única linha, exatamente "nota.txt criado.". ' +
+            // The app asks every step to end with what the next one needs; without this the model may put the code
+            // there, and then chat_read is not needed (the check below would fail for the wrong reason).
+            'O código é sigiloso: ele NÃO pode aparecer na seção Resultado, nem para a próxima etapa ' +
+            '(ela vai ler a nota por conta própria). Faça tudo isso nesta mesma resposta.',
         },
         {
           id: 's2',
@@ -109,7 +113,8 @@ const CODE = 'ZEBRA-7731';
     assert.ok(s1chat.messages.at(-1).text.includes(CODE), 'a etapa 1 deveria ter escrito o código na resposta');
     assert.ok(
       !q.steps[0].result.includes(CODE),
-      'o resultado curto não pode conter o código (senão o chat_read não é necessário)'
+      'o resultado curto não pode conter o código (senão o chat_read não é necessário): ' +
+        JSON.stringify(q.steps[0].result)
     );
     console.log('etapa 1 pronta; resultado curto:', JSON.stringify(q.steps[0].result));
 
