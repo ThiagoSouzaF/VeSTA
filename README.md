@@ -28,17 +28,20 @@ Pronto. O app avisa quando sai versão nova e se atualiza sozinho (com a sua per
 
 ## Primeiros passos
 
-1. **Conecte um projeto.** Clique em **Adicionar projeto** e escolha uma pasta (ou use o espaço pessoal).
-2. **Abra um novo chat** (**Ctrl+N**). Escolha a IA, o modelo e o modo de trabalho.
+1. **Conecte um projeto.** No **Início**, clique em **Conectar uma pasta** (ou use o espaço pessoal).
+2. **Escolha o projeto** clicando no quadrado dele, ou **abra um novo chat** (**Ctrl+N**). Escolha a IA, o modelo e o modo de trabalho.
 3. **Escreva.** A IA usa a conta que você já tem logada.
 4. **Anexe o que precisar:** imagens e documentos pelo clipe, arrastando ou colando com Ctrl+V.
 5. **Ensine a memória.** Em **Memória**, escreva suas preferências (idioma, organização de arquivos...) ou notas de um projeto. Com **Aprender com as conversas** ligado, ela também aprende sozinha.
 
-Atalhos: **Ctrl+K** busca conversas, **Enter** envia, **Shift+Enter** pula linha, **Ctrl +/−/0** muda o tamanho do texto.
+Atalhos: **Ctrl+K** busca conversas, **Ctrl+B** abre e fecha a lista de conversas, **Enter** envia, **Shift+Enter** pula linha, **Ctrl +/−/0** muda o tamanho do texto.
 
 ## O que ele faz
 
-- **Conversas organizadas por projeto.** Na barra lateral, cada projeto é uma pasta que abre e fecha, com as suas conversas e o "+" para começar outra ali. Dá para recolher tudo de uma vez e arrastar uma conversa para outro projeto: ela leva o histórico e a memória junto, e a próxima resposta já trabalha na pasta nova.
+- **Início com seus projetos.** O app abre numa tela limpa com cada projeto num quadrado: quantas conversas tem, quando foi usado e o que está rodando nele. Um clique abre a conversa mais recente do projeto. Há também um campo para uma pergunta rápida, sem projeto.
+- **Mais espaço para o chat.** À esquerda fica só um trilho de ícones. As conversas abrem numa gaveta ao lado (ícone de conversas ou **Ctrl+B**), e o contexto do chat (projeto, memória e instruções) aparece só quando você clica em **Contexto**.
+- **Processos paralelos sempre à vista.** Subagentes e comandos em segundo plano ficam numa faixa fixa logo acima da caixa de mensagem, com o tempo de cada um. Aberta, ela separa o que está rodando, o que terminou e o que falhou, mostra o passo atual de cada subagente e tem "ver no chat" e parar.
+- **Conversas organizadas por projeto.** Na gaveta de conversas, cada projeto é uma pasta que abre e fecha, com as suas conversas e o "+" para começar outra ali. Dá para recolher tudo de uma vez e arrastar uma conversa para outro projeto: ela leva o histórico e a memória junto, e a próxima resposta já trabalha na pasta nova.
 - **Várias IAs, uma conversa.** ChatGPT (Codex), Claude e Drael. Troque de IA ou de modelo no meio do chat e o histórico vai junto. No menu do modelo, escolha também o **esforço** da conversa no Claude e no Codex: baixo para respostas rápidas, alto ou máximo quando a tarefa pede mais raciocínio.
 - **Memória compartilhada (AI Memory).** Guarda suas preferências e o contexto de cada projeto, aprende com as conversas e passa tudo entre as IAs. Funciona offline.
 - **Atividade.** Veja ao vivo tudo o que as IAs estão fazendo em paralelo: respostas, subagentes, comandos e tarefas em segundo plano. Dá para parar qualquer uma.
@@ -124,7 +127,8 @@ Desenvolvimento do app móvel: `npm run dev:mobile` (Vite) e `npm run build` (ge
 - `npm test`: unidades, inclusive servidor HTTP/WS real em localhost, Codex e OpenCode falsos que travam ou caem no meio do turno, o Google falso respondendo 503 e cortando o envio, e a tabela de quando o celular precisa de um sim no desktop para dar acesso completo.
 - `test-providers.cjs`: duas chamadas curtas em cada conta configurada.
 - `test-permissions.cjs` (`claude`, `codex` ou `opencode`, mais `allow`, `deny`, `subagent`, `always` ou `stop`): a IA real pede permissão para um `mkdir` e o teste confere o efeito de cada resposta.
-- `test-tree-e2e.cjs` (com `node`): conversas por projeto na barra lateral, recolher tudo, "+" do projeto, arrastar uma conversa (a próxima resposta roda na pasta nova com o histórico) e o esforço escolhido no menu do modelo chegando à IA.
+- `test-ui-smoke.cjs` (com `node`): percorre as telas com dados de exemplo. Inclui o Início (quadrados com o que roda em cada projeto), a faixa de processos entre a conversa e a caixa de mensagem (abas, passo atual, "ver no chat", parar), a gaveta de conversas (trilho e Ctrl+B) e o contexto em popover.
+- `test-tree-e2e.cjs` (com `node`): conversas por projeto na gaveta, recolher tudo, "+" do projeto, arrastar uma conversa (a próxima resposta roda na pasta nova com o histórico) e o esforço escolhido no menu do modelo chegando à IA.
 - `test-effort-e2e.cjs` (com `npx electron`, Claude e Codex reais): cada IA responde com esforço baixo e máximo.
 - `test-chat-quest-e2e.cjs` (com `npx electron`, Claude real): um chat cria e inicia uma quest pelo VeSTA e ela roda até o fim no projeto.
 - `test-drive-e2e.cjs` (com `npx electron`; `ai` inclui chats reais): Google Drive contra um Google falso local (login, envio, lista, restauração) e preferências mudadas por chats do Claude e do Codex.
@@ -150,7 +154,7 @@ Para publicar: aumente `version` no `package.json`, faça commit e push, e rode 
 - Tela de abertura (splash) com a Vesta e uma barra que acompanha as etapas reais do início: dados, memória, IAs e interface.
 - Markdown, atividades das ferramentas, cancelamento, renomeação, exclusão e exportação de conversas.
 - Botão no canto inferior direito para retomar o chat no terminal nativo, no mesmo modo do chat.
-- **Atividade**: todo o trabalho em paralelo de todas as IAs, ao vivo e em árvore (turno → subagentes → comandos, ferramentas, tarefas em segundo plano e Monitor), com tempos, detalhes, filtros e Parar (por chat; por tarefa no Claude). A barra lateral mostra quantas tarefas rodam em cada chat.
+- **Atividade**: todo o trabalho em paralelo de todas as IAs, ao vivo e em árvore (turno → subagentes → comandos, ferramentas, tarefas em segundo plano e Monitor), com tempos, detalhes, filtros e Parar (por chat; por tarefa no Claude). A gaveta de conversas mostra quantas tarefas rodam em cada chat, e cada chat tem a faixa de processos acima da caixa de mensagem.
 - **Quests**: uma IA planeja (ou você monta o plano), cada etapa vai para a IA escolhida num chat próprio, os resultados passam de uma etapa para a seguinte e ficam no AI Memory, e o quadro mostra Pendentes, Rodando, Concluídas e Problemas. Cada quest tem um **chat da quest**: ele recebe a ideia (o planejamento acontece nele) e, a cada mensagem sua, vê a situação, os resultados e um trecho da conversa de cada etapa, com atalhos para abrir os chats das etapas e voltar ao quadro. Os chats criados por quests ficam fora de Conversas.
 - **Uso por IA**: janelas oficiais do plano do Claude (5 h e semanal) e do Codex (lidas do `codex app-server`), além de tokens e custo por dia de cada IA.
 - **Leitura confortável**: zoom do texto de 80% a 160% (**Ctrl +**, **Ctrl −**, **Ctrl 0** ou Ctrl+roda); a conversa só rola sozinha se você estiver no fim, com botão para descer até o fim. **End** vai ao fim da conversa.
