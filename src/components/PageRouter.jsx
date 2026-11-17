@@ -1,5 +1,6 @@
 import { LoaderCircle } from 'lucide-react';
 import { ChatPage } from './ChatPage';
+import { HomePage } from './HomePage';
 import { ActivityPage } from './ActivityPage';
 import { QuestsPage } from './QuestsPage';
 import { MemoryPage } from './MemoryPage';
@@ -18,6 +19,8 @@ export function PageRouter({ page, loading, props }) {
       </div>
     );
   switch (page) {
+    case 'home':
+      return <HomePage {...props.home} />;
     case 'chat':
       return <ChatPage {...props.chat} />;
     case 'activity':

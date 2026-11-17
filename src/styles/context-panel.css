@@ -202,3 +202,58 @@
   font-weight: 450;
   color: var(--muted);
 }
+
+/* The context panel opens as a popover under the header's "Contexto" button. */
+.chat-layout {
+  position: relative;
+}
+.context-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+}
+.chat-layout > .context-panel {
+  position: absolute;
+  top: 8px;
+  right: 18px;
+  z-index: 16;
+  width: 320px;
+  max-height: calc(100% - 24px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 18px 20px 14px;
+}
+.chat-layout > .context-panel .context-section {
+  padding: 16px 0 14px;
+}
+.chat-layout > .context-panel .context-section:last-child {
+  border-bottom: 0;
+}
+.context-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  color: var(--muted);
+}
+.context-toggle:hover,
+.context-toggle.active {
+  color: var(--text);
+  border-color: var(--accent);
+}
+:root[data-theme='ink'] .chat-layout > .context-panel {
+  border-color: #fff;
+  box-shadow: 6px 6px 0 var(--border);
+}
+:root[data-theme='ink'] .context-toggle {
+  font-family: var(--font-mono);
+}
+:root[data-theme='ink'] .context-toggle:hover,
+:root[data-theme='ink'] .context-toggle.active {
+  border-color: #fff;
+  color: #fff;
+}

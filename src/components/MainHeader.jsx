@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Brain, ChevronRight, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Brain, ChevronRight, Orbit } from 'lucide-react';
 import { IconButton } from './IconButton';
 export function MainHeader({
   page,
@@ -34,21 +34,23 @@ export function MainHeader({
         <span>Seu espaço</span>
         <ChevronRight size={13} />
         <strong>
-          {page === 'chat'
-            ? chat?.title || 'Visão geral'
-            : page === 'activity'
-              ? 'Atividade'
-              : page === 'quests'
-                ? 'Quests'
-                : page === 'memory'
-                  ? 'Memória compartilhada'
-                  : page === 'usage'
-                    ? 'Uso'
-                    : page === 'connections'
-                      ? 'Conexões'
-                      : page === 'about'
-                        ? 'Sobre a VeSTA'
-                        : 'Preferências'}
+          {page === 'home'
+            ? 'Início'
+            : page === 'chat'
+              ? chat?.title || 'Nova conversa'
+              : page === 'activity'
+                ? 'Atividade'
+                : page === 'quests'
+                  ? 'Quests'
+                  : page === 'memory'
+                    ? 'Memória compartilhada'
+                    : page === 'usage'
+                      ? 'Uso'
+                      : page === 'connections'
+                        ? 'Conexões'
+                        : page === 'about'
+                          ? 'Sobre a VeSTA'
+                          : 'Preferências'}
         </strong>
       </div>
       <div className="header-actions">
@@ -60,11 +62,15 @@ export function MainHeader({
           </span>
         )}
         {page === 'chat' && (
-          <IconButton
-            icon={inspector ? PanelRightClose : PanelRightOpen}
-            label="Alternar painel de contexto"
+          <button
+            className={'context-toggle' + (inspector ? ' active' : '')}
+            aria-expanded={inspector}
+            aria-label="Alternar painel de contexto"
             onClick={() => setInspector(!inspector)}
-          />
+          >
+            <Orbit size={13} />
+            Contexto
+          </button>
         )}
       </div>
     </header>

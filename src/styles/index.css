@@ -3,6 +3,8 @@
 @import './base.css';
 @import './layout.css';
 @import './sidebar.css';
+@import './rail.css';
+@import './home.css';
 @import './header.css';
 @import './chat-layout.css';
 @import './welcome.css';
@@ -29,6 +31,7 @@
 @import './backdrop.css';
 @import './permissions.css';
 @import './tasks.css';
+@import './task-dock.css';
 @import './quests.css';
 @import './remote.css';
 @import './mascot.css';

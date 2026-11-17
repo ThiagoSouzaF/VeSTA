@@ -212,3 +212,69 @@ test('a followed chat (Claude waiting for background processes) is listed and it
   assert.equal(A.canStopTask(task, followed.following), true);
   assert.equal(A.canStopTask(task, false), false);
 });
+
+test('dockTasks: parallel work of the chat, finished plain commands left out, latest subagent step', async () => {
+  const A = await lib();
+  const c = {
+    id: 'd1',
+    title: 'Dock',
+    provider: 'claude',
+    projectId: null,
+    messages: [
+      { id: 'u', role: 'user', text: 'oi', createdAt: NOW - 9000 },
+      {
+        id: 'm',
+        role: 'assistant',
+        text: '',
+        createdAt: NOW - 8000,
+        status: 'running',
+        activities: [
+          {
+            id: 'bg',
+            kind: 'command',
+            background: true,
+            taskId: 't1',
+            label: 'Bash',
+            status: 'running',
+            startedAt: NOW,
+          },
+          { id: 'ok', kind: 'command', label: 'Bash', detail: 'git status', status: 'done', startedAt: NOW },
+          { id: 'bad', kind: 'command', label: 'Bash', detail: 'npm test', status: 'error', startedAt: NOW },
+          { id: 'rd', kind: 'file', label: 'Read', status: 'done', startedAt: NOW },
+        ],
+        subagents: [
+          {
+            toolUseId: 's1',
+            label: 'Mapear',
+            subagentType: 'Explore',
+            status: 'running',
+            taskId: 't2',
+            startedAt: NOW,
+            steps: [
+              { id: 'a', kind: 'search', label: 'Grep', status: 'done', startedAt: NOW },
+              { id: 'b', kind: 'file', label: 'Read', detail: 'x.js', status: 'running', startedAt: NOW },
+            ],
+          },
+          { toolUseId: 's2', label: 'Revisar', status: 'done', startedAt: NOW, endedAt: NOW + 1 },
+        ],
+      },
+    ],
+  };
+  const d = A.dockTasks(A.chatGroup(c, true));
+  assert.deepEqual(
+    d.running.map((x) => x.task.label),
+    ['Bash', 'Mapear']
+  );
+  assert.deepEqual(
+    d.done.map((x) => x.task.label),
+    ['Revisar']
+  );
+  assert.deepEqual(
+    d.failed.map((x) => x.task.detail),
+    ['npm test']
+  );
+  assert.equal(d.running[1].step.detail, 'x.js', 'subagent shows its latest step');
+  assert.ok(d.running.every((x) => x.live));
+  assert.ok(A.canStopTask(d.running[0].task, d.running[0].live));
+  assert.deepEqual(A.dockTasks(null), { running: [], done: [], failed: [] });
+});

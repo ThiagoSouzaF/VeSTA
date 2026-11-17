@@ -9,7 +9,8 @@ import { applyEvents, createEventBuffer } from './lib/streamBuffer';
 import { useFontScale } from './hooks/useFontScale';
 import { useNavHistory } from './hooks/useNavHistory';
 import { Titlebar } from './components/Titlebar';
-import { Sidebar } from './components/Sidebar';
+import { Rail } from './components/Rail';
+import { ConversationDrawer } from './components/ConversationDrawer';
 import { Backdrop } from './components/Backdrop';
 import { MainHeader } from './components/MainHeader';
 import { PageRouter } from './components/PageRouter';
@@ -27,13 +28,14 @@ export function App() {
   const [data, setData] = useState(empty),
     [integrations, setIntegrations] = useState({}),
     [loading, setLoading] = useState(true),
-    [page, setPage] = useState('chat'),
+    [page, setPage] = useState('home'),
     [active, setActive] = useState(null),
     [provider, setProvider] = useState('codex'),
     [projectId, setProjectId] = useState(''),
     [newModel, setNewModel] = useState(null),
     [search, setSearch] = useState(''),
-    [inspector, setInspector] = useState(true),
+    [inspector, setInspector] = useState(false),
+    [drawer, setDrawer] = useState(true),
     [modal, setModal] = useState(null),
     [memoryStatus, setMemoryStatus] = useState(null),
     [instructions, setInstructions] = useState([]),
@@ -133,7 +135,9 @@ export function App() {
       alive = false;
     };
   }, [currentProjectId]);
-  useGlobalShortcuts({ openNew, closeModal: () => setModal(null) });
+  // Conversas drawer: `open` forces a state, otherwise it flips. Opening it from another screen goes to the chat.
+  const toggleDrawer = useCallback((open) => setDrawer((d) => (typeof open === 'boolean' ? open : !d)), []);
+  useGlobalShortcuts({ openNew, closeModal: () => setModal(null), toggleDrawer });
   useEffect(() => {
     setNewModel(null);
   }, [provider]);
@@ -197,6 +201,38 @@ export function App() {
     } finally {
       setBusy(false);
       textarea.current?.focus();
+    }
+  }
+  // A question from Início without a project: a fresh chat in the Espaço pessoal, sent right away.
+  async function quickAsk(text) {
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    try {
+      const c = await createChat({
+        provider,
+        projectId: null,
+        model: provider === 'opencode' ? 'drael/drael-v1' : '',
+        mode: 'edit',
+        memory: true,
+      });
+      replaceData(await call('send', { chatId: c.id, text, attachments: [] }));
+    } catch {
+    } finally {
+      setBusy(false);
+      textarea.current?.focus();
+    }
+  }
+  // A project tile on Início: its latest conversation (or a new one there when it has none), with Conversas open.
+  function openProject(id) {
+    setProjectId(id);
+    setDrawer(true);
+    const latest = filterChats(data.chats, data.quests, { projectId: '', search: '' })
+      .filter((c) => (c.projectId || '') === id)
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+    if (latest) goChat(latest);
+    else {
+      setActive(null);
+      setPage('chat');
     }
   }
   async function addProject() {
@@ -297,6 +333,7 @@ export function App() {
   const newMemory = () =>
     setModal({ type: 'memory', title: '', body: '', kind: 'preference', projectId: projectId || '' });
   const pageProps = {
+    home: { data, taskCounts: counts, onOpenProject: openProject, addProject, onQuickAsk: quickAsk, busy },
     chat: {
       chat,
       currentProject,
@@ -320,6 +357,7 @@ export function App() {
       data,
       active,
       inspector,
+      setInspector,
       projectId,
       setProjectId,
       addProject,
@@ -373,23 +411,34 @@ export function App() {
       <div className="app-shell">
         <Titlebar />
         <div className="app-body">
-          <Sidebar
-            moveChat={moveChat}
-            openNew={openNew}
+          <Rail
             page={page}
             setPage={goPage}
+            drawer={drawer}
+            toggleDrawer={toggleDrawer}
+            openNew={openNew}
             data={data}
-            addProject={addProject}
-            projectId={projectId}
-            setProjectId={setProjectId}
-            filteredChats={filteredChats}
-            search={search}
-            setSearch={setSearch}
-            active={active}
-            goChat={goChat}
             taskCounts={counts}
             questsRunning={questsRunning}
           />
+          {drawer && (
+            <ConversationDrawer
+              data={data}
+              chats={filteredChats}
+              search={search}
+              setSearch={setSearch}
+              active={active}
+              page={page}
+              goChat={goChat}
+              projectId={projectId}
+              setProjectId={setProjectId}
+              openNew={openNew}
+              addProject={addProject}
+              moveChat={moveChat}
+              taskCounts={counts}
+              onClose={() => setDrawer(false)}
+            />
+          )}
           <main className="main">
             <Backdrop
               kind={data.settings.background || 'rain'}

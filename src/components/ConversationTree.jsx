@@ -11,6 +11,7 @@ import {
   Plus,
   Search,
   ShieldAlert,
+  X,
 } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { ProviderIcon } from './ProviderIcon';
@@ -89,6 +90,7 @@ export function ConversationTree({
   addProject,
   moveChat,
   taskCounts,
+  onClose,
 }) {
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const [dropOn, setDropOn] = useState(null);
@@ -136,6 +138,7 @@ export function ConversationTree({
             onClick={() => update(allCollapsed ? new Set() : new Set(keys))}
           />
           <IconButton icon={FolderPlus} label="Novo projeto" onClick={addProject} />
+          {onClose && <IconButton icon={X} label="Fechar conversas (Ctrl B)" onClick={onClose} />}
         </span>
       </div>
       <label className="search-field">

@@ -117,3 +117,27 @@ export function filterGroups(groups, { scope = 'running', provider = 'all', now 
 // Can the user end this task? Only Claude tasks the CLI is still tracking, while its process is alive.
 export const canStopTask = (task, live) =>
   !!live && task.status === 'running' && !!task.taskId && task.provider === 'claude' && !tasks.isDetached(task);
+
+// The chat's task dock: the parallel work of its latest turns (subagents, background commands, monitors, and plain
+// commands only while they run or when they failed), newest turn first, split into running / done / failed.
+// Each item carries the latest step of a subagent and whether its turn is still live (needed to stop it).
+const DOCK_KINDS = new Set(['subagent', 'background', 'monitor', 'command']);
+const DOCK_MAX = 30;
+export function dockTasks(group) {
+  const out = { running: [], done: [], failed: [] };
+  if (!group) return out;
+  group.turns.forEach((turn, i) => {
+    const root = 'turn:' + turn.messageId,
+      live = (group.live && i === 0) || group.following,
+      lastStep = new Map();
+    for (const t of turn.tasks) if (t.parentId && t.parentId !== root) lastStep.set(t.parentId, t);
+    for (const t of turn.tasks) {
+      if (t.parentId !== root || !DOCK_KINDS.has(t.kind)) continue;
+      const running = t.status === 'running' && !tasks.isDetached(t);
+      if (t.kind === 'command' && !running && t.status !== 'error') continue;
+      const list = running ? out.running : t.status === 'error' ? out.failed : out.done;
+      if (list.length < DOCK_MAX) list.push({ task: t, step: lastStep.get(t.id) || null, live });
+    }
+  });
+  return out;
+}

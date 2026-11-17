@@ -1,6 +1,5 @@
 import { ArrowUpRight, Plus, Brain, Folder, Check, ShieldCheck, Orbit, ExternalLink, FileText } from 'lucide-react';
 import { action } from '../lib/api';
-import { Mark } from './Brand';
 // A count in the panel's two-digit style; none yet says so in words.
 const countText = (n) => (n ? String(n).padStart(2, '0') : 'Nenhuma ainda');
 export function ContextPanel({
@@ -17,7 +16,7 @@ export function ContextPanel({
   instructions,
 }) {
   return (
-    <aside className="context-panel">
+    <aside className="context-panel" aria-label="Contexto do chat">
       <div className="context-title">
         <Orbit size={15} />
         <span>CONTEXTO DO CHAT</span>
@@ -117,16 +116,6 @@ export function ContextPanel({
         )}
         <p className="fine-print">
           Cada IA carrega suas próprias instruções. Seus arquivos permanecem sob seu controle.
-        </p>
-      </div>
-      <div className="context-bottom">
-        <div className="small-mark">
-          <Mark size={23} />
-        </div>
-        <p>
-          Seu contexto tem um centro.
-          <br />
-          <strong>Você.</strong>
         </p>
       </div>
     </aside>

@@ -43,15 +43,8 @@
   }
 }
 @media (max-width: 1200px) {
-  .sidebar {
-    width: 224px;
-    padding-left: 13px;
-    padding-right: 13px;
-  }
-  .context-panel {
-    width: 226px;
-    padding-left: 17px;
-    padding-right: 17px;
+  .conversation-drawer {
+    width: 236px;
   }
   .welcome {
     padding-left: 28px;

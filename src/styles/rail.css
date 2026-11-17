@@ -1,0 +1,141 @@
+/* Left rail (icons only) and the Conversas drawer beside it. */
+.rail {
+  width: 60px;
+  flex-shrink: 0;
+  background: var(--side);
+  border-right: 1px solid var(--border-soft);
+  padding: 14px 0 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  z-index: 20;
+}
+.rail-brand {
+  margin-bottom: 12px;
+}
+.rail-brand .mascot-avatar {
+  width: 38px;
+  height: 38px;
+}
+.rail-brand .brand-mark {
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+}
+.rail-item.nav-item {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
+  position: relative;
+  gap: 0;
+}
+.rail-item.drawer-open:not(.active) {
+  color: var(--text);
+}
+/* The name appears beside the icon on hover/focus; it is always in the DOM for screen readers. */
+.rail-label {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 5px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 30;
+}
+.rail-label kbd {
+  color: inherit;
+  opacity: 0.6;
+}
+.rail-item:hover .rail-label,
+.rail-item:focus-visible .rail-label {
+  opacity: 1;
+}
+.rail-item .count {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  margin: 0;
+  padding: 0 4px;
+  min-width: 15px;
+  line-height: 14px;
+  font-size: 9px;
+  text-align: center;
+}
+.rail-item .count.live {
+  background: var(--accent);
+  color: var(--bg);
+}
+.rail-item.new-chat {
+  color: var(--accent);
+}
+.rail-sep {
+  width: 24px;
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+.rail .sidebar-bottom {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.conversation-drawer {
+  width: 268px;
+  flex-shrink: 0;
+  background: var(--side);
+  border-right: 1px solid var(--border-soft);
+  padding: 6px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.conversation-drawer .conversation-heading {
+  margin-top: 12px;
+}
+.conversation-drawer .chat-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+:root[data-theme='ink'] .rail,
+:root[data-theme='ink'] .conversation-drawer {
+  background: #0a0a0c;
+  border-color: var(--border);
+}
+:root[data-theme='ink'] .rail-label {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+:root[data-theme='ink'] .rail-item .count.live {
+  background: #fff;
+  border-color: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .rail-item.new-chat {
+  color: #fff;
+  box-shadow: inset 0 0 0 1px #fff;
+}
+:root[data-theme='ink'] .rail-item.new-chat:hover {
+  background: #fff;
+  color: #000;
+}
+:root[data-theme='ink'] .rail-brand .mascot-avatar {
+  border-radius: 0;
+}

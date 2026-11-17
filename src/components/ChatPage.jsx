@@ -8,6 +8,7 @@ import { Paperclip } from 'lucide-react';
 import { hasFiles } from '../lib/attachments';
 import { QuestChatBar } from './quests/QuestChatBar';
 import { FollowBar } from './FollowBar';
+import { TaskDock } from './TaskDock';
 export function ChatPage({
   chat,
   currentProject,
@@ -31,6 +32,7 @@ export function ChatPage({
   data,
   active,
   inspector,
+  setInspector,
   projectId,
   setProjectId,
   addProject,
@@ -97,6 +99,7 @@ export function ChatPage({
               focus={focus}
             />
             <FollowBar chat={chat} entry={follow} call={call} />
+            <TaskDock chat={chat} running={running} following={!!follow} call={call} />
           </>
         ) : (
           <Welcome
@@ -135,19 +138,23 @@ export function ChatPage({
         />
       </section>
       {inspector && (
-        <ContextPanel
-          chat={chat}
-          currentProject={currentProject}
-          projectId={projectId}
-          setProjectId={setProjectId}
-          data={data}
-          addProject={addProject}
-          call={call}
-          memoryStatus={memoryStatus}
-          currentProjectId={currentProjectId}
-          setPage={setPage}
-          instructions={instructions}
-        />
+        <>
+          {/* Context is a popover now: out of the way until asked for. A click outside closes it. */}
+          <div className="context-scrim" onClick={() => setInspector(false)} />
+          <ContextPanel
+            chat={chat}
+            currentProject={currentProject}
+            projectId={projectId}
+            setProjectId={setProjectId}
+            data={data}
+            addProject={addProject}
+            call={call}
+            memoryStatus={memoryStatus}
+            currentProjectId={currentProjectId}
+            setPage={setPage}
+            instructions={instructions}
+          />
+        </>
       )}
     </div>
   );

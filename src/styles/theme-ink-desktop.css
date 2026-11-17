@@ -9,7 +9,6 @@
 :root[data-theme='ink']
   :is(
     .sidebar-section,
-    .beta,
     kbd,
     .field-label,
     .hero-topline,
@@ -81,10 +80,6 @@
   color: inherit;
   text-shadow: none;
 }
-:root[data-theme='ink'] .brand strong .wordmark {
-  font-size: 24px;
-  letter-spacing: -0.04em;
-}
 :root[data-theme='ink'] .titlebar-brand .wordmark {
   font-size: 12px;
   letter-spacing: -0.02em;
@@ -99,41 +94,6 @@
 }
 
 /* ---- sidebar ---- */
-:root[data-theme='ink'] .sidebar {
-  background: #0a0a0c;
-  border-right: 1px solid var(--border);
-}
-:root[data-theme='ink'] .beta {
-  background: #fff;
-  color: #000;
-  border: 0;
-  padding: 3px 7px 3px 5px;
-  font-size: 10px !important;
-  font-weight: 700;
-  clip-path: var(--chamfer-sm);
-}
-:root[data-theme='ink'] .new-chat {
-  background: #fff;
-  color: #000;
-  border: 1px solid #fff;
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: -0.01em;
-  transition: none;
-}
-:root[data-theme='ink'] .new-chat kbd {
-  color: #000;
-  opacity: 0.7;
-}
-:root[data-theme='ink'] .new-chat:hover {
-  background: #000;
-  color: #fff;
-  box-shadow: inset 0 0 0 1px #fff;
-  transform: translate(2px, 2px);
-}
-:root[data-theme='ink'] .new-chat:hover kbd {
-  color: #fff;
-}
 :root[data-theme='ink'] .nav-item {
   transition: none;
 }
@@ -1388,11 +1348,6 @@
   border: 1px solid var(--line-strong);
 }
 
-:root[data-theme='ink'] .brand-status b {
-  font: 700 9px var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
 /* The chosen AI in the new-chat modal is drawn inverted (white): its icon must follow, or it vanishes. */
 :root[data-theme='ink'] .modal-providers button.selected .provider-icon {
   color: #000 !important;

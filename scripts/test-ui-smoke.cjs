@@ -57,7 +57,14 @@ async function emptyStorePhase() {
       await page.waitForSelector('.app-shell');
       await page.waitForSelector('.loading', { state: 'detached' });
       assert.equal(await page.title(), 'VeSTA');
-      assert.equal(await page.locator('.welcome h1').count(), 1);
+      // The app opens on Início: the projects as tiles (only the Espaço pessoal and "Conectar uma pasta" here).
+      await heading('Em que vamos trabalhar hoje?').waitFor();
+      assert.equal(await page.locator('.project-tile[data-project=personal]').count(), 1);
+      assert.equal(await page.locator('.project-tile.add').count(), 1);
+      assert.equal(await page.locator('.context-panel').count(), 0, 'no context column on Início');
+      await shot(page, 'home-empty');
+      await page.locator('.project-tile[data-project=personal]').click();
+      await page.waitForSelector('.welcome h1');
     });
     await step(
       'mascot: avatar in the sidebar (idle), calm panel on the empty chat screen, nothing broken',
@@ -282,7 +289,8 @@ async function seededPhase() {
       });
     const atEnd = async () => (await metrics()).max - (await metrics()).top <= 4;
     const openChat = async (title) => {
-      await nav('Conversas').click();
+      // Conversas toggles its drawer when the chat screen is already open: only click it while the drawer is closed.
+      if (!(await page.locator('.conversation-drawer').count())) await nav('Conversas').click();
       await page.locator('.chat-list-item', { hasText: title }).click();
       await page.waitForSelector('.messages .message');
     };
@@ -663,6 +671,51 @@ async function activityPhase() {
         0,
         'OpenCode tasks cannot be stopped one by one'
       );
+    });
+    await step('Início: the project tile counts what runs in it and opens its latest chat', async () => {
+      await nav('Início').click();
+      const tile = page.locator('.project-tile[data-project=p1]');
+      assert.equal(await tile.locator('.project-running').innerText(), '3 rodando');
+      await shot(page, 'home-working');
+      await tile.click();
+      await page.waitForSelector('.chat-heading h2');
+      assert.equal(await page.locator('.chat-heading h2').innerText(), 'Refatorar o backend');
+      assert.equal(await page.locator('.conversation-drawer').count(), 1, 'Conversas opens with the project');
+    });
+    await step('the task dock sits above the composer with the chat parallel work', async () => {
+      const dock = page.locator('[data-testid=task-dock]');
+      // background command + subagent; the finished plain command (git status) and file reads stay out
+      assert.match(await dock.locator('.task-dock-badge').innerText(), /2 em paralelo/i);
+      assert.equal(await dock.locator('.task-dock-chip').count(), 2);
+      const below = await page.evaluate(() => {
+        const d = document.querySelector('[data-testid=task-dock]').getBoundingClientRect(),
+          c = document.querySelector('.composer').getBoundingClientRect(),
+          m = document.querySelector('.messages').getBoundingClientRect();
+        return d.top >= m.bottom - 1 && d.bottom <= c.top + 1;
+      });
+      assert.ok(below, 'between the messages and the composer');
+      await dock.locator('.task-dock-bar').click();
+      assert.equal(await dock.locator('.dock-row').count(), 2);
+      assert.equal(await dock.locator('.dock-row[data-kind=subagent] .dock-row-now').count(), 1, 'latest step');
+      assert.equal(await dock.locator('.dock-action.stop').count(), 2);
+      await shot(page, 'task-dock-open');
+      await dock.locator('.dock-row[data-kind=subagent] .dock-action', { hasText: 'ver no chat' }).click();
+      await page.waitForSelector('#msg-m-claude.dock-flash');
+      await dock.locator('.task-dock-bar').click();
+    });
+    await step('Conversas drawer closes and opens again (rail and Ctrl+B); context is a popover', async () => {
+      await nav('Conversas').click();
+      await page.waitForSelector('.conversation-drawer', { state: 'detached' });
+      await page.keyboard.press('Control+b');
+      await page.waitForSelector('.conversation-drawer');
+      assert.equal(await page.locator('.context-panel').count(), 0);
+      await page.getByRole('button', { name: 'Alternar painel de contexto' }).click();
+      await page.waitForSelector('.context-panel');
+      await shot(page, 'context-popover');
+      await page.locator('.context-scrim').click({ position: { x: 20, y: 300 } });
+      await page.waitForSelector('.context-panel', { state: 'detached' });
+      await nav('Atividade').click();
+      await page.locator('h1', { hasText: 'O que está acontecendo.' }).waitFor();
     });
     await step('Tudo adds the recent finished chat; the AI filter narrows groups', async () => {
       await page.getByRole('tab', { name: 'Tudo' }).click();
