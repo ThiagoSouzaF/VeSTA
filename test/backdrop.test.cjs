@@ -6,6 +6,7 @@ const lib = () => import('../src/lib/backdropRain.js');
 test('Tinta Mangá turns "Chuva de código" into the ink rain; other themes keep the classic one', async () => {
   const { resolveScene } = await lib();
   assert.equal(resolveScene('rain', 'ink'), 'inkrain');
+  assert.equal(resolveScene('rain', 'paper'), 'inkrain', 'Papel is the ink look on light paper');
   assert.equal(resolveScene('rain', 'obsidian'), 'rain');
   assert.equal(resolveScene('inkrain', 'paper'), 'inkrain', 'also available as a variation in any theme');
   assert.equal(resolveScene('inkrain', 'ink'), 'inkrain');

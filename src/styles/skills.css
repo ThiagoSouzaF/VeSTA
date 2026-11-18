@@ -927,27 +927,27 @@
 }
 
 /* ---- Tinta Mangá: hard edges, chamfers, ink on black ---- */
-:root[data-theme='ink'] .skills-budget,
-:root[data-theme='ink'] .skill-tile,
-:root[data-theme='ink'] .skills-panel {
+:root[data-look='ink'] .skills-budget,
+:root[data-look='ink'] .skill-tile,
+:root[data-look='ink'] .skills-panel {
   clip-path: var(--chamfer);
 }
-:root[data-theme='ink'] .skill-tile:hover,
-:root[data-theme='ink'] .skill-tile.selected {
-  border-color: #fff;
+:root[data-look='ink'] .skill-tile:hover,
+:root[data-look='ink'] .skill-tile.selected {
+  border-color: var(--ink);
   box-shadow: 4px 4px 0 var(--line-strong);
 }
-:root[data-theme='ink'] .skills-page {
+:root[data-look='ink'] .skills-page {
   background: var(--dots);
 }
-:root[data-theme='ink'] .skill-drawer {
+:root[data-look='ink'] .skill-drawer {
   border-left-color: var(--line-strong);
-  box-shadow: -6px 0 0 #18181b;
+  box-shadow: -6px 0 0 var(--hover);
 }
-:root[data-theme='ink'] .skill-chip {
+:root[data-look='ink'] .skill-chip {
   font-family: var(--font-mono);
 }
-:root[data-theme='ink'] .slash-menu {
-  border-color: #fff;
+:root[data-look='ink'] .slash-menu {
+  border-color: var(--ink);
   box-shadow: 6px 6px 0 var(--line-strong);
 }

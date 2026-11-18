@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { LOOKS } from '../../src/lib/constants';
 import { Activity, Bell, BellOff, Gauge, LogOut, MessageSquare, Swords, WifiOff } from 'lucide-react';
 import { PairScreen } from './screens/Pair';
 import { ChatsScreen } from './screens/Chats';
@@ -78,7 +79,10 @@ function Signed({ token, onSignOut }) {
   // Same theme and accent as the desktop.
   useEffect(() => {
     const root = document.documentElement;
-    if (state.settings.theme) root.dataset.theme = state.settings.theme;
+    if (state.settings.theme) {
+      root.dataset.theme = state.settings.theme;
+      root.dataset.look = LOOKS[state.settings.theme] || 'soft';
+    }
     if (state.settings.accent) root.dataset.accent = state.settings.accent;
   }, [state.settings.theme, state.settings.accent]);
   const pending = useMemo(() => pendingPermissions(state.chats), [state.chats]);

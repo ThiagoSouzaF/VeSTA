@@ -154,7 +154,7 @@ Para publicar: aumente `version` no `package.json`, faça commit e push, e rode 
 - Vários chats independentes, inclusive simultâneos, com retomada da sessão nativa e histórico local.
 - Projetos vinculados a pastas, executados com o diretório de trabalho correto.
 - Uso dos arquivos de instruções nativos: AGENTS.md, CLAUDE.md e configuração do OpenCode. O aplicativo não os substitui nem os reescreve.
-- Tema **Tinta Mangá** (padrão): preto e branco puros, cantos retos, sombras duras, hachura no lugar do vermelho, fontes Space Grotesk e Space Mono embutidas (funciona offline) e chuva de código em tinta, estilo filme antigo. Seguem disponíveis Obsidiana, Aurora e Papel, com quatro cores de destaque (incluindo **Brasa**); escolhas persistentes.
+- Tema **Tinta Mangá** (padrão): preto e branco puros, cantos retos, sombras duras, hachura no lugar do vermelho, fontes Space Grotesk e Space Mono embutidas (funciona offline) e chuva de código em tinta, estilo filme antigo. **Papel** é o mesmo desenho em tinta escura sobre papel creme, também sem cor. Seguem disponíveis Obsidiana e Aurora, com quatro cores de destaque (incluindo **Brasa**); escolhas persistentes.
 - Tela de abertura (splash) com a Vesta e uma barra que acompanha as etapas reais do início: dados, memória, IAs e interface.
 - Markdown, atividades das ferramentas, cancelamento, renomeação, exclusão e exportação de conversas.
 - Botão no canto inferior direito para retomar o chat no terminal nativo, no mesmo modo do chat.

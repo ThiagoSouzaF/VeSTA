@@ -11,9 +11,9 @@ export const RAIN = {
 // A frame that arrives late (a throttled tab, a long GC) never makes the drops jump.
 export const MAX_FRAME_MS = 100;
 
-// The ink theme draws its "Chuva de código" as the film-style rain; any theme can also pick it directly.
+// The ink look (Tinta Mangá and Papel) draws its "Chuva de código" as the film-style rain; any theme can also pick it.
 export function resolveScene(kind, theme) {
-  if (kind === 'rain' && theme === 'ink') return 'inkrain';
+  if (kind === 'rain' && (theme === 'ink' || theme === 'paper')) return 'inkrain';
   return kind;
 }
 

@@ -94,20 +94,32 @@ test('the Tinta Mangá fonts are bundled locally with pinned versions and only t
   assert.ok(!/https?:\/\//.test(css + text('src/styles/ink-fonts.css')), 'no remote fonts');
 });
 
-test('the theme files use only neutral greys and square corners', () => {
+// Spread between the strongest and the weakest channel of every hex colour in `css`.
+const spreads = (css) =>
+  [...css.matchAll(/#([0-9a-f]{3,8})\b/gi)].map(([, c]) => {
+    const hex = c.length <= 4 ? c.replace(/./g, (d) => d + d) : c;
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    return ['#' + c, Math.max(r, g, b) - Math.min(r, g, b)];
+  });
+const PAPER = /:root\[data-theme='paper'\] \{[^}]*\}/;
+
+test('the ink look uses only neutral greys (Papel: warm paper tones) and square corners', () => {
   const files = ['src/styles/theme-ink.css', 'src/styles/theme-ink-shared.css', 'src/styles/theme-ink-desktop.css'];
   files.push('mobile/src/theme-ink.css');
   for (const file of files) {
     const css = text(file);
-    for (const [, c] of css.matchAll(/#([0-9a-f]{3,8})\b/gi)) {
-      const hex = c.length <= 4 ? c.replace(/./g, (d) => d + d) : c;
-      const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
-      // docs/DESIGN.md's neutrals (zinc: #0a0a0c, #27272a, #52525b, #a1a1aa...) lean a hair cool; nothing more coloured.
-      assert.ok(Math.max(r, g, b) - Math.min(r, g, b) <= 9, file + ': #' + c + ' is not a neutral grey');
-    }
+    // docs/DESIGN.md's neutrals (zinc: #0a0a0c, #27272a, #52525b, #a1a1aa...) lean a hair cool; nothing more coloured.
+    for (const [c, spread] of spreads(css.replace(PAPER, '')))
+      assert.ok(spread <= 9, file + ': ' + c + ' is not a neutral grey');
     assert.ok(!/border-radius:\s*[1-9]/.test(css), file + ': a rounded corner');
   }
+  // Papel is the same drawing on cream paper: its tokens may lean warm, never into a colour.
+  const paper = PAPER.exec(text('src/styles/theme-ink.css'))?.[0];
+  assert.ok(paper, 'Papel has its own tokens');
+  for (const [c, spread] of spreads(paper)) assert.ok(spread <= 24, 'Papel: ' + c + ' is a colour, not paper');
   assert.match(text('src/styles/theme-ink.css'), /border-radius:\s*0\s*!important/);
+  // The rules draw with the tokens, so the same rules serve Tinta and Papel.
+  for (const file of files.slice(1)) assert.ok(!/data-theme='ink'/.test(text(file)), file + ': a rule only for Tinta');
 });
 
 test('v5: Gemini chats are dropped once, and quests forget them', () => {

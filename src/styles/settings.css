@@ -121,31 +121,31 @@
   border-color: #4b7967;
 }
 .theme-preview.paper {
-  background: #f8f6f1;
-  border-color: #dedbd3;
+  background: #f3f0e8;
+  border-color: #cfc9ba;
 }
 .paper .preview-sidebar {
-  background: #e6e3dc;
+  background: #ebe7dc;
 }
 .paper .preview-sidebar i {
-  background: #b9b5c0;
+  background: #b9b2a1;
 }
 .paper .preview-sidebar i:first-child {
-  background: #a28bc4;
+  background: #111;
 }
 .paper .preview-main > i {
-  background: #c9c6cf;
+  background: #cfc9ba;
 }
 .paper .preview-main > i:first-child {
-  background: #7b7487;
+  background: #57524a;
 }
 .paper .preview-main > div {
-  background: #fffdf8;
-  border-color: #dcd7cf;
+  background: #fbfaf6;
+  border-color: #cfc9ba;
 }
 .paper .preview-main > div:last-child {
-  background: #e6dff0;
-  border-color: #baaccf;
+  background: #111;
+  border-color: #111;
 }
 .theme-card-name {
   display: flex;

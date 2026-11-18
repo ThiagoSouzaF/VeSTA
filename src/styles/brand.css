@@ -4,11 +4,6 @@
   --accent-bg: #3d2a23;
   --accent-strong: #e08d65;
 }
-:root[data-theme='paper'][data-accent='ember'] {
-  --accent: #b8613a;
-  --accent-bg: #f6e2d7;
-  --accent-strong: #c4704a;
-}
 .accent-swatch.ember {
   background: #f0a47e;
 }

@@ -245,15 +245,15 @@
   color: var(--text);
   border-color: var(--accent);
 }
-:root[data-theme='ink'] .chat-layout > .context-panel {
-  border-color: #fff;
+:root[data-look='ink'] .chat-layout > .context-panel {
+  border-color: var(--ink);
   box-shadow: 6px 6px 0 var(--border);
 }
-:root[data-theme='ink'] .context-toggle {
+:root[data-look='ink'] .context-toggle {
   font-family: var(--font-mono);
 }
-:root[data-theme='ink'] .context-toggle:hover,
-:root[data-theme='ink'] .context-toggle.active {
-  border-color: #fff;
-  color: #fff;
+:root[data-look='ink'] .context-toggle:hover,
+:root[data-look='ink'] .context-toggle.active {
+  border-color: var(--ink);
+  color: var(--ink);
 }

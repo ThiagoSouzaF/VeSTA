@@ -84,9 +84,9 @@ async function main() {
   const file = path.join(dataDir, 'vesta.json');
   const store = JSON.parse(fs.readFileSync(file, 'utf8')),
     now = Date.now();
-  // Tinta Mangá is the default theme, so the phone is exercised (and photographed) in it.
+  // Tinta Mangá is the default theme, so the phone is exercised (and photographed) in it; VESTA_E2E_THEME=paper shoots Papel.
   store.version = 4;
-  store.settings = { ...store.settings, theme: 'ink', accent: 'ember' };
+  store.settings = { ...store.settings, theme: process.env.VESTA_E2E_THEME || 'ink', accent: 'ember' };
   store.chats.push({
     id: 'chat-work',
     title: 'Refatorar o módulo de pagamentos',

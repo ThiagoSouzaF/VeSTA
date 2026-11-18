@@ -1,5 +1,5 @@
 import { Check, Palette, Minus, Plus } from 'lucide-react';
-import { THEME_NAMES, THEMES } from '../../lib/constants';
+import { THEME_NAMES, THEMES, isInkLook } from '../../lib/constants';
 import { BACKDROPS } from '../Backdrop';
 import { SCALE_MIN, SCALE_MAX, scalePercent } from '../../lib/zoom';
 import { SettingsSection } from './SettingsSection';
@@ -55,7 +55,7 @@ function BackdropPicker({ settings, setting }) {
         <span>Um movimento discreto atrás das conversas, nas cores do tema.</span>
       </div>
       <div className="backdrop-options">
-        {BACKDROPS.filter((b) => !(b.id === 'inkrain' && settings.theme === 'ink')).map((b) => (
+        {BACKDROPS.filter((b) => !(b.id === 'inkrain' && isInkLook(settings.theme))).map((b) => (
           <button
             className={'backdrop-option ' + b.id + ((settings.background || 'rain') === b.id ? ' chosen' : '')}
             onClick={() => setting({ background: b.id })}
@@ -107,12 +107,12 @@ function FontScale({ fontScale, stepFontScale }) {
 }
 
 function AccentPicker({ settings, setting }) {
-  if (settings.theme === 'ink')
+  if (isInkLook(settings.theme))
     return (
       <div className="accent-setting ink-only">
         <div>
           <strong>Cor de destaque</strong>
-          <span>A Tinta Mangá é só preto e branco. As cores de destaque ficam nos outros temas.</span>
+          <span>Tinta Mangá e Papel são só tinta, sem cor. As cores de destaque ficam na Obsidiana e na Aurora.</span>
         </div>
         <div className="accent-options">
           <span className="accent-swatch ink chosen" title="Tinta" aria-label="Tinta (única opção)">

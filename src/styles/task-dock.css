@@ -182,33 +182,33 @@
   }
 }
 
-:root[data-theme='ink'] .task-dock-bar,
-:root[data-theme='ink'] .task-dock-panel {
-  background: #0a0a0c;
+:root[data-look='ink'] .task-dock-bar,
+:root[data-look='ink'] .task-dock-panel {
+  background: var(--side);
   border-color: var(--line-strong);
 }
-:root[data-theme='ink'] .task-dock-bar,
-:root[data-theme='ink'] .task-dock-tabs button,
-:root[data-theme='ink'] .dock-action,
-:root[data-theme='ink'] .dock-row-title small,
-:root[data-theme='ink'] .dock-row-now {
+:root[data-look='ink'] .task-dock-bar,
+:root[data-look='ink'] .task-dock-tabs button,
+:root[data-look='ink'] .dock-action,
+:root[data-look='ink'] .dock-row-title small,
+:root[data-look='ink'] .dock-row-now {
   font-family: var(--font-mono);
 }
-:root[data-theme='ink'] .task-dock-badge {
-  background: #fff;
-  color: #000;
+:root[data-look='ink'] .task-dock-badge {
+  background: var(--ink);
+  color: var(--paper);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-:root[data-theme='ink'] .task-dock-tabs button[aria-selected='true'] {
-  color: #fff;
-  border-color: #fff;
+:root[data-look='ink'] .task-dock-tabs button[aria-selected='true'] {
+  color: var(--ink);
+  border-color: var(--ink);
 }
-:root[data-theme='ink'] .dock-row.error {
+:root[data-look='ink'] .dock-row.error {
   background: var(--hatch-edge);
   padding-left: 16px;
 }
-:root[data-theme='ink'] .message.dock-flash {
+:root[data-look='ink'] .message.dock-flash {
   animation-name: dock-flash-ink;
 }
 @keyframes dock-flash-ink {

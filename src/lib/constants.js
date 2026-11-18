@@ -30,6 +30,9 @@ export const PROVIDERS = {
 };
 export const THEME_NAMES = { ink: 'Tinta Mangá', obsidian: 'Obsidiana', aurora: 'Aurora', paper: 'Papel' };
 export const THEMES = ['ink', 'obsidian', 'aurora', 'paper'];
+// Tinta Mangá and Papel are the same drawing (ink on paper, no colour), dark and light: the CSS targets data-look='ink'.
+export const LOOKS = { ink: 'ink', paper: 'ink' };
+export const isInkLook = (theme) => LOOKS[theme] === 'ink';
 export const empty = {
   settings: {
     theme: 'ink',

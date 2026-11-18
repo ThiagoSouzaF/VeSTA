@@ -37,25 +37,6 @@
   --accent-bg: #233e37;
   --accent-strong: #87c6b4;
 }
-:root[data-theme='paper'] {
-  color-scheme: light;
-  --bg: #f8f6f1;
-  --side: #eeece6;
-  --panel: #f1efe9;
-  --surface: #fffdf8;
-  --hover: #e8e5df;
-  --border: #d9d6ce;
-  --border-soft: #e3e0d8;
-  --text: #302f37;
-  --muted: #797780;
-  --faint: #87828d;
-  --accent: #7963ba;
-  --accent-bg: #e8e1f5;
-  --accent-strong: #8067bd;
-  --green: #48856f;
-  --orange: #ac7556;
-  --shadow: 0 16px 60px #3b324022;
-}
 :root[data-accent='mint'] {
   --accent: #8ccbb5;
   --accent-bg: #203a32;
@@ -70,19 +51,4 @@
   --accent: #dc9daf;
   --accent-bg: #3a252d;
   --accent-strong: #cb859a;
-}
-:root[data-theme='paper'][data-accent='mint'] {
-  --accent: #398168;
-  --accent-bg: #dcebe4;
-  --accent-strong: #4d927a;
-}
-:root[data-theme='paper'][data-accent='amber'] {
-  --accent: #987537;
-  --accent-bg: #f0e5ce;
-  --accent-strong: #a58145;
-}
-:root[data-theme='paper'][data-accent='rose'] {
-  --accent: #ab5c75;
-  --accent-bg: #f3e0e5;
-  --accent-strong: #ba7389;
 }

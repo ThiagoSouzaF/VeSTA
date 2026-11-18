@@ -192,9 +192,16 @@
 :root[data-theme='paper'] .film-grain {
   filter: invert(1);
 }
+/* The film layers draw with the page's ink and paper; on Papel the aged edges stay faint. */
+.backdrop-film {
+  --vignette: rgb(0 0 0 / 0.72);
+}
+:root[data-theme='paper'] .backdrop-film {
+  --vignette: color-mix(in srgb, var(--ink) 14%, transparent);
+}
 .film-flicker {
   inset: 0;
-  background: #000;
+  background: var(--paper, #000);
   opacity: 0;
   animation: film-flicker 7s linear infinite;
 }
@@ -204,12 +211,17 @@
   left: 0;
   width: 1px;
   opacity: 0;
-  background: linear-gradient(transparent, rgb(255 255 255 / 0.7) 15%, rgb(255 255 255 / 0.5) 80%, transparent);
+  background: linear-gradient(
+    transparent,
+    color-mix(in srgb, var(--ink, #fff) 70%, transparent) 15%,
+    color-mix(in srgb, var(--ink, #fff) 50%, transparent) 80%,
+    transparent
+  );
   animation: film-scratch 14s linear infinite;
 }
 .film-vignette {
   inset: 0;
-  background: radial-gradient(ellipse 78% 72% at 50% 50%, transparent 52%, rgb(0 0 0 / 0.72) 100%);
+  background: radial-gradient(ellipse 78% 72% at 50% 50%, transparent 52%, var(--vignette) 100%);
 }
 .backdrop-film[data-paused='true'] > i {
   animation-play-state: paused;
@@ -304,7 +316,7 @@
 
 /* Settings thumbnail of the ink rain (also what "Chuva de código" shows under the Tinta Mangá theme). */
 .backdrop-option.inkrain .backdrop-thumb::after,
-:root[data-theme='ink'] .backdrop-option.rain .backdrop-thumb::after {
+:root[data-look='ink'] .backdrop-option.rain .backdrop-thumb::after {
   content: 'アカ 01 サ\A タ7 ナ ハ3\A ヤ ラ0 ワン';
   white-space: pre;
   position: absolute;

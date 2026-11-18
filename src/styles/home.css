@@ -156,34 +156,34 @@
   font-size: 10px;
 }
 
-:root[data-theme='ink'] .project-tile {
+:root[data-look='ink'] .project-tile {
   clip-path: var(--chamfer);
 }
-:root[data-theme='ink'] .project-tile:hover {
-  border-color: #fff;
+:root[data-look='ink'] .project-tile:hover {
+  border-color: var(--ink);
   transform: translate(-2px, -2px);
   box-shadow: 4px 4px 0 var(--line-strong);
 }
-:root[data-theme='ink'] .project-monogram {
-  border-color: #fff;
-  color: #fff;
+:root[data-look='ink'] .project-monogram {
+  border-color: var(--ink);
+  color: var(--ink);
   font-family: var(--font-mono);
 }
-:root[data-theme='ink'] .project-path,
-:root[data-theme='ink'] .project-meta span:last-child,
-:root[data-theme='ink'] .home-sorts button,
-:root[data-theme='ink'] .project-running {
+:root[data-look='ink'] .project-path,
+:root[data-look='ink'] .project-meta span:last-child,
+:root[data-look='ink'] .home-sorts button,
+:root[data-look='ink'] .project-running {
   font-family: var(--font-mono);
 }
-:root[data-theme='ink'] .home-sorts button.active {
-  border-color: #fff;
-  color: #fff;
+:root[data-look='ink'] .home-sorts button.active {
+  border-color: var(--ink);
+  color: var(--ink);
 }
-:root[data-theme='ink'] .project-running {
-  background: #fff;
-  color: #000;
+:root[data-look='ink'] .project-running {
+  background: var(--ink);
+  color: var(--paper);
 }
-:root[data-theme='ink'] .home-quick {
+:root[data-look='ink'] .home-quick {
   clip-path: var(--chamfer-sm);
-  background: #0a0a0c;
+  background: var(--side);
 }
