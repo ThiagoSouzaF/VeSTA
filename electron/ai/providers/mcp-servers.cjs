@@ -1,12 +1,15 @@
 // The MCP servers VeSTA hands to each CLI (descriptors) and how every CLI receives them (flags/env).
 // MCP servers are registered per launch (flags/env), never in ~/.claude, ~/.codex or the global OpenCode config.
-// Servers: the AI Memory (vesta-memory), the quest's own chat tools (vesta-quest) and the app's preferences (vesta-app).
+// Servers: the AI Memory (vesta-memory), the quest's own chat tools (vesta-quest), the app's preferences (vesta-app)
+// and the skills (vesta-skills).
 const MEMORY_SERVER = 'vesta-memory',
   MEMORY_TOKEN_ENV = 'VESTA_MEMORY_TOKEN',
   QUEST_SERVER = 'vesta-quest',
   QUEST_TOKEN_ENV = 'VESTA_QUEST_TOKEN',
   APP_SERVER = 'vesta-app',
-  APP_TOKEN_ENV = 'VESTA_APP_TOKEN';
+  APP_TOKEN_ENV = 'VESTA_APP_TOKEN',
+  SKILLS_SERVER = 'vesta-skills',
+  SKILLS_TOKEN_ENV = 'VESTA_SKILLS_TOKEN';
 // A server entry: { name, url, token, tokenEnv }. The helpers turn the endpoints the main process holds into entries.
 const memoryServer = (endpoint) =>
   endpoint && { name: MEMORY_SERVER, url: endpoint.mcp, token: endpoint.token, tokenEnv: MEMORY_TOKEN_ENV };
@@ -14,6 +17,8 @@ const questServer = (endpoint) =>
   endpoint && { name: QUEST_SERVER, url: endpoint.mcp, token: endpoint.token, tokenEnv: QUEST_TOKEN_ENV };
 const appServer = (endpoint) =>
   endpoint && { name: APP_SERVER, url: endpoint.mcp, token: endpoint.token, tokenEnv: APP_TOKEN_ENV };
+const skillsServer = (endpoint) =>
+  endpoint && { name: SKILLS_SERVER, url: endpoint.mcp, token: endpoint.token, tokenEnv: SKILLS_TOKEN_ENV };
 // One or more servers for a provider -> { args, env }. The tokens travel by environment; each CLI expands them into the
 // Authorization header itself, so they never appear on a command line.
 function mcpTools(provider, servers) {
@@ -82,9 +87,12 @@ module.exports = {
   QUEST_TOKEN_ENV,
   APP_SERVER,
   APP_TOKEN_ENV,
+  SKILLS_SERVER,
+  SKILLS_TOKEN_ENV,
   memoryServer,
   questServer,
   appServer,
+  skillsServer,
   mcpTools,
   memoryTools,
 };

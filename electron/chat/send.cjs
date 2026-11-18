@@ -49,6 +49,9 @@ async function send(ctx, { chatId, text, attachments: ids }) {
   const cwd = ctx.workdir(chat);
   // Staged files move into this chat's folder only now that the turn will really start.
   const atts = ids.length ? ctx.attachments.commit(chatId, ids) : [];
+  // "/nome" of a VeSTA skill: the AI receives the skill with the request; the chat shows what the person typed.
+  const slash = ctx.skills?.expand(chat, text) || null;
+  const asked = slash ? slash.text : text;
   const task = resume ? resume.task : { run: null, cancelled: false, assistant: null };
   task.cancelled = false;
   jobs.set(chatId, task);
@@ -58,8 +61,10 @@ async function send(ctx, { chatId, text, attachments: ids }) {
     text,
     createdAt: Date.now(),
     ...(atts.length ? { attachments: atts } : {}),
+    ...(slash ? { skill: slash.skill } : {}),
   };
   const assistant = newAssistant(chat);
+  if (slash) assistant.activities.push(slash.note);
   task.assistant = assistant;
   chat.messages.push(user, assistant);
   if (chat.title === 'Novo chat') chat.title = (text || atts[0]?.name || 'Anexos').replace(/\s+/g, ' ').slice(0, 55);
@@ -255,7 +260,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
     (async () => {
       try {
         ctx.memorySessions?.turnStart(chat, text || atts.map((a) => a.name).join(', ')).catch(() => {});
-        const body = A.promptWith(chat.provider, text || 'Veja os anexos desta mensagem.', atts);
+        const body = A.promptWith(chat.provider, asked || 'Veja os anexos desta mensagem.', atts);
         if (!session.run.sendUser(body, atts)) throw new Error('O acompanhamento já tinha terminado. Envie de novo.');
       } catch (e) {
         conclude({ error: e });
@@ -276,7 +281,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
       // the Memória status.
       ctx.memorySessions?.turnStart(chat, text || atts.map((a) => a.name).join(', ')).catch(() => {});
       const intro = turnContext.preamble(ctx, chat, { servers, context, assistant });
-      const { prompt, cleanup } = turnContext.promptFor(chat, { text, atts, intro, cwd });
+      const { prompt, cleanup } = turnContext.promptFor(chat, { text: asked, atts, intro, cwd });
       session.cleanup = cleanup;
       const attachDir = ctx.attachments?.dirOf(chatId) || null;
       const spec = providers.command(chat, exe, servers.endpoint, { attachDir, extra: servers.extra });

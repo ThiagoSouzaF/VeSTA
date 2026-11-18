@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="ink">
+<head>
+<meta charset="utf-8" />
+<title>VeSTA · protótipo do menu Skills</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/400.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/600.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/700.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-mono/400.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-mono/700.css" />
+<style>
+/* Protótipo estático: só HTML/CSS/JS, nada do app. Visual "Tinta Mangá", com o tema Papel para comparar. */
+:root {
+  --bg: #000; --side: #0a0a0c; --surface: #121214; --hover: #18181b;
+  --border: #27272a; --border-soft: #1c1c1f; --line: #52525b;
+  --text: #e4e4e7; --muted: #a1a1aa; --faint: #8b8b94;
+  --ink: #fff; --on-ink: #000; --shadow: #3f3f46;
+  --body: 'Space Grotesk', 'Segoe UI', sans-serif; --mono: 'Space Mono', Consolas, monospace;
+  --dots: radial-gradient(circle, rgb(255 255 255 / .06) 1px, transparent 1.2px) 0 0 / 8px 8px;
+  --chamfer: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  --chamfer-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  color-scheme: dark;
+}
+:root[data-theme='paper'] {
+  --bg: #f3f0e8; --side: #ebe7dc; --surface: #fbfaf6; --hover: #e4dfd2;
+  --border: #cfc9ba; --border-soft: #ddd8cb; --line: #8a8475;
+  --text: #17150f; --muted: #57524a; --faint: #6b665b;
+  --ink: #111; --on-ink: #fbfaf6; --shadow: #b9b2a1;
+  --dots: radial-gradient(circle, rgb(0 0 0 / .07) 1px, transparent 1.2px) 0 0 / 8px 8px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--body); display: flex; flex-direction: column; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+input, textarea, select { font: inherit; color: inherit; }
+svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: square; }
+.mono { font-family: var(--mono); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---------- barra do protótipo (não faz parte do app) ---------- */
+.proto { display: flex; gap: 6px; align-items: center; padding: 8px 12px; border-bottom: 1px dashed var(--line); background: var(--side); flex-wrap: wrap; }
+.proto b { font: 700 11px var(--mono); letter-spacing: .12em; margin-right: 8px; background: var(--ink); color: var(--on-ink); padding: 2px 6px; }
+.proto button { font: 12px var(--mono); padding: 5px 10px; border: 1px solid var(--border); color: var(--muted); }
+.proto button.on { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.proto .sep { width: 1px; height: 22px; background: var(--border); margin: 0 6px; }
+.proto .note { flex: 1 1 320px; color: var(--faint); font-size: 12px; margin-left: 8px; min-width: 240px; }
+
+/* ---------- moldura ---------- */
+.app { flex: 1; display: flex; min-height: 0; position: relative; overflow: hidden; }
+.rail { width: 60px; flex: none; background: var(--side); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; }
+.avatar { width: 36px; height: 36px; border: 1px solid var(--line); background: #fff url('../../assets/mascot/state-idle.webp') center / cover; clip-path: var(--chamfer-sm); margin-bottom: 10px; }
+.rail .sep { width: 24px; height: 1px; background: var(--border); margin: 6px 0; }
+.rail .push { margin-top: auto; }
+.icon-btn { width: 34px; height: 34px; display: grid; place-items: center; color: var(--muted); border: 1px solid transparent; position: relative; }
+.icon-btn:hover { color: var(--text); background: var(--hover); border-color: var(--border); }
+.icon-btn.on { color: var(--on-ink); background: var(--ink); }
+.icon-btn[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); background: var(--ink); color: var(--on-ink); font: 11px var(--mono); padding: 3px 7px; white-space: nowrap; z-index: 30; }
+.icon-btn .new { position: absolute; top: -5px; right: -9px; font: 700 8px var(--mono); background: var(--ink); color: var(--on-ink); padding: 0 3px; border: 1px solid var(--bg); }
+.screen { display: none; flex: 1; min-width: 0; min-height: 0; }
+.screen.on { display: flex; }
+
+/* ---------- página Skills ---------- */
+.page { flex: 1; overflow: auto; background: var(--dots), var(--bg); }
+.page-in { max-width: 1120px; margin: 0 auto; padding: 40px 40px 56px; }
+.kicker { font: 700 11px var(--mono); letter-spacing: .16em; color: var(--faint); display: flex; align-items: center; gap: 10px; }
+.kicker::before { content: ''; width: 28px; height: 1px; background: var(--line); }
+h1 { font: 700 38px/1.05 var(--body); letter-spacing: -.03em; margin: 12px 0 6px; }
+.sub { color: var(--muted); max-width: 680px; }
+.budget { display: flex; flex-wrap: wrap; gap: 18px; margin: 22px 0 18px; padding: 10px 14px; border: 1px solid var(--border); background: var(--side); clip-path: var(--chamfer-sm); font-size: 13px; color: var(--muted); align-items: center; }
+.budget b { color: var(--text); font: 700 13px var(--mono); }
+.budget .lnk { margin-left: auto; }
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+.tabs button { padding: 10px 16px; font: 600 14px var(--body); color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; gap: 8px; align-items: center; }
+.tabs button:hover { color: var(--text); }
+.tabs button[aria-selected='true'] { color: var(--text); border-color: var(--ink); }
+.tabs .n { font: 10px var(--mono); padding: 0 5px; border: 1px solid var(--line); }
+.tab { display: none; }
+.tab.on { display: block; }
+
+.bar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.search { display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); padding: 6px 10px; color: var(--faint); width: 320px; background: var(--side); }
+.search input { background: none; border: 0; outline: 0; flex: 1; font-size: 13px; color: var(--text); }
+.filter { display: flex; gap: 4px; flex-wrap: wrap; }
+.filter button { font: 11px var(--mono); padding: 5px 9px; border: 1px solid var(--border); color: var(--muted); }
+.filter button[aria-pressed='true'] { border-color: var(--ink); color: var(--text); background: var(--surface); }
+.bar .right { margin-left: auto; display: flex; gap: 6px; }
+.btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border: 1px solid var(--border); font: 600 13px var(--body); color: var(--text); background: var(--surface); }
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--ink); color: var(--on-ink); border-color: var(--ink); clip-path: var(--chamfer-sm); }
+.btn.ghost { background: none; }
+.btn.danger:hover { border-color: #e5484d; color: #e5484d; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.lnk { font: 11px var(--mono); text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
+
+/* chips e selos */
+.tag { display: inline-flex; align-items: center; gap: 5px; font: 10px var(--mono); padding: 1px 6px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+.tag.solid { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.tag.warn { border-color: var(--ink); color: var(--text); border-style: dashed; }
+.ais { display: inline-flex; gap: 3px; }
+.ai { width: 20px; height: 20px; display: grid; place-items: center; font: 700 10px var(--mono); border: 1px solid var(--line); color: var(--text); }
+.ai.off { opacity: .3; border-style: dashed; text-decoration: line-through; }
+.cost { display: inline-flex; gap: 2px; align-items: center; }
+.cost i { width: 6px; height: 10px; border: 1px solid var(--line); display: inline-block; }
+.cost i.f { background: var(--ink); border-color: var(--ink); }
+
+/* ---- Layout A: lista agrupada + detalhe ---- */
+.lib-a { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px; align-items: start; }
+.group { margin-bottom: 18px; }
+.group-h { display: flex; align-items: center; gap: 10px; padding: 6px 2px; width: 100%; text-align: left; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.group-h .src { font: 700 12px var(--mono); letter-spacing: .02em; }
+.group-h .meta { font: 11px var(--mono); color: var(--faint); margin-left: auto; display: flex; gap: 10px; align-items: center; }
+.group-h svg { transition: transform .15s; }
+.group.closed .group-h svg.chev { transform: rotate(-90deg); }
+.group.closed .rows { display: none; }
+.row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto auto; gap: 12px; align-items: center; padding: 9px 10px; width: 100%; text-align: left; border: 1px solid transparent; }
+.row:hover { background: var(--hover); }
+.row.on { background: var(--surface); border-color: var(--line); box-shadow: inset 2px 0 0 var(--ink); }
+.row .nm { font: 700 13px var(--mono); }
+.row .ds { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .tx { min-width: 0; display: flex; flex-direction: column; }
+.row.disabled .nm, .row.disabled .ds { opacity: .45; }
+.sw { width: 30px; height: 16px; border: 1px solid var(--line); position: relative; flex: none; }
+.sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; background: var(--line); transition: left .12s; }
+.sw[aria-checked='true'] { background: var(--ink); border-color: var(--ink); }
+.sw[aria-checked='true']::after { left: 16px; background: var(--on-ink); }
+.empty { padding: 30px; text-align: center; color: var(--muted); border: 1px dashed var(--border); }
+
+.detail { position: sticky; top: 0; border: 1px solid var(--line); background: var(--side); clip-path: var(--chamfer); padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.detail h2 { font: 700 20px var(--mono); letter-spacing: -.02em; word-break: break-word; }
+.detail .origin { font: 11px var(--mono); color: var(--faint); }
+.detail p { color: var(--text); }
+.dl { display: grid; grid-template-columns: 110px 1fr; gap: 8px 12px; font-size: 13px; }
+.dl dt { color: var(--faint); font: 11px var(--mono); padding-top: 2px; }
+.dl dd { margin: 0; }
+.seg { display: inline-flex; border: 1px solid var(--border); }
+.seg button { font: 12px var(--body); padding: 5px 9px; color: var(--muted); }
+.seg button[aria-pressed='true'] { background: var(--ink); color: var(--on-ink); }
+.ai-list { display: flex; flex-direction: column; gap: 4px; }
+.ai-line { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.ai-line small { color: var(--faint); }
+.call { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px dashed var(--line); font: 13px var(--mono); }
+.call button { margin-left: auto; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--border-soft); padding-top: 12px; }
+
+/* ---- Layout B: quadrados por origem ---- */
+.lib-b { display: none; }
+.lib-b .src-h { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 10px; }
+.lib-b .src-h b { font: 700 13px var(--mono); }
+.lib-b .src-h span { font: 11px var(--mono); color: var(--faint); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--border); clip-path: var(--chamfer); padding: 14px; display: flex; flex-direction: column; gap: 8px; text-align: left; min-height: 168px; transition: transform .12s, border-color .12s; }
+.card:hover { border-color: var(--ink); transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--shadow); }
+.card .nm { font: 700 15px var(--mono); }
+.card .ds { color: var(--muted); font-size: 13px; flex: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.card .ft { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-soft); padding-top: 8px; }
+.card.disabled { opacity: .5; }
+[data-layout='b'] .lib-a { display: none; }
+[data-layout='b'] .lib-b { display: block; }
+
+/* ---------- Na sua IA ---------- */
+.native { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 18px; }
+.native nav { display: flex; flex-direction: column; gap: 4px; }
+.native nav button { display: flex; gap: 10px; align-items: center; padding: 9px 10px; border: 1px solid transparent; color: var(--muted); text-align: left; }
+.native nav button:hover { background: var(--hover); color: var(--text); }
+.native nav button[aria-current='true'] { background: var(--surface); border-color: var(--line); color: var(--text); }
+.native nav small { margin-left: auto; font: 10px var(--mono); }
+.native .note { font-size: 12px; color: var(--faint); border-left: 2px solid var(--line); padding: 4px 10px; margin-bottom: 12px; }
+.nrow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-soft); }
+.nrow .nm { font: 700 13px var(--mono); }
+.nrow .ds { color: var(--muted); font-size: 13px; }
+.nrow .where { font: 10px var(--mono); color: var(--faint); }
+
+/* ---------- Adicionar ---------- */
+.wizard { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; }
+.steps { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: s; }
+.steps li { counter-increment: s; display: flex; gap: 10px; align-items: center; padding: 8px 10px; color: var(--faint); font-size: 13px; }
+.steps li::before { content: counter(s); width: 20px; height: 20px; display: grid; place-items: center; border: 1px solid var(--line); font: 700 10px var(--mono); }
+.steps li.on { color: var(--text); background: var(--surface); }
+.steps li.on::before { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.steps li.done { color: var(--muted); }
+.steps li.done::before { content: '✓'; }
+.panel { border: 1px solid var(--border); background: var(--side); padding: 20px; clip-path: var(--chamfer); }
+.panel h3 { font: 700 18px var(--body); margin-bottom: 4px; }
+.panel .hint { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+.src-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.src-pick button { border: 1px solid var(--border); padding: 14px; text-align: left; display: flex; flex-direction: column; gap: 6px; background: var(--surface); }
+.src-pick button[aria-pressed='true'] { border-color: var(--ink); box-shadow: 3px 3px 0 var(--shadow); }
+.src-pick small { color: var(--muted); font-size: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field label { font: 700 11px var(--mono); letter-spacing: .08em; color: var(--faint); }
+.field input, .field textarea, .field select { background: var(--surface); border: 1px solid var(--border); padding: 9px 10px; outline: 0; }
+.field input:focus, .field textarea:focus, .field select:focus { border-color: var(--ink); }
+.field textarea { min-height: 150px; font: 12px/1.5 var(--mono); resize: vertical; }
+.drop { border: 1px dashed var(--line); padding: 28px; text-align: center; color: var(--muted); }
+.pick-list { border: 1px solid var(--border); max-height: 300px; overflow: auto; margin-bottom: 14px; }
+.pick { display: grid; grid-template-columns: 20px 170px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border-soft); font-size: 13px; }
+.pick .nm { font: 700 12px var(--mono); }
+.pick .ds { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick input { accent-color: var(--ink); }
+.ai-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.ai-pick button { border: 1px solid var(--border); padding: 12px; text-align: left; background: var(--surface); display: flex; flex-direction: column; gap: 4px; }
+.ai-pick button[aria-pressed='true'] { border-color: var(--ink); box-shadow: 3px 3px 0 var(--shadow); }
+.ai-pick small { color: var(--muted); font-size: 12px; }
+.warnbox { display: flex; gap: 10px; padding: 10px 12px; border: 1px dashed var(--ink); font-size: 13px; margin-bottom: 14px; }
+.progress { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 16px; }
+.prow { display: flex; gap: 10px; align-items: center; font-size: 13px; }
+.prow .st { margin-left: auto; font: 11px var(--mono); color: var(--faint); }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.diff { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.diff > div { border: 1px solid var(--border); background: var(--surface); min-width: 0; }
+.diff h4 { font: 700 11px var(--mono); letter-spacing: .08em; padding: 7px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+.diff pre { font: 12px/1.6 var(--mono); padding: 10px; white-space: pre-wrap; max-height: 280px; overflow: auto; margin: 0; }
+.diff .del { background: rgb(229 72 77 / .14); text-decoration: line-through; text-decoration-color: rgb(229 72 77 / .6); }
+.diff .add { background: rgb(70 167 88 / .16); }
+.changes { font-size: 13px; padding-left: 18px; margin-bottom: 14px; color: var(--muted); }
+.changes b { color: var(--text); }
+.foot { display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+.foot .left { margin-right: auto; }
+
+/* ---------- Chat com / ---------- */
+.chat { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.chat-head { display: flex; align-items: center; gap: 10px; padding: 12px 22px; border-bottom: 1px solid var(--border); min-height: 56px; }
+.chat-head h2 { font: 700 16px var(--body); }
+.chat-head .provider { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; font: 600 12px var(--body); padding: 4px 9px; border: 1px solid var(--border); }
+.msgs { flex: 1; overflow: auto; }
+.msgs-in { max-width: 780px; margin: 0 auto; padding: 26px 28px 18px; display: flex; flex-direction: column; gap: 20px; }
+.msg-user { align-self: flex-end; max-width: 78%; background: var(--surface); border: 1px solid var(--border); padding: 10px 14px; clip-path: var(--chamfer-sm); }
+.msg-user .skill-chip { display: inline-flex; gap: 6px; align-items: center; font: 700 11px var(--mono); background: var(--ink); color: var(--on-ink); padding: 1px 7px; margin-right: 6px; }
+.msg-ai { display: flex; flex-direction: column; gap: 8px; }
+.msg-ai .who { font: 700 10px var(--mono); letter-spacing: .14em; color: var(--faint); }
+.act { display: inline-flex; align-self: flex-start; gap: 8px; align-items: center; font: 11px var(--mono); color: var(--muted); border-left: 2px solid var(--ink); padding: 3px 10px; background: var(--side); }
+.msg-ai ul { padding-left: 18px; }
+.composer-wrap { max-width: 780px; width: 100%; margin: 0 auto; padding: 0 28px 22px; position: relative; }
+.composer { border: 1px solid var(--line); background: var(--side); clip-path: var(--chamfer-sm); display: flex; flex-direction: column; }
+.composer textarea { background: none; border: 0; outline: 0; resize: none; padding: 12px 14px; min-height: 52px; font-size: 14px; }
+.composer .tools { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-top: 1px solid var(--border-soft); font: 11px var(--mono); color: var(--faint); }
+.composer .send { margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center; background: var(--ink); color: var(--on-ink); }
+.slash { position: absolute; left: 28px; right: 28px; bottom: calc(100% - 14px); background: var(--side); border: 1px solid var(--ink); box-shadow: 6px 6px 0 var(--shadow); max-height: 330px; overflow: auto; display: none; z-index: 5; }
+.slash.open { display: block; }
+.slash .h { font: 700 10px var(--mono); letter-spacing: .14em; color: var(--faint); padding: 8px 12px 4px; display: flex; justify-content: space-between; }
+.slash button { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 7px 12px; }
+.slash button[aria-selected='true'] { background: var(--ink); color: var(--on-ink); }
+.slash button[aria-selected='true'] .ds, .slash button[aria-selected='true'] .tag { color: var(--on-ink); border-color: var(--on-ink); }
+.slash .nm { font: 700 12px var(--mono); }
+.slash .ds { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slash .foot2 { font: 10px var(--mono); color: var(--faint); padding: 6px 12px; border-top: 1px solid var(--border-soft); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="proto" role="toolbar" aria-label="Telas do protótipo">
+  <b>PROTÓTIPO</b>
+  <button data-go="lib" class="on">1 · No VeSTA</button>
+  <button data-go="native">2 · Na sua IA</button>
+  <button data-go="add">3 · Adicionar</button>
+  <button data-go="chat">4 · Chamar com / no chat</button>
+  <span class="sep"></span>
+  <button data-layout-set="a" class="on" title="Só vale para a tela 1">Layout A · lista + detalhe</button>
+  <button data-layout-set="b" title="Só vale para a tela 1">Layout B · quadrados</button>
+  <span class="sep"></span>
+  <button id="theme">Tema: Tinta</button>
+  <span class="note" id="note"></span>
+</div>
+
+<div class="app">
+  <nav class="rail" aria-label="Principal">
+    <div class="avatar" title="Vesta"></div>
+    <button class="icon-btn" data-tip="Projetos (início)"><svg class="i"><use href="#i-grid"/></svg></button>
+    <button class="icon-btn" data-tip="Conversas" data-go="chat"><svg class="i"><use href="#i-chat"/></svg></button>
+    <button class="icon-btn" data-tip="Novo chat · Ctrl N"><svg class="i"><use href="#i-plus"/></svg></button>
+    <div class="sep"></div>
+    <button class="icon-btn" data-tip="Atividade"><svg class="i"><use href="#i-activity"/></svg></button>
+    <button class="icon-btn" data-tip="Quests"><svg class="i"><use href="#i-swords"/></svg></button>
+    <button class="icon-btn" data-tip="Memória"><svg class="i"><use href="#i-brain"/></svg></button>
+    <button class="icon-btn on" data-tip="Skills" data-go="lib" id="rail-skills"><svg class="i"><use href="#i-book"/></svg><span class="new">NOVO</span></button>
+    <button class="icon-btn" data-tip="Uso"><svg class="i"><use href="#i-chart"/></svg></button>
+    <button class="icon-btn" data-tip="Conexões"><svg class="i"><use href="#i-layers"/></svg></button>
+    <button class="icon-btn push" data-tip="Preferências"><svg class="i"><use href="#i-settings"/></svg></button>
+  </nav>
+
+  <!-- =================== PÁGINA SKILLS =================== -->
+  <div class="screen on" id="s-skills">
+    <main class="page" data-layout="a" id="page">
+      <div class="page-in">
+        <div class="kicker">SKILLS</div>
+        <h1>Ensine uma vez. Todas as IAs sabem.</h1>
+        <p class="sub">Receitas de trabalho que o VeSTA entrega ao Claude, ao ChatGPT (Codex), ao OpenCode e ao Drael, como faz com a memória. Chame no chat com <b class="mono">/nome</b>, ou deixe a IA usar quando fizer sentido.</p>
+
+        <div class="budget" aria-label="Custo das skills">
+          <span><b id="b-on">0</b> ativas</span>
+          <span>Lista enviada no começo de cada sessão: <b id="b-cat">~0</b> tokens</span>
+          <span>Texto completo: só quando a skill é usada</span>
+          <button class="lnk" data-tab-go="add">Adicionar skill</button>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Skills">
+          <button role="tab" aria-selected="true" data-tab="lib">No VeSTA <span class="n" id="n-lib"></span></button>
+          <button role="tab" aria-selected="false" data-tab="native">Na sua IA <span class="n">14</span></button>
+          <button role="tab" aria-selected="false" data-tab="add"><svg class="i"><use href="#i-plus"/></svg>Adicionar</button>
+        </div>
+
+        <!-- ---------- No VeSTA ---------- -->
+        <section class="tab on" id="t-lib" role="tabpanel">
+          <div class="bar">
+            <label class="search"><svg class="i"><use href="#i-search"/></svg><input id="q" placeholder="Buscar skill pelo nome ou descrição" aria-label="Buscar skill" /></label>
+            <div class="filter" role="group" aria-label="Filtrar" id="filters">
+              <button aria-pressed="true" data-f="all">Todas</button>
+              <button aria-pressed="false" data-f="on">Ativas</button>
+              <button aria-pressed="false" data-f="slash">Só com /</button>
+              <button aria-pressed="false" data-f="heavy">Custo alto</button>
+            </div>
+          </div>
+          <div class="lib-a">
+            <div id="groups"></div>
+            <aside class="detail" id="detail" aria-live="polite"></aside>
+          </div>
+          <div class="lib-b" id="tiles"></div>
+        </section>
+
+        <!-- ---------- Na sua IA ---------- -->
+        <section class="tab" id="t-native" role="tabpanel">
+          <div class="native">
+            <nav aria-label="IA">
+              <button aria-current="true" data-n="claude"><span class="ai">C</span>Claude Code<small>9</small></button>
+              <button aria-current="false" data-n="codex"><span class="ai">G</span>ChatGPT (Codex)<small>5</small></button>
+              <button aria-current="false" data-n="opencode"><span class="ai">O</span>OpenCode<small>—</small></button>
+            </nav>
+            <div>
+              <p class="note" id="n-note"></p>
+              <div class="bar" style="margin-bottom:6px">
+                <label class="search"><svg class="i"><use href="#i-search"/></svg><input placeholder="Buscar nesta IA" aria-label="Buscar nesta IA" /></label>
+              </div>
+              <div id="n-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- Adicionar ---------- -->
+        <section class="tab" id="t-add" role="tabpanel">
+          <div class="wizard">
+            <ol class="steps" id="steps">
+              <li class="on">De onde vem</li>
+              <li>Quais skills</li>
+              <li>Quem adapta</li>
+              <li>Revisar e salvar</li>
+            </ol>
+            <div class="panel" id="wz"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- =================== CHAT =================== -->
+  <div class="screen" id="s-chat">
+    <div class="chat">
+      <div class="chat-head">
+        <h2>VeSTA · menu de skills</h2>
+        <span class="provider"><span class="ai">C</span>Claude · Sonnet</span>
+      </div>
+      <div class="msgs"><div class="msgs-in" id="msgs">
+        <div class="msg-user">Terminei a parte das quests. Pode revisar o que mudou?</div>
+        <div class="msg-ai">
+          <span class="who">CLAUDE</span>
+          <p>Revisei os três arquivos de <span class="mono">electron/quests/</span>. A troca de status das etapas está certa e os testes passam.</p>
+        </div>
+      </div></div>
+      <div class="composer-wrap">
+        <div class="slash" id="slash" role="listbox" aria-label="Skills"></div>
+        <div class="composer">
+          <textarea id="draft" aria-label="Mensagem" placeholder="Mensagem. Digite / para chamar uma skill.">/</textarea>
+          <div class="tools"><span>/ skills</span><span>@ arquivos</span><span>Enter envia</span><button class="send" aria-label="Enviar mensagem" id="send"><svg class="i"><use href="#i-send"/></svg></button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol>
+  <symbol id="i-swords" viewBox="0 0 24 24"><path d="M14 4h6v6L9 21l-6-6zM4 14l6 6M16 16l4 4M18 14l-4 4"/></symbol>
+  <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 6 1V5a2 2 0 0 0-3-1zM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-6 1"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5zM2 13l10 5 10-5M2 17l10 5 10-5"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM16 16l5 5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></symbol>
+  <symbol id="i-paste" viewBox="0 0 24 24"><path d="M9 4h6v3H9zM7 5H5v16h14V5h-2"/></symbol>
+  <symbol id="i-git" viewBox="0 0 24 24"><path d="M6 3v12M6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM18 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM18 12c0 4-6 3-12 6"/></symbol>
+  <symbol id="i-loader" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20zM12 10v5M12 18v.5"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"/></symbol>
+</svg>
+
+<script>
+/* ---------------- dados de exemplo ---------------- */
+const AIS = [['claude', 'C', 'Claude'], ['codex', 'G', 'ChatGPT (Codex)'], ['opencode', 'O', 'OpenCode'], ['drael', 'D', 'Drael']];
+const SOURCES = [
+  { id: 'pstack', name: 'cursor/plugins · pstack', url: 'github.com/cursor/plugins/tree/main/pstack', note: 'MIT · Lauren Tan · importadas em 18/11' },
+  { id: 'matt', name: 'mattpocock/skills', url: 'github.com/mattpocock/skills', note: 'MIT · importadas em 02/11' },
+  { id: 'mine', name: 'Criadas por você', url: '', note: 'coladas ou escritas no VeSTA' },
+];
+const SKILLS = [
+  { n: 'ketchup', src: 'pstack', d: 'Diz o que mudou desde a sua última mensagem e lista o que espera por você, com sugestão e risco.', on: true, mode: 'auto', cost: 1, tok: 1600, ais: { drael: 'ok' }, uses: 12, by: 'Claude · Sonnet' },
+  { n: 'blast-radius', src: 'pstack', d: 'Antes de fechar uma mudança, acha o que ela pode quebrar fora do diff e prova com uma execução real.', on: true, mode: 'auto', cost: 1, tok: 1100, uses: 4, by: 'Claude · Sonnet' },
+  { n: 'correct', src: 'pstack', d: 'Transforma erros que as IAs repetem neste repositório em teste, lint ou estrutura. Documentação por último.', on: true, mode: 'slash', cost: 2, tok: 700, uses: 1, by: 'ChatGPT · GPT-5' },
+  { n: 'interrogate', src: 'pstack', d: 'Revisão adversária: IAs diferentes tentam quebrar a mudança e só fica o achado que uma execução prova.', on: true, mode: 'slash', cost: 3, tok: 650, heavy: 'abre 3 IAs', ais: { drael: 'no:precisa abrir outras IAs' }, uses: 2, by: 'Claude · Opus' },
+  { n: 'arena', src: 'pstack', d: 'Várias IAs fazem a mesma tarefa; uma IA de outro fornecedor escolhe a base e enxerta o melhor das outras.', on: false, mode: 'slash', cost: 3, tok: 1300, heavy: 'abre 3 a 4 IAs', ais: { drael: 'no:precisa abrir outras IAs', opencode: 'no:sem worktree própria' }, uses: 0, by: 'Claude · Opus' },
+  { n: 'unslop', src: 'pstack', d: 'Tira vícios de texto de IA: frases vazias, travessões, adjetivos, conclusões genéricas. Adaptada para pt-BR.', on: true, mode: 'auto', cost: 1, tok: 900, uses: 7, by: 'Claude · Sonnet' },
+  { n: 'bro', src: 'pstack', d: 'Reexplica a última resposta em palavras simples, sem jargão.', on: true, mode: 'slash', cost: 1, tok: 80, uses: 9, by: 'Claude · Haiku' },
+  { n: 'tdd', src: 'matt', d: 'Desenvolvimento guiado por testes: teste que falha, código mínimo, refatora.', on: true, mode: 'auto', cost: 1, tok: 1400, uses: 5, by: 'Claude · Sonnet', dup: 'claude' },
+  { n: 'diagnosing-bugs', src: 'matt', d: 'Ciclo de diagnóstico para bugs difíceis e regressões de desempenho.', on: true, mode: 'auto', cost: 1, tok: 1200, uses: 3, by: 'Claude · Sonnet', dup: 'claude' },
+  { n: 'grilling', src: 'matt', d: 'Questiona um plano ou decisão sem dó, até achar os pontos fracos.', on: false, mode: 'slash', cost: 1, tok: 500, uses: 0, by: 'Claude · Sonnet' },
+  { n: 'commits-pt-br', src: 'mine', d: 'Mensagens de commit curtas em português, com a versão entre parênteses quando houver release.', on: true, mode: 'auto', cost: 1, tok: 300, uses: 21, by: 'você' },
+  { n: 'dados-de-teste', src: 'mine', d: 'Nunca usar %APPDATA%; sempre pasta temporária, janela fora da tela e encerrar só pelo PID.', on: true, mode: 'auto', cost: 1, tok: 250, uses: 33, by: 'você' },
+];
+const NATIVE = {
+  claude: {
+    note: 'Lidas de ~/.claude/skills e dos plugins instalados. O VeSTA só lê: nada aqui é alterado. Se uma skill estiver nos dois lugares, o VeSTA não manda a cópia dele ao Claude, para ela não aparecer duas vezes.',
+    list: [
+      ['quest', 'Conduz uma quest com subagentes até cumprir, com QUEST.md para retomar.', '~/.claude/skills'],
+      ['tdd', 'Test-driven development, red-green-refactor.', 'plugin mattpocock-skills', 'both'],
+      ['diagnosing-bugs', 'Diagnosis loop for hard bugs and performance regressions.', 'plugin mattpocock-skills', 'both'],
+      ['prototype', 'Throwaway prototype to answer a design question.', 'plugin mattpocock-skills'],
+      ['code-review', 'Review the changes since a fixed point along two axes.', 'plugin mattpocock-skills'],
+      ['grilling', 'Grill the user relentlessly about a plan.', 'plugin mattpocock-skills', 'both'],
+      ['skin-designer', 'Design or change the Claude Code transcript skin.', 'plugin skins'],
+      ['use-modern-go', 'Modern Go guidelines for writing Go code.', 'plugin modern-go-guidelines'],
+      ['verify-vesta', 'Abre o VeSTA real fora da tela e guarda provas.', 'projeto VeSTA (.claude/skills)'],
+    ],
+  },
+  codex: {
+    note: 'Lidas de ~/.codex/skills. O Codex usa o mesmo formato (pasta com SKILL.md), então qualquer uma pode vir para o VeSTA sem adaptação pesada.',
+    list: [
+      ['imagegen', 'Gera e edita imagens.', '~/.codex/skills'],
+      ['openai-docs', 'Consulta a documentação da OpenAI.', '~/.codex/skills'],
+      ['review-agent', 'Revisão de código por um agente.', '~/.codex/skills'],
+      ['skill-creator', 'Cria uma skill nova.', '~/.codex/skills/.system'],
+      ['skill-installer', 'Instala skills de um repositório.', '~/.codex/skills/.system'],
+    ],
+  },
+  opencode: {
+    note: 'O OpenCode chama os modelos por API e não tem uma pasta de skills própria aqui. Ele recebe as skills do VeSTA pelo vesta-skills, como a memória.',
+    list: [],
+  },
+};
+
+/* ---------------- utilidades ---------------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const icon = (id, cls = '') => `<svg class="i ${cls}"><use href="#i-${id}"/></svg>`;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const catTokens = (s) => Math.round((s.n.length + s.d.length) / 3.6 + 8);
+const aiState = (s, id) => {
+  const v = s.ais?.[id];
+  if (!v) return { ok: true, why: 'adaptada' };
+  if (v === 'ok') return { ok: true, why: 'adaptada' };
+  return { ok: false, why: v.replace(/^no:/, '') };
+};
+const aiBadges = (s) => `<span class="ais" aria-label="IAs">${AIS.map(([id, l, name]) => {
+  const st = aiState(s, id);
+  return `<span class="ai ${st.ok ? '' : 'off'}" title="${name}: ${st.ok ? 'funciona' : st.why}">${l}</span>`;
+}).join('')}</span>`;
+const costBars = (s) => `<span class="cost" title="${s.heavy ? 'Custo alto: ' + s.heavy : 'Texto de ~' + s.tok + ' tokens ao usar'}">${[1, 2, 3].map((i) => `<i class="${i <= s.cost ? 'f' : ''}"></i>`).join('')}</span>`;
+const fmt = (n) => n.toLocaleString('pt-BR');
+
+/* ---------------- No VeSTA ---------------- */
+let sel = 'ketchup', filter = 'all', query = '';
+const closed = new Set();
+function visible() {
+  const q = query.trim().toLowerCase();
+  return SKILLS.filter((s) =>
+    (!q || s.n.includes(q) || s.d.toLowerCase().includes(q)) &&
+    (filter === 'all' || (filter === 'on' && s.on) || (filter === 'slash' && s.mode === 'slash') || (filter === 'heavy' && s.cost === 3)));
+}
+function renderBudget() {
+  const on = SKILLS.filter((s) => s.on);
+  $('#b-on').textContent = on.length;
+  $('#b-cat').textContent = '~' + fmt(on.filter((s) => s.mode === 'auto').reduce((a, s) => a + catTokens(s), 0));
+  $('#n-lib').textContent = SKILLS.length;
+}
+function renderLib() {
+  const vis = visible();
+  // Layout A
+  $('#groups').innerHTML = SOURCES.map((src) => {
+    const rows = vis.filter((s) => s.src === src.id);
+    if (!rows.length) return '';
+    return `<div class="group ${closed.has(src.id) ? 'closed' : ''}" data-g="${src.id}">
+      <button class="group-h" aria-expanded="${!closed.has(src.id)}">${icon('down', 'chev')}${icon(src.url ? 'git' : 'file')}<span class="src">${esc(src.name)}</span>
+        <span class="meta">${rows.length} skill${rows.length > 1 ? 's' : ''}${src.url ? ' · <span class="lnk">atualizar</span>' : ''}</span></button>
+      <div class="rows">${rows.map((s) => `
+        <div class="row ${s.n === sel ? 'on' : ''} ${s.on ? '' : 'disabled'}" data-s="${s.n}" role="button" tabindex="0">
+          <span class="ai" style="border-style:${s.mode === 'slash' ? 'dashed' : 'solid'}" title="${s.mode === 'slash' ? 'Só quando você chamar' : 'A IA pode usar sozinha'}">/</span>
+          <span class="tx"><span class="nm">${esc(s.n)}</span><span class="ds">${esc(s.d)}</span></span>
+          ${aiBadges(s)}${costBars(s)}
+          <button class="sw" role="switch" aria-checked="${s.on}" aria-label="Ativar ${esc(s.n)}" data-sw="${s.n}"></button>
+        </div>`).join('')}</div></div>`;
+  }).join('') || `<div class="empty">Nenhuma skill com “${esc(query)}”. <button class="lnk" data-tab-go="add">Adicionar uma</button></div>`;
+  // Layout B
+  $('#tiles').innerHTML = SOURCES.map((src) => {
+    const rows = vis.filter((s) => s.src === src.id);
+    if (!rows.length) return '';
+    return `<div class="src-h"><b>${esc(src.name)}</b><span>${rows.length} skills · ${esc(src.note)}</span></div>
+      <div class="cards">${rows.map((s) => `
+        <button class="card ${s.on ? '' : 'disabled'}" data-s="${s.n}" data-open="1">
+          <span style="display:flex;justify-content:space-between;align-items:center"><span class="nm">/${esc(s.n)}</span>${s.cost === 3 ? '<span class="tag warn">custo alto</span>' : s.mode === 'slash' ? '<span class="tag">só com /</span>' : ''}</span>
+          <span class="ds">${esc(s.d)}</span>
+          <span class="ft">${aiBadges(s)}<span class="tag">${s.uses} usos</span></span>
+        </button>`).join('')}</div>`;
+  }).join('') || `<div class="empty">Nenhuma skill com “${esc(query)}”.</div>`;
+  renderDetail();
+  renderBudget();
+}
+function renderDetail() {
+  const s = SKILLS.find((x) => x.n === sel);
+  const src = SOURCES.find((x) => x.id === s.src);
+  $('#detail').innerHTML = `
+    <div><div class="origin">${esc(src.name)}${src.url ? ' · ' + esc(src.url) : ''}</div><h2>/${esc(s.n)}</h2></div>
+    <p>${esc(s.d)}</p>
+    <dl class="dl">
+      <dt>QUANDO</dt><dd><span class="seg" role="group" aria-label="Quando usar">
+        <button aria-pressed="${s.mode === 'auto'}" data-mode="auto">A IA decide</button>
+        <button aria-pressed="${s.mode === 'slash'}" data-mode="slash">Só com /</button></span></dd>
+      <dt>IAS</dt><dd class="ai-list">${AIS.map(([id, l, name]) => {
+        const st = aiState(s, id);
+        return `<span class="ai-line"><span class="ai ${st.ok ? '' : 'off'}">${l}</span>${name} <small>· ${st.ok ? (s.dup === id ? 'já tem nativa; o VeSTA não manda a cópia' : st.why) : st.why}</small></span>`;
+      }).join('')}</dd>
+      <dt>CUSTO</dt><dd>${costBars(s)} <span style="margin-left:6px">~${fmt(s.tok)} tokens quando usada${s.heavy ? ' · <b>' + esc(s.heavy) + '</b>' : ''}<br><small style="color:var(--faint)">${s.mode === 'auto' ? '~' + catTokens(s) + ' tokens na lista de cada sessão' : 'fora da lista: não custa nada até você chamar'}</small></span></dd>
+      <dt>ADAPTADA POR</dt><dd>${esc(s.by)}${s.src !== 'mine' ? ' · <button class="lnk">ver original</button>' : ''}</dd>
+      <dt>USO</dt><dd>${s.uses ? s.uses + ' vezes nos últimos 30 dias' : 'ainda não usada'}</dd>
+    </dl>
+    <div class="call"><span>/${esc(s.n)}</span><button class="lnk" data-try="${s.n}">testar num chat</button></div>
+    <div class="actions">
+      <button class="btn">Ver texto</button>
+      <button class="btn">Editar</button>
+      ${s.src !== 'mine' ? '<button class="btn">Atualizar do GitHub</button>' : ''}
+      <button class="btn ghost danger">Remover</button>
+    </div>`;
+}
+
+/* ---------------- Na sua IA ---------------- */
+let nat = 'claude';
+function renderNative() {
+  $$('.native nav button').forEach((b) => b.setAttribute('aria-current', b.dataset.n === nat));
+  const d = NATIVE[nat];
+  $('#n-note').textContent = d.note;
+  $('#n-list').innerHTML = d.list.length ? d.list.map(([n, ds, where, both]) => `
+    <div class="nrow">
+      <div><span class="nm">${esc(n)}</span> ${both ? '<span class="tag solid">também no VeSTA</span>' : ''}<div class="ds">${esc(ds)}</div><div class="where">${esc(where)}</div></div>
+      <span></span>
+      ${both ? '<button class="btn ghost" disabled>Já está no VeSTA</button>' : `<button class="btn" data-bring="${n}">${icon('in')}Trazer para o VeSTA</button>`}
+    </div>`).join('') : '<div class="empty">Nada para listar nesta IA.</div>';
+}
+
+/* ---------------- Adicionar (passo a passo) ---------------- */
+const wz = { step: 0, src: 'link', link: 'https://github.com/cursor/plugins/tree/main/pstack', picked: new Set(['show-me-your-work', 'reflect']), ai: 'claude', model: 'Sonnet' };
+const REPO = [
+  ['ketchup', 'Catch the user up on what changed in this chat since their last message…', 'já no VeSTA'],
+  ['blast-radius', 'Find what a change could break somewhere else before it ships…', 'já no VeSTA'],
+  ['correct', 'Find the mistakes agents keep repeating in this repo and make each one impossible…', 'já no VeSTA'],
+  ['show-me-your-work', 'Keep a reviewable decision trail for long-running or unattended work…', ''],
+  ['reflect', 'Mine the active transcript for durable learnings and route each to a skill…', ''],
+  ['benchmark-checklist', 'Vet a perf measurement before you report or act on it…', ''],
+  ['create-verification-skill', 'Generate a project-local verification skill that drives your app…', 'tem scripts'],
+  ['statechart', 'Check a TLA+ model of a system that moves between states…', 'tem scripts · Java'],
+  ['poteto-mode', "poteto's agent style for concise, detailed responses, deliberate subagents…", 'tem scripts'],
+];
+function stepper() {
+  const at = Math.min(wz.step, 3);
+  $$('#steps li').forEach((li, i) => { li.className = i === at ? 'on' : i < at ? 'done' : ''; });
+}
+function renderWizard() {
+  stepper();
+  const p = $('#wz');
+  if (wz.step === 0) {
+    p.innerHTML = `<h3>De onde vem a skill?</h3><p class="hint">Um arquivo SKILL.md (ou a pasta dele), o texto colado, ou um link do GitHub. Um repositório com várias skills deixa você escolher quais.</p>
+      <div class="src-pick" role="group" aria-label="Origem">
+        <button aria-pressed="${wz.src === 'file'}" data-src="file">${icon('file')}<b>Arquivo</b><small>SKILL.md, .md ou .zip da pasta</small></button>
+        <button aria-pressed="${wz.src === 'paste'}" data-src="paste">${icon('paste')}<b>Colar</b><small>o conteúdo da skill</small></button>
+        <button aria-pressed="${wz.src === 'link'}" data-src="link">${icon('git')}<b>Link do GitHub</b><small>uma skill ou um repositório</small></button>
+      </div>
+      ${wz.src === 'file' ? '<div class="drop">Arraste o arquivo ou a pasta aqui, ou <button class="lnk">escolha no computador</button></div>' : ''}
+      ${wz.src === 'paste' ? '<div class="field"><label for="paste">CONTEÚDO</label><textarea id="paste" placeholder="---\nname: minha-skill\ndescription: …\n---\n\n# Minha skill\n…"></textarea></div>' : ''}
+      ${wz.src === 'link' ? `<div class="field"><label for="link">LINK</label><input id="link" value="${esc(wz.link)}" /></div><p class="hint">Repositório público: baixa direto. Privado: usa o login do GitHub que você já tem (gh).</p>` : ''}
+      <div class="foot"><button class="btn primary" data-next>Continuar</button></div>`;
+  } else if (wz.step === 1) {
+    p.innerHTML = `<h3>Quais skills trazer?</h3><p class="hint">Achei ${REPO.length} skills em <span class="mono">cursor/plugins/pstack</span> (de 69; mostrando as que cabem no exemplo). Licença MIT: o crédito fica guardado em cada uma.</p>
+      <label class="search" style="width:100%;margin-bottom:10px">${icon('search')}<input placeholder="Filtrar" aria-label="Filtrar skills do repositório" /></label>
+      <div class="pick-list">${REPO.map(([n, d, t]) => `
+        <label class="pick"><input type="checkbox" ${wz.picked.has(n) ? 'checked' : ''} ${t === 'já no VeSTA' ? 'disabled' : ''} data-pick="${n}" />
+          <span class="nm">${n}</span><span class="ds">${esc(d)}</span>${t ? `<span class="tag ${t.includes('scripts') ? 'warn' : ''}">${t}</span>` : '<span></span>'}</label>`).join('')}</div>
+      <div class="warnbox">${icon('alert')}<span>Skills com scripts trazem código junto. O VeSTA guarda os scripts, mas <b>nunca</b> os roda sozinho: a IA só executa se você permitir, como qualquer comando.</span></div>
+      <div class="foot"><button class="btn ghost left" data-back>Voltar</button><button class="btn primary" data-next>Continuar com <span id="pk">${wz.picked.size}</span></button></div>`;
+  } else if (wz.step === 2) {
+    p.innerHTML = `<h3>Quem lê e adapta?</h3><p class="hint">A IA escolhida lê cada skill e reescreve para funcionar em todas as IAs do VeSTA: troca ferramentas de um produto só (Task do Cursor, Workflow do Claude) por instruções gerais e marca onde a skill não funciona. Você revisa antes de salvar.</p>
+      <div class="ai-pick" role="group" aria-label="IA que adapta">
+        ${[['claude', 'Claude', 'Sonnet · recomendado', 'bom em reescrever instruções'], ['codex', 'ChatGPT (Codex)', 'GPT-5', 'usa o limite do plano do ChatGPT'], ['opencode', 'OpenCode', 'modelo da sua chave', 'cobrança por token na API']].map(([id, n, m, why]) => `
+          <button aria-pressed="${wz.ai === id}" data-ai="${id}"><b>${n}</b><small>${m}</small><small>${why}</small></button>`).join('')}
+      </div>
+      <div class="field"><label for="lang">IDIOMA DA SKILL ADAPTADA</label><select id="lang"><option>Português do Brasil</option><option>Manter o original</option></select></div>
+      <p class="hint" style="margin:0 0 14px">Custo estimado: ~${fmt(wz.picked.size * 9000)} tokens, uma vez só (${wz.picked.size} skill${wz.picked.size > 1 ? 's' : ''}). Usar a skill depois não repete esse custo.</p>
+      <div class="foot"><button class="btn ghost left" data-back>Voltar</button><button class="btn primary" data-next>Adaptar</button></div>`;
+  } else if (wz.step === 3) {
+    p.innerHTML = `<h3>Adaptando…</h3><p class="hint">Claude · Sonnet está lendo as skills. Pode sair desta tela: aparece na Atividade.</p>
+      <div class="progress">${[...wz.picked].map((n, i) => `<div class="prow" data-prow="${i}">${icon('loader', 'spin')}<b class="mono">${n}</b><span class="st">lendo</span></div>`).join('')}</div>`;
+    let i = 0;
+    const tick = () => {
+      const row = $(`[data-prow="${i}"]`);
+      if (!row) { wz.step = 4; return renderWizard(); }
+      row.querySelector('svg').outerHTML = icon('check');
+      row.querySelector('.st').textContent = 'pronta';
+      i++;
+      setTimeout(tick, 650);
+    };
+    setTimeout(tick, 650);
+  } else {
+    const n = [...wz.picked][0] || 'show-me-your-work';
+    p.innerHTML = `<h3>Revisar: /${n}</h3><p class="hint">Original à esquerda, adaptada à direita. Nada fica ativo antes de você salvar.</p>
+      <div class="filter" style="margin-bottom:12px" role="group" aria-label="Skill em revisão">${[...wz.picked].map((x, i) => `<button aria-pressed="${i === 0}">${x}</button>`).join('')}</div>
+      <div class="diff">
+        <div><h4>ORIGINAL <span>cursor/plugins · MIT</span></h4><pre>Keep one canonical log.
+<span class="del">Spawn each worker with run_in_background: true
+and environment: "cloud".</span>
+Use the helper <span class="del">scripts/log.sh</span> &lt;logfile&gt; …
+<span class="del">Read the arena runners line in
+~/.cursor/rules/pstack-models.mdc.</span></pre></div>
+        <div><h4>ADAPTADA <span>pt-BR · todas as IAs</span></h4><pre>Mantenha um único log de decisões.
+<span class="add">Se a sua IA consegue abrir subagentes, use-os;
+se não, faça as partes em sequência.</span>
+Acrescente uma linha por decisão em <span class="add">.vesta/decisoes.tsv</span> …
+<span class="add">Use o modelo que a conversa já está usando.</span></pre></div>
+      </div>
+      <ul class="changes">
+        <li><b>3 trocas</b> de ferramentas do Cursor por instruções gerais.</li>
+        <li><b>1 script</b> (log.sh) substituído por instrução: nenhum código entra.</li>
+        <li>Drael: <b>funciona</b>. Arena e interrogate ficariam marcadas como “não funciona no Drael”.</li>
+      </ul>
+      <div class="field"><label>QUANDO USAR</label><span class="seg" role="group" aria-label="Quando usar"><button aria-pressed="true">A IA decide</button><button aria-pressed="false">Só com /</button></span></div>
+      <div class="foot"><button class="btn ghost left" data-restart>Refazer com outra IA</button><button class="btn">Editar à mão</button><button class="btn primary" data-save>Salvar ${wz.picked.size} skill${wz.picked.size > 1 ? 's' : ''}</button></div>`;
+  }
+}
+
+/* ---------------- Chat com / ---------------- */
+let slashIdx = 0;
+function slashItems() {
+  const t = $('#draft').value;
+  const m = /^\/(\S*)$/.exec(t);
+  if (!m) return null;
+  return SKILLS.filter((s) => s.on && s.n.startsWith(m[1].toLowerCase()));
+}
+function renderSlash() {
+  const items = slashItems();
+  const box = $('#slash');
+  if (!items) return box.classList.remove('open');
+  slashIdx = Math.min(slashIdx, Math.max(items.length - 1, 0));
+  box.innerHTML = `<div class="h"><span>SKILLS DO VESTA</span><span>${items.length}</span></div>` +
+    (items.length ? items.map((s, i) => `<button role="option" aria-selected="${i === slashIdx}" data-pickslash="${s.n}"><span class="nm">/${s.n}</span><span class="ds">${esc(s.d)}</span>${s.cost === 3 ? '<span class="tag warn">' + esc(s.heavy) + '</span>' : '<span class="tag">~' + fmt(s.tok) + ' tk</span>'}</button>`).join('') : '<div class="h">Nenhuma skill com esse nome. O texto vai como mensagem normal.</div>') +
+    '<div class="foot2">↑ ↓ escolhe · Tab completa · Enter envia · comandos próprios do Claude (/review, /init) passam direto</div>';
+  box.classList.add('open');
+}
+function send() {
+  const t = $('#draft').value.trim();
+  if (!t) return;
+  const m = /^\/(\S+)\s*([\s\S]*)$/.exec(t);
+  const s = m && SKILLS.find((x) => x.n === m[1]);
+  const msgs = $('#msgs');
+  msgs.insertAdjacentHTML('beforeend', `<div class="msg-user">${s ? `<span class="skill-chip">${icon('book')}/${s.n}</span>` : ''}${esc(s ? m[2] || '' : t)}</div>`);
+  msgs.insertAdjacentHTML('beforeend', s ? `<div class="msg-ai"><span class="who">CLAUDE</span>
+    <span class="act">${icon('book')} Skill ${s.n} carregada · ~${fmt(s.tok)} tokens</span>
+    ${s.n === 'ketchup' ? `<p><b>Nada espera por você.</b></p><ul><li>Quests: a troca de status das etapas está pronta e os testes passam.</li><li>Ainda não verifiquei a tela do quadro no app real.</li></ul>` : `<p>(Resposta seguindo a skill <span class="mono">${s.n}</span>.)</p>`}</div>` : '<div class="msg-ai"><span class="who">CLAUDE</span><p>…</p></div>');
+  $('#draft').value = '';
+  renderSlash();
+  msgs.parentElement.scrollTop = 1e9;
+}
+
+/* ---------------- navegação ---------------- */
+const NOTES = {
+  lib: 'Biblioteca do VeSTA, por origem. Clique numa skill para ver o detalhe; o interruptor liga e desliga; a busca filtra nome e descrição. O número no topo mostra quanto a lista custa por sessão.',
+  native: 'Só leitura: o que o Claude e o Codex já têm instalados. “Trazer para o VeSTA” abre o passo a passo de adaptação.',
+  add: 'Passo a passo: origem → escolher → IA que adapta → revisão lado a lado. Clique em Continuar para avançar.',
+  chat: 'Digite / no composer: a lista filtra conforme você digita. Enter manda a skill junto com a mensagem; experimente “/ketchup”.',
+};
+function go(where) {
+  $$('.proto [data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === where));
+  $('#note').textContent = NOTES[where];
+  const chat = where === 'chat';
+  $('#s-chat').classList.toggle('on', chat);
+  $('#s-skills').classList.toggle('on', !chat);
+  $('#rail-skills').classList.toggle('on', !chat);
+  if (!chat) tab(where);
+  else { $('#draft').focus(); renderSlash(); }
+}
+function tab(t) {
+  $$('.tabs [role=tab]').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === t));
+  $$('.tab').forEach((s) => s.classList.toggle('on', s.id === 't-' + t));
+  $$('.proto [data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === t));
+  $('#note').textContent = NOTES[t];
+}
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('button, [data-s], [data-pick]');
+  if (!el) return;
+  const d = el.dataset;
+  if (d.go) return go(d.go);
+  if (d.tab) return tab(d.tab);
+  if (d.tabGo) return tab(d.tabGo);
+  if (d.layoutSet) {
+    $('#page').dataset.layout = d.layoutSet;
+    $$('[data-layout-set]').forEach((b) => b.classList.toggle('on', b === el));
+    return;
+  }
+  if (d.sw) { e.stopPropagation(); const s = SKILLS.find((x) => x.n === d.sw); s.on = !s.on; return renderLib(); }
+  if (d.mode) { SKILLS.find((x) => x.n === sel).mode = d.mode; return renderLib(); }
+  if (el.classList.contains('group-h')) { const g = el.parentElement.dataset.g; closed.has(g) ? closed.delete(g) : closed.add(g); return renderLib(); }
+  if (d.s) { sel = d.s; if (d.open) { $('#page').dataset.layout = 'a'; $$('[data-layout-set]').forEach((b) => b.classList.toggle('on', b.dataset.layoutSet === 'a')); } return renderLib(); }
+  if (d.f) { filter = d.f; $$('#filters button').forEach((b) => b.setAttribute('aria-pressed', b === el)); return renderLib(); }
+  if (d.try) { go('chat'); $('#draft').value = '/' + d.try + ' '; renderSlash(); return; }
+  if (d.n) { nat = d.n; return renderNative(); }
+  if (d.bring) { wz.src = 'link'; wz.step = 2; wz.picked = new Set([d.bring]); tab('add'); return renderWizard(); }
+  if (d.src) { wz.src = d.src; return renderWizard(); }
+  if (d.ai) { wz.ai = d.ai; return renderWizard(); }
+  if ('next' in d) { if (wz.step === 0 && wz.src !== 'link') wz.picked = new Set(['minha-skill']); wz.step = wz.src !== 'link' && wz.step === 0 ? 2 : wz.step + 1; return renderWizard(); }
+  if ('back' in d) { wz.step = Math.max(0, wz.step - 1); return renderWizard(); }
+  if ('restart' in d) { wz.step = 2; return renderWizard(); }
+  if ('save' in d) {
+    for (const n of wz.picked) if (!SKILLS.some((s) => s.n === n)) SKILLS.push({ n, src: n === 'minha-skill' ? 'mine' : 'pstack', d: (REPO.find((r) => r[0] === n)?.[1] || 'Skill colada por você.').replace('…', '.'), on: true, mode: 'auto', cost: 1, tok: 900, uses: 0, by: 'Claude · Sonnet' });
+    sel = [...wz.picked][0]; wz.step = 0; renderWizard(); renderLib(); return tab('lib');
+  }
+  if (d.pickslash) { $('#draft').value = '/' + d.pickslash + ' '; $('#draft').focus(); return renderSlash(); }
+  if (el.id === 'send') return send();
+  if (el.id === 'theme') {
+    const paper = document.documentElement.dataset.theme !== 'paper';
+    document.documentElement.dataset.theme = paper ? 'paper' : 'ink';
+    el.textContent = 'Tema: ' + (paper ? 'Papel' : 'Tinta');
+  }
+});
+document.addEventListener('change', (e) => {
+  const n = e.target.dataset.pick;
+  if (!n) return;
+  e.target.checked ? wz.picked.add(n) : wz.picked.delete(n);
+  $('#pk').textContent = wz.picked.size;
+});
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('.row') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.target.click(); }
+});
+$('#q').addEventListener('input', (e) => { query = e.target.value; renderLib(); });
+$('#draft').addEventListener('input', () => { slashIdx = 0; renderSlash(); });
+$('#draft').addEventListener('keydown', (e) => {
+  const items = slashItems();
+  if (items && items.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    e.preventDefault();
+    slashIdx = (slashIdx + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length;
+    return renderSlash();
+  }
+  if (items && items.length && e.key === 'Tab') { e.preventDefault(); $('#draft').value = '/' + items[slashIdx].n + ' '; return renderSlash(); }
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    if (items && items.length && !/\s/.test($('#draft').value)) $('#draft').value = '/' + items[slashIdx].n + ' ';
+    send();
+  }
+});
+
+renderLib();
+renderNative();
+renderWizard();
+go('lib');
+</script>
+</body>
+</html>

@@ -1,4 +1,15 @@
-import { Plus, LayoutGrid, MessageSquare, Brain, Layers, Settings, BarChart3, Activity, Swords } from 'lucide-react';
+import {
+  Plus,
+  LayoutGrid,
+  MessageSquare,
+  Brain,
+  Layers,
+  Settings,
+  BarChart3,
+  Activity,
+  Swords,
+  BookOpen,
+} from 'lucide-react';
 import { Mark } from './Brand';
 import { MascotAvatar, useMascot } from './Mascot';
 import { STATE_LABEL } from '../lib/mascot';
@@ -7,6 +18,7 @@ const PAGES = [
   { id: 'activity', name: 'Atividade', icon: Activity },
   { id: 'quests', name: 'Quests', icon: Swords },
   { id: 'memory', name: 'Memória', icon: Brain },
+  { id: 'skills', name: 'Skills', icon: BookOpen },
   { id: 'usage', name: 'Uso', icon: BarChart3 },
   { id: 'connections', name: 'Conexões', icon: Layers },
 ];
@@ -76,13 +88,15 @@ export function Rail({ page, setPage, drawer, toggleDrawer, openNew, data, taskC
           count={
             n.id === 'memory'
               ? data.memories.length
-              : n.id === 'quests'
-                ? questsRunning
-                : n.id === 'activity'
-                  ? taskCounts.total
-                  : 0
+              : n.id === 'skills'
+                ? data.skills?.list?.filter((s) => s.enabled).length || 0
+                : n.id === 'quests'
+                  ? questsRunning
+                  : n.id === 'activity'
+                    ? taskCounts.total
+                    : 0
           }
-          live={n.id !== 'memory'}
+          live={n.id !== 'memory' && n.id !== 'skills'}
         />
       ))}
       <div className="sidebar-bottom">

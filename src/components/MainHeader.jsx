@@ -44,13 +44,15 @@ export function MainHeader({
                   ? 'Quests'
                   : page === 'memory'
                     ? 'Memória compartilhada'
-                    : page === 'usage'
-                      ? 'Uso'
-                      : page === 'connections'
-                        ? 'Conexões'
-                        : page === 'about'
-                          ? 'Sobre a VeSTA'
-                          : 'Preferências'}
+                    : page === 'skills'
+                      ? 'Skills'
+                      : page === 'usage'
+                        ? 'Uso'
+                        : page === 'connections'
+                          ? 'Conexões'
+                          : page === 'about'
+                            ? 'Sobre a VeSTA'
+                            : 'Preferências'}
         </strong>
       </div>
       <div className="header-actions">

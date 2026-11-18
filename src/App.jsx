@@ -401,6 +401,20 @@ export function App() {
       shownMemories,
       setModal,
     },
+    skills: {
+      data,
+      call,
+      setData: replaceData,
+      notify,
+      integrations,
+      // "Testar num chat": a new conversation with "/nome " already in the composer.
+      onTry: (name) => {
+        setActive(null);
+        setDraft('new', '/' + name + ' ');
+        setPage('chat');
+        requestAnimationFrame(() => textarea.current?.focus());
+      },
+    },
     usage: { call, usage: data.usage },
     connections: { setBusy, setIntegrations, call, notify, busy, integrations, memoryStatus, setMemoryStatus },
     about: { version: data.appVersion, onBack: () => setPage('settings') },

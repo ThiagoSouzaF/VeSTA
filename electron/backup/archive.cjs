@@ -8,6 +8,7 @@
 //     restaurar/vesta.json                the app data (without the phone pairing, which stays on this computer)
 //     restaurar/ai-memory.tar.gz          snapshot taken by the AI Memory server itself (consistent while it runs)
 //     restaurar/anexos/**                 chat attachments
+//     restaurar/skills/**                 the skills library (Skills → No VeSTA)
 // Here: creating, listing and rotating backups. The Markdown views live in readable.cjs, restoring in restore.cjs.
 const fs = require('node:fs'),
   path = require('node:path'),
@@ -112,6 +113,9 @@ async function createBackup({
       fs.readFileSync(path.join(attachmentsDir, r)),
       { level: /\.(png|jpe?g|gif|webp|zip|pdf)$/i.test(r) ? 0 : 6 },
     ];
+  const skillsDir = path.join(dataDir, 'skills');
+  const skills = walkFiles(skillsDir, (r) => /\.novo$/.test(r));
+  for (const r of skills) files['restaurar/skills/' + r] = fs.readFileSync(path.join(skillsDir, r));
   const manifest = {
     format: FORMAT,
     createdAt: now.getTime(),
@@ -120,6 +124,7 @@ async function createBackup({
       chats: chats.length,
       wikiPages: Object.keys(wiki).length,
       attachments: attachments.length,
+      skills: new Set(skills.map((r) => r.split('/')[0])).size,
       profile: profile?.length ?? null,
     },
     memory: !!files['restaurar/ai-memory.tar.gz'],

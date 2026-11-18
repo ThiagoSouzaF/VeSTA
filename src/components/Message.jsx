@@ -1,7 +1,8 @@
 import { memo } from 'react';
 import { ProviderIcon } from './ProviderIcon';
 import { PROVIDERS } from '../lib/constants';
-import { Brain, Copy, AlertCircle, Pin, BellRing } from 'lucide-react';
+import { Brain, Copy, AlertCircle, Pin, BellRing, BookOpen } from 'lucide-react';
+import { splitSlash } from '../lib/skills';
 import { Permissions } from './Permissions';
 import { TaskSummary } from './TaskSummary';
 import { Subagents } from './Subagents';
@@ -62,7 +63,17 @@ export const Message = memo(function Message({
         {m.role === 'assistant' && <TaskSummary chat={chat} m={m} live={live} onStopTask={onStopTask} />}
         <Subagents subagents={m.subagents} />
         <MessageAttachments chatId={chat.id} attachments={m.attachments} call={call} />
-        {m.text && <Markdown text={m.text} />}
+        {m.skill && (
+          <span className="skill-chip" title="Skill do VeSTA enviada junto com a mensagem">
+            <BookOpen size={12} />/{m.skill}
+          </span>
+        )}
+        {m.text &&
+          (m.skill ? (
+            splitSlash(m.text, m.skill).rest && <Markdown text={splitSlash(m.text, m.skill).rest} />
+          ) : (
+            <Markdown text={m.text} />
+          ))}
         {m.status === 'running' && !m.text && (
           <div className="thinking">
             <span />

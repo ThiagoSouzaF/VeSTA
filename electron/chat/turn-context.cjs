@@ -1,5 +1,5 @@
 // What goes to the AI with a message besides its text: the shared memory (profile plus the project's briefing or a
-// search), the MCP servers VeSTA offers to this chat (vesta-memory, vesta-quest, vesta-app) with the lines that explain
+// search), the MCP servers VeSTA offers to this chat (vesta-memory, vesta-quest, vesta-app, vesta-skills) with the lines that explain
 // them, and the final prompt (attachments, Drael's history, the hand-off after a switch of AI).
 // Failures here never stop the turn: they become an activity on the answer and the AI goes without that piece.
 const providers = require('../ai/providers.cjs');
@@ -104,6 +104,18 @@ async function toolServers(ctx, chat, assistant) {
       }
     } catch (e) {
       note(assistant, 'mcp', 'Ferramentas do VeSTA indisponíveis', redact(e.message));
+    }
+  // VeSTA's skills (vesta-skills): only while some skill is on. The catalog lists the "A IA decide" ones.
+  if (ctx.skillsMcp)
+    try {
+      const ep = await ctx.skillsMcp.endpointFor(chat);
+      if (ep) {
+        out.extra.push(providers.skillsServer(ep));
+        const hint = ctx.skills.catalogHint(chat);
+        if (hint) out.hints.push(hint);
+      }
+    } catch (e) {
+      note(assistant, 'mcp', 'Skills indisponíveis', redact(e.message));
     }
   return out;
 }

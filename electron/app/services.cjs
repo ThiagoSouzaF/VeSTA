@@ -8,6 +8,9 @@ const tasksLib = require('../shared/tasks.cjs');
 const { createQuestEngine } = require('../quests/engine.cjs');
 const { createQuestMcp } = require('../quests/mcp.cjs');
 const { createAppMcp } = require('../mcp/app.cjs');
+const { createSkillsMcp } = require('../mcp/skills.cjs');
+const { createSkills } = require('../skills/engine.cjs');
+const { run } = require('../util/proc.cjs');
 const { createAttachmentStore } = require('../attachments/store.cjs');
 const { createRemote } = require('../remote/index.cjs');
 const { createConfirmer } = require('../remote/confirm.cjs');
@@ -51,6 +54,15 @@ async function openServices(ctx, { electron, bus, methods }) {
   ctx.appMcp = createAppMcp(ctx, { methods: () => methods });
   ctx.quests.recover();
   bus.subscribe((event) => event.type === 'chat-done' && ctx.quests.onChatDone(event));
+  // Skills: the library every AI shares (<userData>/skills), its MCP server and the adaptation chats.
+  ctx.skills = createSkills(ctx, {
+    root: path.join(dataDir, 'skills'),
+    // Private GitHub repositories (and the API limit) go through the GitHub CLI already logged in, when there is one.
+    deps: { gh: (args) => run('gh', args, { timeout: 30000 }) },
+  });
+  ctx.skills.recover();
+  ctx.skillsMcp = createSkillsMcp(ctx, { skills: () => ctx.skills });
+  bus.subscribe((event) => event.type === 'chat-done' && ctx.skills.onChatDone(event));
   store.save();
   // Chat attachments: copies kept under userData; leftovers of unsent drafts and deleted chats are cleaned at start.
   ctx.nativeImage = nativeImage;
@@ -101,6 +113,7 @@ function closeServices(ctx) {
   ctx.backups?.dispose();
   ctx.questMcp?.close().catch(() => {});
   ctx.appMcp?.close().catch(() => {});
+  ctx.skillsMcp?.close().catch(() => {});
   ctx.memory?.close().catch(() => {});
 }
 

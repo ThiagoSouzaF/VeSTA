@@ -32,7 +32,7 @@ export function AboutPage({ version, onBack }) {
     <div className="content-page about-page">
       <div className="page-heading">
         <div>
-          <Chapter n={8} title="SOBRE" />
+          <Chapter n={9} title="SOBRE" />
           <div className="eyebrow">SOBRE</div>
           <h1>
             Conheça a <Wordmark />.

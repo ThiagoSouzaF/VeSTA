@@ -44,6 +44,7 @@ Atalhos: **Ctrl+K** busca conversas, **Ctrl+B** abre e fecha a lista de conversa
 - **Conversas organizadas por projeto.** Na gaveta de conversas, cada projeto é uma pasta que abre e fecha, com as suas conversas e o "+" para começar outra ali. Dá para recolher tudo de uma vez e arrastar uma conversa para outro projeto: ela leva o histórico e a memória junto, e a próxima resposta já trabalha na pasta nova.
 - **Várias IAs, uma conversa.** ChatGPT (Codex), Claude e Drael. Troque de IA ou de modelo no meio do chat e o histórico vai junto. No menu do modelo, escolha também o **esforço** da conversa no Claude e no Codex: baixo para respostas rápidas, alto ou máximo quando a tarefa pede mais raciocínio.
 - **Memória compartilhada (AI Memory).** Guarda suas preferências e o contexto de cada projeto, aprende com as conversas e passa tudo entre as IAs. Funciona offline.
+- **Skills.** Receitas de trabalho (revisar um PR, escrever commits, depurar) que você ensina uma vez e todas as IAs seguem, como a memória. Traga de um link do GitHub, de um arquivo, do texto colado ou das skills que o Claude e o Codex já têm; uma IA à sua escolha adapta cada uma para funcionar nas quatro, e você revisa lado a lado antes de salvar. Chame no chat com **/nome** ou deixe a IA usar quando o pedido combinar.
 - **Atividade.** Veja ao vivo tudo o que as IAs estão fazendo em paralelo: respostas, subagentes, comandos e tarefas em segundo plano. Dá para parar qualquer uma.
 - **Quests.** Dê um objetivo e várias IAs trabalham juntas: uma planeja, cada etapa vai para a IA escolhida e os resultados passam de uma para a outra. O **chat da quest** conhece tudo o que está acontecendo e reorganiza o plano conforme você conversa.
 - **Processos longos acompanhados.** Pediu algo demorado (um build, um servidor, uma tarefa em segundo plano)? A IA volta sozinha quando termina.
@@ -88,7 +89,8 @@ electron/
   chat/           enviar uma mensagem, contexto do turno, acompanhamento, troca de IA
   memory/         cliente do AI Memory, sessões, servidor (lock/spool), métodos da tela Memória
   quests/         motor, ferramentas e servidor MCP do chat da quest
-  mcp/            base dos servidores MCP do VeSTA e o vesta-app (preferências pelos chats)
+  mcp/            base dos servidores MCP do VeSTA, o vesta-app (preferências pelos chats) e o vesta-skills
+  skills/         biblioteca de skills: formato, importação (texto, arquivo, GitHub, IAs instaladas) e adaptação
   backup/         .zip, criptografia, restauração e Google Drive
   attachments/    anexos: regras, armazenamento e o protocolo vesta-attachment://
   remote/         controle pelo celular
@@ -129,6 +131,8 @@ Desenvolvimento do app móvel: `npm run dev:mobile` (Vite) e `npm run build` (ge
 - `test-permissions.cjs` (`claude`, `codex` ou `opencode`, mais `allow`, `deny`, `subagent`, `always` ou `stop`): a IA real pede permissão para um `mkdir` e o teste confere o efeito de cada resposta.
 - `test-ui-smoke.cjs` (com `node`): percorre as telas com dados de exemplo. Inclui o Início (quadrados com o que roda em cada projeto), a faixa de processos entre a conversa e a caixa de mensagem (abas, passo atual, "ver no chat", parar), a gaveta de conversas (trilho e Ctrl+B) e o contexto em popover.
 - `test-tree-e2e.cjs` (com `node`): conversas por projeto na gaveta, recolher tudo, "+" do projeto, arrastar uma conversa (a próxima resposta roda na pasta nova com o histórico) e o esforço escolhido no menu do modelo chegando à IA.
+- `test-skills-e2e.cjs` (com `node`, sem IA real): a tela Skills vazia, colar uma skill e adaptar (revisão lado a lado), a gaveta ("Só com /" sai da lista e o custo acompanha), trazer uma skill do Codex de uma pasta falsa, o menu **/** no chat (Tab completa, o selo na mensagem, o texto da skill e a lista chegando à IA) e capturas nos temas Tinta Mangá e Papel.
+- `npm test` inclui `skills.test.cjs`: formato do SKILL.md, biblioteca em disco, leitura das skills do Claude e do Codex, links do GitHub contra uma rede falsa, a resposta da adaptação, o /nome e o servidor vesta-skills com token por chat.
 - `test-effort-e2e.cjs` (com `npx electron`, Claude e Codex reais): cada IA responde com esforço baixo e máximo.
 - `test-chat-quest-e2e.cjs` (com `npx electron`, Claude real): um chat cria e inicia uma quest pelo VeSTA e ela roda até o fim no projeto.
 - `test-drive-e2e.cjs` (com `npx electron`; `ai` inclui chats reais): Google Drive contra um Google falso local (login, envio, lista, restauração) e preferências mudadas por chats do Claude e do Codex.
@@ -188,6 +192,18 @@ Os dados ficam em `%APPDATA%/VeSTA`. A pasta pode ser aberta nas preferências. 
 - **Consolidar com IA (Codex):** o encerramento chama `memory_consolidate`, que usa o login do Codex CLI (`AI_MEMORY_LLM_PROVIDER=codex`, sem chave de API, consumindo a cota do ChatGPT) para reescrever a sessão e extrair regras, armadilhas e decisões em páginas próprias, visíveis na aba **Aprendizados** da tela Memória. O conteúdo da conversa vai para a OpenAI nessa etapa, inclusive em chats do Claude. A assinatura do Claude não serve aqui, porque a Anthropic recusa o token em apps de terceiros. Sem a consolidação, cada sessão fica com um resumo automático, sem IA.
 - O envelhecimento (`forget-sweep`) e o `lint` rodam sozinhos no servidor. O revisor horário de auto-improve fica desligado, para que o custo seja de uma consolidação por sessão. **Guardar também a conversa bruta** mantém o modo antigo (uma página por resposta) e vem desligado. Detalhes do desenho e do teste em [`docs/memoria-consolidacao.md`](docs/memoria-consolidacao.md).
 - Padrões comuns de chaves são removidos dos trechos guardados; essa filtragem não garante detectar todo segredo possível.
+
+## Skills
+
+Uma skill é uma pasta com um `SKILL.md` (o formato do Claude Code e do Codex): nome, descrição e as instruções. A tela **Skills** tem três abas.
+
+- **No VeSTA:** a biblioteca, em quadrados agrupados por origem (repositório, IA, ou criadas por você), com busca, filtros e uma gaveta com o detalhe: ligar e desligar, quando usar, em quais IAs funciona, quanto custa, quem adaptou, o texto (ver, editar, ver o original) e "Atualizar do GitHub".
+- **Na sua IA:** o que o Claude Code (`~/.claude/skills`, plugins e `.claude/skills` dos projetos) e o Codex (`~/.codex/skills` e plugins) já têm. Só leitura; "Trazer para o VeSTA" leva a skill para a adaptação.
+- **Adicionar:** arquivo, texto colado ou link do GitHub (um repositório com várias skills deixa escolher quais; privado usa o login do `gh`). A IA escolhida reescreve cada skill para as quatro IAs (troca ferramentas de um produto só por instruções gerais e marca onde não funciona); o original fica guardado. "Salvar sem adaptar" guarda como veio.
+
+**Custo em tokens.** Uma sessão nova recebe só a lista das skills ligadas em **A IA decide** (nome e descrição curta, umas dezenas de tokens cada); o texto completo vai só quando a IA carrega a skill pela ferramenta `vesta_skill_load` ou quando você digita **/nome**. Skills em **Só com /** não custam nada até serem chamadas. A adaptação gasta uma vez, ao importar. Se o Claude ou o Codex já têm uma skill com o mesmo nome, o VeSTA não manda a cópia dele para essa IA.
+
+**Segurança.** O conteúdo de uma skill é tratado como dado na adaptação. Scripts que vêm junto ficam guardados e **nunca** rodam sozinhos: a IA só executa se o modo da conversa permitir, como qualquer comando. Nada é gravado em `~/.claude` ou `~/.codex`. As skills ficam em `%APPDATA%/VeSTA/skills` e entram no backup.
 
 ## Anexos
 

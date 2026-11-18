@@ -35,6 +35,8 @@ function createContext({ app, dialog, shell, bus }) {
         ...rest,
         running: [...ctx.jobs.keys()],
         following: ctx.follows.snapshot(),
+        // Skills: the library (small metadata, no texts) and the imports waiting for review.
+        skills: ctx.skills ? ctx.skills.summary() : { list: [], drafts: [] },
         appVersion: app.getVersion(),
       };
     },

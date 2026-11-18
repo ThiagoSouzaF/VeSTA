@@ -7,6 +7,9 @@ import { MODES, modeOf } from '../lib/modes';
 import { ArrowUp, Brain, Folder, Square, LoaderCircle, Paperclip } from 'lucide-react';
 import { AttachmentChips } from './AttachmentChips';
 import { action } from '../lib/api';
+import { useState } from 'react';
+import { slashMatches } from '../lib/skills';
+import { SlashMenu } from './SlashMenu';
 export function Composer({
   running,
   textarea,
@@ -32,18 +35,36 @@ export function Composer({
   onFiles,
   onRemoveAttachment,
 }) {
+  // "/" + letters: VeSTA's skills that match (Esc hides the menu until the text changes).
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [slashClosed, setSlashClosed] = useState(false);
+  const slash = !running && !slashClosed ? slashMatches(data.skills?.list, input) : null;
+  const pickSlash = (name) => {
+    setDraft(draftKey, '/' + name + ' ');
+    textarea.current?.focus();
+  };
   return (
     <div className="composer-wrap">
+      {slash && <SlashMenu items={slash} index={Math.min(slashIndex, slash.length - 1)} onPick={pickSlash} />}
       <div className={'composer ' + (running ? 'is-running' : '')}>
         <AttachmentChips items={attachments} onRemove={onRemoveAttachment} disabled={running || busy} />
         <textarea
           ref={textarea}
           aria-label="Mensagem"
           placeholder={
-            running ? 'A IA está respondendo…' : 'O que vamos criar com ' + PROVIDERS[currentProvider].name + '?'
+            running
+              ? 'A IA está respondendo…'
+              : 'O que vamos criar com ' +
+                PROVIDERS[currentProvider].name +
+                '?' +
+                (data.skills?.list?.some((s) => s.enabled) ? ' Digite / para chamar uma skill.' : '')
           }
           value={input}
-          onChange={(e) => setDraft(draftKey, e.target.value)}
+          onChange={(e) => {
+            setDraft(draftKey, e.target.value);
+            setSlashIndex(0);
+            setSlashClosed(false);
+          }}
           onPaste={(e) => {
             // Ctrl+V with files (a screenshot, a copied image or file) attaches them; plain text pastes as usual.
             const files = [...(e.clipboardData?.files || [])];
@@ -52,6 +73,27 @@ export function Composer({
             onFiles?.(files);
           }}
           onKeyDown={(e) => {
+            if (slash?.length) {
+              const i = Math.min(slashIndex, slash.length - 1);
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                return setSlashIndex((i + (e.key === 'ArrowDown' ? 1 : slash.length - 1)) % slash.length);
+              }
+              if (e.key === 'Tab') {
+                e.preventDefault();
+                return pickSlash(slash[i].name);
+              }
+              // Enter on the menu sends the highlighted skill as it is ("/nome").
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                if (!running) send('/' + slash[i].name);
+                return;
+              }
+            }
+            if (e.key === 'Escape' && slash) {
+              e.preventDefault();
+              return setSlashClosed(true);
+            }
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               if (!running) send();

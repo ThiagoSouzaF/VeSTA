@@ -4,6 +4,7 @@ import { HomePage } from './HomePage';
 import { ActivityPage } from './ActivityPage';
 import { QuestsPage } from './QuestsPage';
 import { MemoryPage } from './MemoryPage';
+import { SkillsPage } from './skills/SkillsPage';
 import { UsagePage } from './UsagePage';
 import { ConnectionsPage } from './ConnectionsPage';
 import { AboutPage } from './AboutPage';
@@ -29,6 +30,8 @@ export function PageRouter({ page, loading, props }) {
       return <QuestsPage {...props.quests} />;
     case 'memory':
       return <MemoryPage {...props.memory} />;
+    case 'skills':
+      return <SkillsPage {...props.skills} />;
     case 'usage':
       return <UsagePage {...props.usage} />;
     case 'connections':

@@ -63,6 +63,10 @@ function fixture() {
   fs.mkdirSync(path.join(att, '_staging'), { recursive: true });
   fs.writeFileSync(path.join(att, 'c1aaaaaa', 'ab-menu.png'), Buffer.from([1, 2, 3]));
   fs.writeFileSync(path.join(att, '_staging', 'rascunho.txt'), 'x');
+  const skill = path.join(dataDir, 'skills', 'revisar');
+  fs.mkdirSync(path.join(skill, 'files'), { recursive: true });
+  fs.writeFileSync(path.join(skill, 'SKILL.md'), '---\nname: revisar\n---\n\nRevise.');
+  fs.writeFileSync(path.join(skill, 'files', 'guia.md'), '# Guia');
   const memory = {
     profile: async () => [{ path: 'profile/habits/idioma.md', category: 'habits', statement: 'Respostas curtas.' }],
     backupTo: async (file) => fs.writeFileSync(file, 'TARBALL'),
@@ -107,7 +111,10 @@ test('createBackup: one .zip with readable conversations, preferences and memory
   assert.ok(names.includes('restaurar/anexos/c1aaaaaa/ab-menu.png'));
   assert.ok(!names.some((n) => n.includes('_staging')));
   const manifest = JSON.parse(text(e, 'restaurar/manifesto.json'));
-  assert.deepEqual(manifest.counts, { chats: 2, wikiPages: 2, attachments: 1, profile: 1 });
+  assert.ok(
+    names.includes('restaurar/skills/revisar/SKILL.md') && names.includes('restaurar/skills/revisar/files/guia.md')
+  );
+  assert.deepEqual(manifest.counts, { chats: 2, wikiPages: 2, attachments: 1, skills: 1, profile: 1 });
   assert.equal(manifest.memory, true);
   assert.match(text(e, 'LEIA-ME.md'), /2 conversas em Markdown/);
 });
@@ -176,6 +183,7 @@ test('restore: staged from the zip, applied at start keeping this computer’s p
     })
   );
   fs.mkdirSync(path.join(target, 'attachments', 'velho'), { recursive: true });
+  fs.mkdirSync(path.join(target, 'skills', 'velha'), { recursive: true });
   const manifest = B.stageRestore(r.file, target);
   assert.equal(manifest.counts.chats, 2);
   assert.ok(fs.existsSync(path.join(target, 'restore-pending', 'pronto.json')));
@@ -199,6 +207,8 @@ test('restore: staged from the zip, applied at start keeping this computer’s p
   assert.ok(calls[0].includes('--force'));
   assert.ok(fs.existsSync(path.join(target, 'attachments', 'c1aaaaaa', 'ab-menu.png')));
   assert.ok(fs.existsSync(path.join(target, 'attachments.antes-de-restaurar', 'velho')));
+  assert.ok(fs.existsSync(path.join(target, 'skills', 'revisar', 'files', 'guia.md')));
+  assert.ok(fs.existsSync(path.join(target, 'skills.antes-de-restaurar', 'velha')));
   assert.ok(!fs.existsSync(path.join(target, 'restore-pending')));
   // Nothing pending: nothing happens.
   assert.equal(await B.applyPendingRestore(target, { exe: 'x', run: () => assert.fail('no restore') }), null);

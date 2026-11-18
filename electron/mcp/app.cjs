@@ -110,6 +110,7 @@ function createAppMcp(ctx, { methods }) {
     const chat = chatOf(chatId);
     if (!chat || ctx.store.state.settings.chatSettings === false) return null;
     if (chat.questId && chat.questRole !== 'lead') return null;
+    if (chat.skillDraft) return null;
     return chat;
   };
   const notice = (chat, text) => ctx.emit({ type: 'notice', message: '“' + (chat.title || 'Conversa') + '” ' + text });

@@ -116,6 +116,19 @@ async function applyPendingRestore(dataDir, { exe, stopMemory = async () => {}, 
   } catch (e) {
     errors.push('anexos: ' + e.message);
   }
+  // Skills: same as the attachments (a backup without skills leaves the current library in place).
+  const skillsIn = path.join(dir, 'skills'),
+    skills = path.join(dataDir, 'skills'),
+    skillsBefore = path.join(dataDir, 'skills.antes-de-restaurar');
+  try {
+    if (fs.existsSync(skillsIn)) {
+      fs.rmSync(skillsBefore, { recursive: true, force: true });
+      if (fs.existsSync(skills)) fs.renameSync(skills, skillsBefore);
+      fs.renameSync(skillsIn, skills);
+    }
+  } catch (e) {
+    errors.push('skills: ' + e.message);
+  }
   fs.rmSync(dir, { recursive: true, force: true });
   return { at: Date.now(), from, createdAt: manifest?.createdAt || 0, errors };
 }

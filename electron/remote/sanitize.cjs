@@ -23,6 +23,8 @@ function sanitizeChat(chat, { maxMessages = MAX_MESSAGES } = {}) {
     messages: (cut ? messages.slice(cut) : messages).map(phoneMessage),
   };
 }
+// Adaptation chats of Skills are the app's own work, not conversations: they never reach the phone.
+const phoneChats = (state) => (state.chats || []).filter((c) => !c.skillDraft);
 // Fields every state event carries (small); chats travel apart because they are the heavy part.
 function sanitizeLite(state) {
   const settings = {};
@@ -36,7 +38,7 @@ function sanitizeLite(state) {
   };
 }
 function sanitizeState(state, opts) {
-  return { ...sanitizeLite(state), chats: (state.chats || []).map((c) => sanitizeChat(c, opts)) };
+  return { ...sanitizeLite(state), chats: phoneChats(state).map((c) => sanitizeChat(c, opts)) };
 }
 function sanitizeIntegrations(integrations) {
   const out = {};
@@ -77,13 +79,14 @@ function createStateDiffer(opts) {
     diff(state) {
       const next = new Map(),
         changed = [];
-      for (const c of state.chats || []) {
+      const chats = phoneChats(state);
+      for (const c of chats) {
         const sig = chatSignature(c);
         next.set(c.id, sig);
         if (sigs.get(c.id) !== sig) changed.push(sanitizeChat(c, opts));
       }
       sigs = next;
-      return { ...sanitizeLite(state), chatIds: (state.chats || []).map((c) => c.id), chats: changed, partial: true };
+      return { ...sanitizeLite(state), chatIds: chats.map((c) => c.id), chats: changed, partial: true };
     },
   };
 }

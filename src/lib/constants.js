@@ -44,6 +44,7 @@ export const empty = {
   memories: [],
   quests: [],
   running: [],
+  skills: { list: [], drafts: [] },
 };
 export const MODEL_LABELS = {
   'claude-fable-5-2': 'Fable 5.2',

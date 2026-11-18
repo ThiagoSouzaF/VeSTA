@@ -15,7 +15,7 @@ export function SettingsPage({ data, setting, call, notify, fontScale, stepFontS
     <div className="content-page settings-page">
       <div className="page-heading">
         <div>
-          <Chapter n={7} title="PREFERÊNCIAS" />
+          <Chapter n={8} title="PREFERÊNCIAS" />
           <div className="eyebrow">FAÇA DESTE ESPAÇO O SEU</div>
           <h1>Seu lar. Seu estilo.</h1>
           <p>Um lugar confortável para pensar, criar e continuar.</p>

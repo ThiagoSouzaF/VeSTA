@@ -23,6 +23,7 @@ module.exports = {
   memoryServer: mcp.memoryServer,
   questServer: mcp.questServer,
   appServer: mcp.appServer,
+  skillsServer: mcp.skillsServer,
   memoryHint,
   PROFILE_CATEGORIES,
   MEMORY_SERVER: mcp.MEMORY_SERVER,

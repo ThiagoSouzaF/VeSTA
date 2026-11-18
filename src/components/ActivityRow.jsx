@@ -13,6 +13,7 @@ import {
   Wrench,
   Ban,
   Eye,
+  BookOpen,
 } from 'lucide-react';
 const ACTIVITY_ICONS = {
   command: Terminal,
@@ -25,6 +26,7 @@ const ACTIVITY_ICONS = {
   text: MessageSquare,
   tool: Wrench,
   monitor: Eye,
+  skill: BookOpen,
 };
 export function ActivityRow({ a }) {
   const Icon = ACTIVITY_ICONS[a.kind] || Wrench;

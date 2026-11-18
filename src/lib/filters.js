@@ -8,6 +8,7 @@ export function filterChats(chats, quests, { projectId, search }) {
   return chats.filter(
     (c) =>
       !(c.questId && questIds.has(c.questId)) &&
+      !c.skillDraft &&
       (!projectId || c.projectId === projectId) &&
       c.title.toLowerCase().includes(needle)
   );

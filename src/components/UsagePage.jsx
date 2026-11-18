@@ -116,7 +116,7 @@ export function UsagePage({ call, usage }) {
     <div className="content-page usage-page">
       <div className="page-heading">
         <div>
-          <Chapter n={5} title="USO" />
+          <Chapter n={6} title="USO" />
           <div className="eyebrow">QUANTO JÁ USEI</div>
           <h1>Seu uso, à vista.</h1>
           <p>Janelas do plano, tokens e custo, separados por IA.</p>
