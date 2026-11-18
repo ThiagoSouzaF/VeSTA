@@ -58,7 +58,7 @@
   background: var(--ink);
   color: var(--paper);
   font-family: var(--font-mono);
-  font-size: calc(10px * var(--font-scale));
+  font-size: calc(11px * var(--font-scale));
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -157,7 +157,7 @@
   border-color: var(--line-strong);
   font-family: var(--font-mono);
   letter-spacing: 0.04em;
-  font-size: calc(9.5px * var(--font-scale));
+  font-size: calc(11px * var(--font-scale));
 }
 :root[data-look='ink'] .task-summary-line:hover {
   border-color: var(--ink);
@@ -203,7 +203,7 @@
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 10px;
+  font-size: 11px;
   padding: 6px 12px;
 }
 :root[data-look='ink'] .segmented button:hover {
@@ -321,7 +321,7 @@
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
 }
 :root[data-look='ink'] .usage-bar-head span {
@@ -379,7 +379,7 @@
 :root[data-look='ink'] .usage-empty,
 :root[data-look='ink'] .usage-source {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.04em;
 }
 
@@ -392,7 +392,6 @@
   font-size: 11px;
   letter-spacing: 0.02em;
 }
-:root[data-look='ink'] .pulse-dot,
-:root[data-look='ink'] .thinking > span {
+:root[data-look='ink'] .pulse-dot {
   background: var(--ink);
 }

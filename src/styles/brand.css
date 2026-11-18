@@ -19,7 +19,7 @@
   text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .titlebar-brand .wordmark {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.24em;
   color: var(--muted);
 }

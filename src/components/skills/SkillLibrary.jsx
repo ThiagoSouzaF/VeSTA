@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import { FILTERS, costLevel, filterSkills, groupBySource } from '../../lib/skills';
 import { AiBadges } from './SkillBits';
 import { SkillDrawer } from './SkillDrawer';
+import { usePresence, EXIT } from '../../hooks/usePresence';
 
 export function SkillLibrary({ skills, call, setData, notify, selected, setSelected, onAdd, onTry }) {
   const [query, setQuery] = useState('');
@@ -13,6 +14,7 @@ export function SkillLibrary({ skills, call, setData, notify, selected, setSelec
     [skills.list, query, filter]
   );
   const current = skills.list.find((s) => s.name === selected) || null;
+  const [drawn, drawerState] = usePresence(current, EXIT.panel);
   if (!skills.list.length)
     return (
       <div className="skills-empty">
@@ -90,10 +92,11 @@ export function SkillLibrary({ skills, call, setData, notify, selected, setSelec
           </button>
         </div>
       )}
-      {current && (
+      {drawn && (
         <SkillDrawer
-          key={current.name}
-          skill={current}
+          key={drawn.name}
+          state={drawerState}
+          skill={drawn}
           call={call}
           setData={setData}
           notify={notify}

@@ -445,6 +445,8 @@ async function seededPhase() {
       const sec = (id) => page.locator('.usage-provider[data-provider="' + id + '"]');
       const codex = sec('codex');
       assert.equal(await codex.locator('.usage-bar-card').count(), 2);
+      // The percentages count up when the page opens; read them once they land.
+      await codex.locator('.usage-bar-head', { hasText: '42%' }).waitFor();
       const codexText = await codex.innerText();
       assert.match(codexText, /42%/);
       assert.match(codexText, /7%/);

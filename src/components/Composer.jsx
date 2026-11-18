@@ -7,7 +7,8 @@ import { MODES, modeOf } from '../lib/modes';
 import { ArrowUp, Brain, Folder, Square, LoaderCircle, Paperclip } from 'lucide-react';
 import { AttachmentChips } from './AttachmentChips';
 import { action } from '../lib/api';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import ClickSpark from './bits/ClickSpark';
 import { slashMatches } from '../lib/skills';
 import { SlashMenu } from './SlashMenu';
 export function Composer({
@@ -36,6 +37,7 @@ export function Composer({
   onRemoveAttachment,
 }) {
   // "/" + letters: VeSTA's skills that match (Esc hides the menu until the text changes).
+  const spark = useRef(null); // the send button's ink sparks, also fired when Enter sends
   const [slashIndex, setSlashIndex] = useState(0);
   const [slashClosed, setSlashClosed] = useState(false);
   const slash = !running && !slashClosed ? slashMatches(data.skills?.list, input) : null;
@@ -86,7 +88,10 @@ export function Composer({
               // Enter on the menu sends the highlighted skill as it is ("/nome").
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
-                if (!running) send('/' + slash[i].name);
+                if (!running) {
+                  send('/' + slash[i].name);
+                  spark.current?.spark();
+                }
                 return;
               }
             }
@@ -96,7 +101,9 @@ export function Composer({
             }
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
-              if (!running) send();
+              if (running || busy || (!input.trim() && !attachments.length)) return;
+              send();
+              spark.current?.spark();
             }
           }}
           disabled={running}
@@ -180,24 +187,36 @@ export function Composer({
               </span>
             )}
           </div>
-          {running ? (
-            <button
-              className="send-button stop"
-              aria-label="Interromper resposta"
-              onClick={action(() => call('stop', { chatId: active }))}
-            >
-              <Square size={14} fill="currentColor" />
-            </button>
-          ) : (
-            <button
-              className="send-button"
-              aria-label="Enviar mensagem"
-              disabled={(!input.trim() && !attachments.length) || busy}
-              onClick={() => send()}
-            >
-              {busy ? <LoaderCircle size={18} className="spin" /> : <ArrowUp size={19} />}
-            </button>
-          )}
+          <ClickSpark
+            ref={spark}
+            className="send-spark"
+            sparkColor="currentColor"
+            sparkCount={10}
+            sparkRadius={34}
+            sparkSize={12}
+            duration={480}
+            disabled={running}
+            style={{ width: 'auto', height: 'auto' }}
+          >
+            {running ? (
+              <button
+                className="send-button stop"
+                aria-label="Interromper resposta"
+                onClick={action(() => call('stop', { chatId: active }))}
+              >
+                <Square size={14} fill="currentColor" />
+              </button>
+            ) : (
+              <button
+                className="send-button"
+                aria-label="Enviar mensagem"
+                disabled={(!input.trim() && !attachments.length) || busy}
+                onClick={() => send()}
+              >
+                {busy ? <LoaderCircle size={18} className="spin" /> : <ArrowUp size={19} />}
+              </button>
+            )}
+          </ClickSpark>
         </div>
       </div>
       <div className="composer-footnote">

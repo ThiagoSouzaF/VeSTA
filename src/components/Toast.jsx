@@ -1,9 +1,12 @@
 import { AlertCircle } from 'lucide-react';
-export function Toast({ toast }) {
+// `state` is "closing" while it leaves (usePresence), so motion.css can play the exit.
+export function Toast({ toast, state }) {
   return (
-    <div className="toast">
+    <div className="toast" data-state={state} role="status">
       <AlertCircle size={16} />
-      {toast}
+      <span key={toast} className="t-swap">
+        {toast}
+      </span>
     </div>
   );
 }

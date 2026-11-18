@@ -4,6 +4,7 @@ import { Chapter } from './Chapter';
 import { action } from '../lib/api';
 import { formatDate } from '../lib/format';
 import { filterChats } from '../lib/filters';
+import { TabInk } from './TabInk';
 
 const SORTS = [
   { id: 'recent', label: 'Recentes' },
@@ -64,12 +65,13 @@ export function HomePage({ data, taskCounts, onOpenProject, addProject, onQuickA
           </div>
         </div>
         <div className="home-toolbar">
-          <div className="home-sorts" role="group" aria-label="Ordenar projetos">
+          <div className="home-sorts tab-ink-host" role="group" aria-label="Ordenar projetos">
             {SORTS.map((s) => (
               <button key={s.id} className={sort === s.id ? 'active' : ''} onClick={() => setSort(s.id)}>
                 {s.label}
               </button>
             ))}
+            <TabInk active=".active" value={sort} box />
           </div>
           <label className="search-field">
             <Search size={14} />

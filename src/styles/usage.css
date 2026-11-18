@@ -45,7 +45,7 @@
   display: block;
   margin-top: 8px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .usage-note {
   margin-bottom: 24px;
@@ -110,7 +110,7 @@
 }
 .usage-provider-head small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .usage-chip {
   margin-left: 4px;
@@ -118,13 +118,13 @@
   border-radius: 999px;
   background: var(--accent-bg);
   color: var(--accent);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: capitalize;
 }
 .usage-source {
   display: block;
   color: var(--faint);
-  font-size: 10px;
+  font-size: 11px;
   margin-bottom: 12px;
 }
 .usage-empty {

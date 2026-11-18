@@ -43,7 +43,7 @@
   align-items: center;
   gap: 10px;
   color: var(--muted);
-  font-size: calc(9px * var(--font-scale));
+  font-size: calc(11px * var(--font-scale));
   min-width: 0;
 }
 .composer-provider {

@@ -10,6 +10,7 @@ import './styles.css';
 import '../../src/styles/theme-ink.css';
 import '../../src/styles/theme-ink-shared.css';
 import './theme-ink.css';
+import '../../src/styles/motion.css';
 
 createRoot(document.getElementById('root')).render(<App />);
 // Installable and fast to reopen; the service worker only exists in secure contexts (HTTPS or localhost).

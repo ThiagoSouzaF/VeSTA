@@ -52,7 +52,7 @@
   border-bottom: 1px solid var(--border);
 }
 :root[data-look='ink'] .titlebar-caption {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--faint);
 }
 :root[data-look='ink'] .titlebar-caption::before {
@@ -122,7 +122,7 @@
   color: var(--ink);
 }
 :root[data-look='ink'] .sidebar-section {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--muted);
 }
@@ -188,7 +188,7 @@
   background: color-mix(in srgb, var(--paper) 55%, transparent);
 }
 :root[data-look='ink'] .breadcrumb {
-  font-size: 10px;
+  font-size: 11px;
 }
 :root[data-look='ink'] .breadcrumb strong {
   font-weight: 700;
@@ -208,7 +208,7 @@
   padding: 4px 12px 4px 9px;
   background: var(--ink);
   color: var(--paper);
-  font: 700 10px/1 var(--font-mono);
+  font: 700 11px/1 var(--font-mono);
   letter-spacing: 0.1em;
   clip-path: var(--chamfer-sm);
 }
@@ -275,7 +275,7 @@
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 10px;
+  font-size: 11px;
 }
 :root[data-look='ink'] .secondary-button:hover {
   border-color: var(--ink);
@@ -351,7 +351,7 @@
   text-transform: uppercase;
 }
 :root[data-look='ink'] .field-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--muted);
 }
@@ -405,7 +405,7 @@
 }
 :root[data-look='ink'] .accent-ink-name {
   align-self: center;
-  font: 700 10px var(--font-mono);
+  font: 700 11px var(--font-mono);
   letter-spacing: 0.12em;
 }
 :root[data-look='ink'] .theme-preview.ink {
@@ -719,7 +719,7 @@
   color: var(--ink);
 }
 :root[data-look='ink'] .composer-footnote {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 /* ---- context panel ---- */
@@ -729,11 +729,11 @@
 }
 :root[data-look='ink'] .context-title {
   font-weight: 700;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ink);
 }
 :root[data-look='ink'] .context-label {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 :root[data-look='ink'] .context-label::before {
@@ -911,7 +911,7 @@
   border-color: var(--border);
 }
 :root[data-look='ink'] .tabs button {
-  font-size: 10px;
+  font-size: 11px;
   border: 1px solid transparent;
 }
 :root[data-look='ink'] .tabs button:hover {
@@ -998,7 +998,7 @@
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 8px 2px 6px;
 }
 :root[data-look='ink'] .quest-status.running,
@@ -1043,7 +1043,7 @@
   border-color: var(--border);
 }
 :root[data-look='ink'] .quest-col h3 {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--ink);
   border-bottom: 1px solid var(--border);
@@ -1093,7 +1093,7 @@
   border: 1px solid var(--line-strong);
   color: var(--muted);
   padding: 0 6px;
-  font-size: 10px;
+  font-size: 11px;
 }
 :root[data-look='ink'] .step-link {
   color: var(--ink);
@@ -1129,7 +1129,7 @@
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-size: 10px;
+  font-size: 11px;
 }
 :root[data-look='ink'] .dep-chip.on {
   background: var(--ink);
@@ -1362,7 +1362,7 @@
 }
 :root[data-look='ink'] .settings-index button {
   border-radius: 0;
-  font: 700 10px var(--font-mono);
+  font: 700 11px var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -1379,7 +1379,7 @@
   border-radius: 0;
 }
 :root[data-look='ink'] .chat-group-toggle {
-  font: 700 10px var(--font-mono);
+  font: 700 11px var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }

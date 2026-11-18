@@ -21,6 +21,7 @@ import { runningQuests } from './lib/quests';
 import { activityGroups, runningCounts } from './lib/activity';
 import { MascotProvider } from './components/Mascot';
 import { useDocumentTheme } from './hooks/useDocumentTheme';
+import { usePresence, EXIT } from './hooks/usePresence';
 import { useNavShortcuts } from './hooks/useNavShortcuts';
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
 import { filterChats, filterMemories } from './lib/filters';
@@ -47,6 +48,8 @@ export function App() {
     [busy, setBusy] = useState(false);
   const { drafts, setDraft } = useDrafts({ chats: data.chats, loading });
   const { toast, notify } = useToast();
+  const [shownToast, toastState] = usePresence(toast, EXIT.toast);
+  const [shownModal, modalState] = usePresence(modal, EXIT.modal);
   const { pending, addPending, removePending, clearPending } = usePendingAttachments({ chats: data.chats, loading });
   const textarea = useRef();
   const chat = data.chats.find((c) => c.id === active),
@@ -474,11 +477,12 @@ export function App() {
             <PageRouter page={page} loading={loading} props={pageProps} />
           </main>
         </div>
-        {toast && <Toast toast={toast} />}
-        {modal && (
+        {shownToast && <Toast toast={shownToast} state={toastState} />}
+        {shownModal && (
           <Modal
+            state={modalState}
             setModal={setModal}
-            modal={modal}
+            modal={shownModal}
             data={data}
             addProject={addProject}
             integrations={integrations}

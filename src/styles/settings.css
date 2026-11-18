@@ -182,7 +182,7 @@
 }
 .accent-setting > div > span {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-top: 6px;
 }
@@ -228,7 +228,7 @@
   font-size: 12px;
 }
 .setting-row p {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   line-height: 1.8;
   max-width: 630px;
@@ -280,10 +280,10 @@
   font-weight: 500;
 }
 .about > span {
-  font-size: 10px;
+  font-size: 11px;
 }
 .about > p {
-  font-size: 10px;
+  font-size: 11px;
   margin-left: auto;
 }
 .about > .secondary-button {
@@ -305,7 +305,7 @@
 }
 .zoom-setting > div:first-child > span {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-top: 6px;
 }

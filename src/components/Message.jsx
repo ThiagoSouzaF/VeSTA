@@ -1,15 +1,18 @@
 import { memo } from 'react';
 import { ProviderIcon } from './ProviderIcon';
 import { PROVIDERS } from '../lib/constants';
-import { Brain, Copy, AlertCircle, Pin, BellRing, BookOpen } from 'lucide-react';
+import { Brain, AlertCircle, Pin, BellRing, BookOpen } from 'lucide-react';
 import { splitSlash } from '../lib/skills';
 import { Permissions } from './Permissions';
 import { TaskSummary } from './TaskSummary';
 import { Subagents } from './Subagents';
 import { Markdown } from './Markdown';
-import { IconButton } from './IconButton';
-import { action } from '../lib/api';
 import { MessageAttachments } from './MessageAttachments';
+import LatticeLoader from './bits/LatticeLoader';
+import { CopyButton } from './CopyButton';
+
+// The words under a running answer: still connecting, or the AI already started working.
+const thinkingLabel = (m) => (m.activities?.length || m.subagents?.length ? 'Preparando resposta' : 'Conectando à IA');
 // Props are stable between frames (primitives + stable callbacks), so only the message that changed re-renders.
 export const Message = memo(function Message({
   m,
@@ -76,10 +79,17 @@ export const Message = memo(function Message({
           ))}
         {m.status === 'running' && !m.text && (
           <div className="thinking">
-            <span />
-            <span />
-            <span />
-            <small>{m.activities?.length || m.subagents?.length ? 'Preparando resposta' : 'Conectando à IA'}</small>
+            <LatticeLoader
+              label={
+                <span key={thinkingLabel(m)} className="t-swap">
+                  {thinkingLabel(m)}
+                </span>
+              }
+              spokenLabel={thinkingLabel(m)}
+              fontSize={11}
+              cellSize={4}
+              gap={2}
+            />
           </div>
         )}
         {m.error && (
@@ -91,14 +101,7 @@ export const Message = memo(function Message({
         {m.status === 'cancelled' && <small className="muted">Resposta interrompida</small>}
         {m.role === 'assistant' && m.text && m.status !== 'running' && (
           <div className="message-tools">
-            <IconButton
-              icon={Copy}
-              label="Copiar resposta"
-              onClick={action(async () => {
-                await navigator.clipboard.writeText(m.text);
-                notify('Resposta copiada');
-              })}
-            />
+            <CopyButton text={m.text} label="Copiar resposta" onCopied={() => notify('Resposta copiada')} />
             <button
               onClick={() =>
                 setModal({

@@ -17,7 +17,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 10px;
+  font-size: 11px;
   min-width: 0;
 }
 .breadcrumb > span {

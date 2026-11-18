@@ -25,7 +25,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: calc(9px * var(--font-scale));
+  font-size: calc(11px * var(--font-scale));
   color: var(--muted);
   margin-top: 12px;
 }
@@ -102,7 +102,7 @@
   height: 25px;
   border-radius: 7px;
   background: var(--hover);
-  font-size: calc(10px * var(--font-scale));
+  font-size: calc(11px * var(--font-scale));
   color: var(--muted);
 }
 .message-body {

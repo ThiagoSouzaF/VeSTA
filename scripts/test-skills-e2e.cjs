@@ -118,10 +118,18 @@ const step = async (name, fn) => {
     const state = () => page.evaluate(async () => (await window.vesta.call('bootstrap')).state);
     const shot = (name) => page.screenshot({ path: path.join(evidence, name + '.png') });
 
-    await step('Skills is on the rail and starts empty', async () => {
+    await step('Skills is on the rail with /ui-revamp, which comes with VeSTA; removed, it stays out', async () => {
       await page.locator('.rail-item').filter({ hasText: 'Skills' }).click();
       await page.getByRole('heading', { name: 'Todas as IAs sabem.' }).waitFor();
+      await page.locator('.skill-tile[data-skill="ui-revamp"]').waitFor();
+      assert.ok(await page.getByText('Vem com o VeSTA').first().isVisible());
+      const seeded = await state();
+      assert.equal(seeded.bundledSkills['ui-revamp'], 1);
+      await page.locator('.skill-tile[data-skill="ui-revamp"]').click();
+      await page.getByRole('button', { name: 'Remover' }).click();
+      await page.getByRole('button', { name: 'Confirmar remoção' }).click();
       await page.getByText('Nenhuma skill no VeSTA ainda').waitFor();
+      assert.equal((await state()).bundledSkills['ui-revamp'], 1, 'remembered, so it is not given again');
     });
 
     await step('paste → an AI adapts → side-by-side review → save', async () => {

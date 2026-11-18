@@ -5,6 +5,7 @@ import { MemoryModal } from './MemoryModal';
 import { RenameModal } from './RenameModal';
 import { DeleteModal } from './DeleteModal';
 export function Modal({
+  state,
   setModal,
   modal,
   data,
@@ -21,11 +22,17 @@ export function Modal({
   return (
     <div
       className="modal-backdrop"
+      data-state={state}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) setModal(null);
       }}
     >
-      <div className="modal" role="dialog" aria-modal="true">
+      <div
+        className="modal"
+        role={state === 'closing' ? undefined : 'dialog'}
+        aria-modal={state === 'closing' ? undefined : 'true'}
+        aria-hidden={state === 'closing' || undefined}
+      >
         <div className="modal-heading">
           <div>
             <span className="eyebrow">

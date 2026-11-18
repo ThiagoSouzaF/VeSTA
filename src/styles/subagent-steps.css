@@ -1,5 +1,5 @@
 .subagent-now {
-  font-size: calc(9px * var(--font-scale));
+  font-size: calc(11px * var(--font-scale));
   color: var(--faint);
   overflow: hidden;
   text-overflow: ellipsis;

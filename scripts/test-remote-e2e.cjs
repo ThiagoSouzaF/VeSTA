@@ -627,6 +627,8 @@ async function main() {
       await page.locator('.tabbar button', { hasText: 'Uso' }).click();
       await page.waitForSelector('.usage-card');
       assert.ok(await page.getByText('Janela de 5 horas').first().isVisible());
+      // The bars grow from their start when the screen opens; photograph them once they land.
+      await page.waitForFunction(() => !document.getAnimations().some((a) => a.animationName === 't-grow-x'));
       await shot('mobile-usage');
     });
 

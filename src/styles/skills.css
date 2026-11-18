@@ -133,7 +133,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--muted);
-  font: 10px var(--skill-mono);
+  font: 11px var(--skill-mono);
   white-space: nowrap;
 }
 .skill-tag.warn {
@@ -158,7 +158,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
-  font: 700 10px var(--skill-mono);
+  font: 700 11px var(--skill-mono);
 }
 .skill-ai.off {
   opacity: 0.35;
@@ -331,13 +331,6 @@
   border-left: 1px solid var(--border);
   background: var(--side);
   box-shadow: var(--shadow);
-  animation: skill-drawer-in 0.16s ease-out;
-}
-@keyframes skill-drawer-in {
-  from {
-    transform: translateX(24px);
-    opacity: 0;
-  }
 }
 .skill-drawer-head {
   display: flex;
@@ -543,7 +536,7 @@
 .skill-where {
   margin-top: 2px;
   color: var(--faint);
-  font: 10px var(--skill-mono);
+  font: 11px var(--skill-mono);
 }
 
 /* ---- Adicionar ---- */
@@ -771,7 +764,7 @@
 }
 .skills-prow span {
   color: var(--faint);
-  font: 10px var(--skill-mono);
+  font: 11px var(--skill-mono);
 }
 .skills-prow.on {
   border-color: var(--accent);
@@ -843,7 +836,7 @@
   justify-content: space-between;
   padding: 8px 12px 4px;
   color: var(--faint);
-  font: 700 10px var(--font-mono, Consolas, monospace);
+  font: 700 11px var(--font-mono, Consolas, monospace);
   letter-spacing: 0.12em;
 }
 .slash-head span:first-child {
@@ -886,7 +879,7 @@
 .slash-foot {
   border-top: 1px solid var(--border-soft);
   font-family: var(--font-mono, Consolas, monospace);
-  font-size: 10px;
+  font-size: 11px;
 }
 .skill-chip {
   /* Its own line above the text: in Tinta Mangá the text is a speech balloon with a tail on the left. */

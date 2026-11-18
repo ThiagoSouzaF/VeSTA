@@ -26,6 +26,7 @@ import { formatDate } from '../lib/format';
 import { Chapter } from './Chapter';
 import { ProfileList } from './ProfileList';
 import { useEffect, useState } from 'react';
+import { TabInk } from './TabInk';
 export function MemoryPage({
   newMemory,
   data,
@@ -105,7 +106,7 @@ export function MemoryPage({
         </div>
       </div>
       <div className="memory-toolbar">
-        <div className="tabs">
+        <div className="tabs tab-ink-host">
           {[
             ['all', 'Tudo'],
             ['preferences', 'Preferências'],
@@ -117,6 +118,7 @@ export function MemoryPage({
               {label}
             </button>
           ))}
+          <TabInk active=".selected" value={memoryFilter} box />
         </div>
         <label className="search-field">
           <Search size={15} />

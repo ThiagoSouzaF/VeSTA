@@ -28,14 +28,14 @@
 }
 .activity-row strong {
   display: block;
-  font-size: calc(9px * var(--font-scale));
+  font-size: calc(11px * var(--font-scale));
   font-weight: 600;
   color: var(--text);
 }
 .activity-row code {
   display: block;
   color: var(--faint);
-  font-size: calc(9px * var(--font-scale));
+  font-size: calc(11px * var(--font-scale));
   font-family: Consolas, monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;

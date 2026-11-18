@@ -51,7 +51,7 @@
 }
 .mode-menu span {
   display: block;
-  font-size: calc(10px * var(--font-scale));
+  font-size: calc(11px * var(--font-scale));
   color: var(--muted);
   margin-top: 2px;
   line-height: 1.35;
@@ -130,7 +130,7 @@
   gap: 6px;
 }
 .permission-actions small {
-  font-size: calc(9.5px * var(--font-scale));
+  font-size: calc(11px * var(--font-scale));
   color: var(--faint);
   margin-left: 4px;
 }
@@ -142,13 +142,13 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: calc(10.5px * var(--font-scale));
+  font-size: calc(11px * var(--font-scale));
   color: var(--muted);
   padding: 2px 2px;
 }
 .permission-line code {
   font:
-    10.5px 'Cascadia Mono',
+    11px 'Cascadia Mono',
     Consolas,
     monospace;
   color: var(--text);

@@ -10,6 +10,7 @@ const { createQuestMcp } = require('../quests/mcp.cjs');
 const { createAppMcp } = require('../mcp/app.cjs');
 const { createSkillsMcp } = require('../mcp/skills.cjs');
 const { createSkills } = require('../skills/engine.cjs');
+const { seedBundled } = require('../skills/bundled.cjs');
 const { run } = require('../util/proc.cjs');
 const { createAttachmentStore } = require('../attachments/store.cjs');
 const { createRemote } = require('../remote/index.cjs');
@@ -61,6 +62,12 @@ async function openServices(ctx, { electron, bus, methods }) {
     deps: { gh: (args) => run('gh', args, { timeout: 30000 }) },
   });
   ctx.skills.recover();
+  // The skills that ship with VeSTA (electron/skills/bundled) reach the library once; a failure never blocks start.
+  try {
+    seedBundled(ctx.skills.lib, store.state);
+  } catch (e) {
+    console.error('Skills do VeSTA não instaladas:', e.message);
+  }
   ctx.skillsMcp = createSkillsMcp(ctx, { skills: () => ctx.skills });
   bus.subscribe((event) => event.type === 'chat-done' && ctx.skills.onChatDone(event));
   store.save();

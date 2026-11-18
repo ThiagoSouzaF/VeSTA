@@ -47,7 +47,7 @@
 }
 .quest-row-main span,
 .quest-row-progress small {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--faint);
 }
 .quest-row-ais {
@@ -76,7 +76,7 @@
   background: var(--orange);
 }
 .quest-status {
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 8px;
   border-radius: 10px;
   background: var(--hover);
@@ -191,7 +191,7 @@
 .quest-col h3 {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 1.2px;
   text-transform: uppercase;
   color: var(--muted);
@@ -256,7 +256,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 8px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--faint);
   align-items: center;
 }
@@ -275,7 +275,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--faint);
 }
 .step-result {
@@ -297,7 +297,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--accent);
 }
 .step-link:hover {
@@ -312,7 +312,7 @@
 }
 .quest-log h3,
 .quest-summary h3 {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 1.2px;
   text-transform: uppercase;
   color: var(--muted);
@@ -370,7 +370,7 @@
   place-items: center;
   background: var(--accent-bg);
   color: var(--accent);
-  font-size: 10px;
+  font-size: 11px;
   flex: none;
 }
 .plan-step input,
@@ -400,7 +400,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--faint);
@@ -410,14 +410,14 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--faint);
 }
 .dep-chip {
   padding: 3px 9px;
   border-radius: 12px;
   border: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .dep-chip.on {
@@ -516,7 +516,7 @@
 }
 .quest-chat-step small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .quest-chat-step .dot {
   width: 7px;
@@ -548,7 +548,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--faint);

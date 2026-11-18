@@ -8,7 +8,7 @@
   align-items: center;
   gap: 5px;
   font: inherit;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   background: transparent;
   border: 1px solid var(--border-soft);
@@ -49,7 +49,7 @@
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 .model-menu-title {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   color: var(--faint);
   padding: 4px 6px 6px;
@@ -79,7 +79,7 @@
   flex: 1;
 }
 .model-menu > button code {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--faint);
   font-family: Consolas, monospace;
 }
@@ -98,7 +98,7 @@
   padding: 6px 8px;
 }
 .model-menu p {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--faint);
   margin: 6px 6px 2px;
   line-height: 1.4;
@@ -119,7 +119,7 @@
 }
 .model-effort-options button {
   font: inherit;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text);
   background: transparent;
   border: 1px solid var(--border-soft);

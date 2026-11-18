@@ -7,6 +7,7 @@ import { ProviderIcon } from './ProviderIcon';
 import { windowPercent, USAGE_PROVIDERS } from '../lib/usageView';
 import { action } from '../lib/api';
 import { Chapter } from './Chapter';
+import { CountUp } from './bits/CountUp';
 
 function UsageBar({ window: w, now }) {
   const pct = windowPercent(w, now);
@@ -14,7 +15,15 @@ function UsageBar({ window: w, now }) {
     <div className={'usage-bar-card ' + (pct >= 90 ? 'hot' : pct >= 70 ? 'warm' : '')}>
       <div className="usage-bar-head">
         <strong>{w.label}</strong>
-        <span>{w.utilization == null ? '—' : Math.round(w.utilization * 100) + '%'}</span>
+        <span>
+          {w.utilization == null ? (
+            '—'
+          ) : (
+            <>
+              <CountUp to={Math.round(w.utilization * 100)} />%
+            </>
+          )}
+        </span>
       </div>
       <div className="usage-track">
         <div className="usage-fill" style={{ width: (pct || 0) + '%' }} />

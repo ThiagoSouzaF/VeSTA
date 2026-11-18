@@ -1,0 +1,359 @@
+/*
+ * Motion: one scale for every surface that moves (desktop and phone).
+ * Tokens and recipes from transitions.dev (free for use in products; see its LICENSE.txt), hover and press numbers
+ * from TasteSkill's app-screen rules: motion moves transform and opacity only, never width, height or position, it
+ * explains a change (a surface arriving from where it was called) and nothing moves while scrolling.
+ * The ink look (Tinta and Papel) keeps colours snapping like print; only the shape glides.
+ */
+:root {
+  --duration-stagger: 40ms; /* per-item stagger offset */
+  --duration-micro: 80ms; /* tooltip delay, large stagger */
+  --duration-quick: 150ms; /* modal/dropdown close, text swap, tooltip appear */
+  --duration-fast: 250ms; /* icon swap, dropdown/modal open, tabs sliding */
+  --duration-medium: 350ms; /* panel close, toast close */
+  --duration-slow: 400ms; /* panel open, content reveal */
+  --duration-very-slow: 500ms; /* emphasis, badge appear, text reveal */
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: ease-in-out;
+  --ease-out: ease-out;
+  --ease-linear: linear;
+  --ease-bounce: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --distance-micro: 4px;
+  --distance-base: 8px;
+  --distance-medium: 12px;
+  --scale-large: 0.96; /* modal */
+  --scale-medium: 0.97; /* dropdown open */
+  --scale-small: 0.98; /* tooltip */
+  --scale-tiny: 0.99; /* dropdown close */
+  --blur-small: 2px;
+  --blur-medium: 3px;
+  /* TasteSkill: a button steps 1px up, sinks 1px and to .985 when pressed; a tile with a link lifts 2px. */
+  --press-scale: 0.985;
+  --lift: 2px;
+}
+
+/* ---- entrances ---------------------------------------------------------------------------------------------- */
+@keyframes t-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--distance-medium));
+    filter: blur(var(--blur-medium));
+  }
+}
+@keyframes t-settle {
+  from {
+    opacity: 0;
+    transform: translateY(var(--distance-micro));
+  }
+}
+@keyframes t-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes t-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes t-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--scale-large));
+  }
+}
+@keyframes t-modal-out {
+  to {
+    opacity: 0;
+    transform: scale(var(--scale-large));
+  }
+}
+@keyframes t-drop-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--scale-medium)) translateY(var(--drop-from, 4px));
+  }
+}
+@keyframes t-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--panel-from, -8px));
+    filter: blur(var(--blur-small));
+  }
+}
+@keyframes t-panel-out {
+  to {
+    opacity: 0;
+    transform: translateX(var(--panel-from, -8px));
+    filter: blur(var(--blur-small));
+  }
+}
+@keyframes t-swap {
+  from {
+    opacity: 0;
+    transform: translateY(var(--distance-micro));
+    filter: blur(var(--blur-small));
+  }
+}
+@keyframes t-icon-swap {
+  from {
+    opacity: 0;
+    transform: scale(0.25);
+    filter: blur(var(--blur-small));
+  }
+}
+@keyframes t-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+@keyframes t-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@keyframes t-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* Pages: the heading rises line by line (texts reveal), the body settles under it. Screens remount on navigation,
+   so this runs once per visit and never on scroll. */
+:is(.page-heading, .welcome) > * {
+  animation: t-rise var(--duration-very-slow) var(--ease-smooth-out) backwards;
+}
+:is(.page-heading, .welcome) > :nth-child(2) {
+  animation-delay: var(--duration-micro);
+}
+:is(.page-heading, .welcome) > :nth-child(3) {
+  animation-delay: calc(var(--duration-micro) * 2);
+}
+:is(.page-heading, .welcome) > :nth-child(n + 4) {
+  animation-delay: calc(var(--duration-micro) * 3);
+}
+.content-page > :not(.page-heading),
+.home-inner > :not(.page-heading),
+.chat-heading {
+  animation: t-settle var(--duration-slow) var(--ease-smooth-out) calc(var(--duration-micro) * 2) backwards;
+}
+
+/* Surfaces that open from a trigger grow from it (menu dropdown); the composer's menus open upwards. */
+:is(.model-menu, .mode-menu, .slash-menu) {
+  --drop-from: 6px;
+  transform-origin: bottom left;
+  animation: t-drop-in var(--duration-fast) var(--ease-smooth-out);
+}
+.chat-layout > .context-panel {
+  --drop-from: -6px;
+  transform-origin: top right;
+  animation: t-drop-in var(--duration-fast) var(--ease-smooth-out);
+}
+
+/* Modal: scale up on open, a softer and quicker scale down on close (usePresence sets data-state). */
+.modal-backdrop {
+  animation: t-fade var(--duration-fast) var(--ease-out);
+}
+.modal-backdrop > .modal {
+  animation: t-modal-in var(--duration-fast) var(--ease-smooth-out);
+}
+.modal-backdrop[data-state='closing'] {
+  animation: t-fade-out var(--duration-quick) var(--ease-out) forwards;
+}
+.modal-backdrop[data-state='closing'] > .modal {
+  animation: t-modal-out var(--duration-quick) var(--ease-smooth-out) forwards;
+}
+
+/* Panels slide into their region with a cross-blur: the Conversas drawer from the rail, a skill from the right. */
+.conversation-drawer {
+  animation: t-panel-in var(--duration-slow) var(--ease-smooth-out);
+}
+.skill-drawer {
+  --panel-from: 24px;
+  animation: t-panel-in var(--duration-slow) var(--ease-smooth-out);
+}
+.skill-drawer[data-state='closing'] {
+  animation: t-panel-out var(--duration-medium) var(--ease-smooth-out) forwards;
+}
+
+/* Toast: rises with fade and blur, leaves slower than a menu (it carries news). */
+@keyframes t-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, var(--distance-medium)) scale(var(--scale-small));
+    filter: blur(var(--blur-small));
+  }
+}
+@keyframes t-toast-out {
+  to {
+    opacity: 0;
+    transform: translate(-50%, var(--distance-base)) scale(var(--scale-small));
+    filter: blur(var(--blur-small));
+  }
+}
+.toast {
+  animation: t-toast-in var(--duration-slow) var(--ease-smooth-out);
+}
+.toast[data-state='closing'] {
+  animation: t-toast-out var(--duration-medium) var(--ease-smooth-out) forwards;
+}
+
+/* Tooltip on the rail: waits for intent, appears quickly, leaves at once. */
+.rail-label {
+  transition: opacity 0s;
+}
+.rail-item:hover .rail-label,
+.rail-item:focus-visible .rail-label {
+  animation: t-fade var(--duration-quick) var(--ease-out) var(--duration-micro) backwards;
+}
+
+/* Numbers and state words that change in place: a badge pops, a label cross-blurs (text states swap). */
+.t-pop {
+  animation: t-pop var(--duration-very-slow) var(--ease-bounce);
+}
+.t-swap {
+  display: inline-block;
+  animation: t-swap var(--duration-quick) var(--ease-in-out);
+}
+.t-icon-swap {
+  display: inline-flex;
+  animation: t-icon-swap var(--duration-fast) var(--ease-in-out);
+}
+/* A bar fills from its start the first time it is drawn. */
+.usage-fill,
+.progress i {
+  transform-origin: left;
+  animation: t-grow-x var(--duration-very-slow) var(--ease-smooth-out) var(--duration-micro) backwards;
+}
+
+/* Sliding tabs: one ink indicator travels to the chosen option (useTabInk). */
+.tab-ink-host {
+  position: relative;
+}
+.tab-ink {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: var(--ink-w, 0);
+  transform: translateX(var(--ink-x, 0));
+  background: var(--accent);
+  pointer-events: none;
+  transition:
+    transform var(--duration-fast) var(--ease-smooth-out),
+    width var(--duration-fast) var(--ease-smooth-out);
+}
+.tab-ink[data-instant] {
+  transition: none;
+}
+
+/* ---- hover and press (TasteSkill): fine pointers only for hover, press everywhere -------------------------- */
+:root :is(.primary-button, .secondary-button, .danger-button, .send-button, .icon-button) {
+  transition:
+    transform var(--duration-quick) var(--ease-smooth-out),
+    background-color var(--duration-quick) var(--ease-out),
+    border-color var(--duration-quick) var(--ease-out),
+    color var(--duration-quick) var(--ease-out);
+}
+:root[data-look='ink'] :is(.primary-button, .secondary-button, .danger-button, .send-button, .icon-button) {
+  transition: transform var(--duration-quick) var(--ease-smooth-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(.primary-button, .secondary-button, .danger-button):not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+  :is(.project-tile, .skill-tile):not(.add):hover {
+    transform: translateY(calc(var(--lift) * -1));
+  }
+}
+:is(.primary-button, .secondary-button, .danger-button, .send-button, .icon-button):not(:disabled):active {
+  transform: translateY(1px) scale(var(--press-scale));
+  transition-duration: var(--duration-micro);
+}
+:is(.project-tile, .skill-tile) {
+  transition: transform var(--duration-fast) var(--ease-smooth-out);
+}
+:is(.project-tile, .skill-tile):active {
+  transform: translateY(0) scale(var(--press-scale));
+}
+
+/* Figures line up when they change (TasteSkill: aligned figures). */
+:is(.count, .usage-bar-head span, .usage-row, .task-count, .lattice-loader__timer) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced motion: everything is already where it ends, nothing loops. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+/* A surface on its way out no longer takes clicks. */
+[data-state='closing'] {
+  pointer-events: none;
+}
+.skill-drawer-scrim {
+  animation: t-fade var(--duration-fast) var(--ease-out);
+}
+.skill-drawer-scrim[data-state='closing'] {
+  animation: t-fade-out var(--duration-medium) var(--ease-out) forwards;
+}
+/* The row's own "chosen" mark gives way to the travelling ink. */
+.tab-ink-host > button:is([aria-selected='true'], .active, .selected) {
+  border-color: transparent !important;
+  background: transparent !important;
+}
+.tab-ink-host > button {
+  position: relative;
+  z-index: 1;
+}
+.tab-ink.box {
+  top: var(--ink-inset, 0);
+  bottom: var(--ink-inset, 0);
+  height: auto;
+  z-index: 0;
+  background: var(--hover);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+}
+:root[data-look='ink'] .tab-ink {
+  background: var(--ink);
+}
+:root[data-look='ink'] .tab-ink.box {
+  background: transparent;
+  border-color: var(--ink);
+}
+.tabs.tab-ink-host {
+  --ink-inset: 4px;
+}
+/* The send button's sparks (React Bits ClickSpark) draw in the theme's accent: ink on Tinta and Papel. */
+.send-spark {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+/* Disclosure (transitions.dev accordion, without animating height: TasteSkill keeps layout still): what opens
+   settles in under its header and the chevron turns. */
+.task-summary.open > .task-tree,
+.task-detail,
+.task-node > .task-row ~ .task-node {
+  animation: t-settle var(--duration-fast) var(--ease-smooth-out);
+}
+:is(.task-summary-chev, .task-chev svg) {
+  transition: transform var(--duration-fast) var(--ease-smooth-out);
+}
+/* Memória's filter inverts the chosen option on the ink look: the travelling box carries the ink fill. */
+:root[data-look='ink'] .tabs > .tab-ink.box {
+  background: var(--ink);
+  clip-path: var(--chamfer-sm);
+}

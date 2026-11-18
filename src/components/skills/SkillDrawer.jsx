@@ -7,7 +7,7 @@ import { CostBars, ModeSeg, Switch } from './SkillBits';
 
 const fmtDate = (t) => (t ? new Date(t).toLocaleDateString('pt-BR') : '');
 
-export function SkillDrawer({ skill: s, call, setData, notify, onClose, onTry, onUpdate }) {
+export function SkillDrawer({ skill: s, state, call, setData, notify, onClose, onTry, onUpdate }) {
   const [view, setView] = useState(null); // null | 'text' | 'original' | 'edit'
   const [doc, setDoc] = useState(null);
   const [draft, setDraft] = useState('');
@@ -49,8 +49,8 @@ export function SkillDrawer({ skill: s, call, setData, notify, onClose, onTry, o
   const github = s.source?.kind === 'github' && s.source.url;
   return (
     <>
-      <div className="skill-drawer-scrim" onClick={onClose} />
-      <aside className="skill-drawer" aria-label={'Skill ' + s.name} data-skill={s.name}>
+      <div className="skill-drawer-scrim" data-state={state} onClick={onClose} />
+      <aside className="skill-drawer" data-state={state} aria-label={'Skill ' + s.name} data-skill={s.name}>
         <div className="skill-drawer-head">
           <div>
             <div className="skill-origin">

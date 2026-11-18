@@ -7,6 +7,7 @@ import { budget, fmt } from '../../lib/skills';
 import { SkillLibrary } from './SkillLibrary';
 import { NativeSkills } from './NativeSkills';
 import { AddSkill } from './AddSkill';
+import { TabInk } from '../TabInk';
 
 export function SkillsPage({ data, call, setData, notify, integrations, onTry }) {
   const skills = data.skills || { list: [], drafts: [] };
@@ -57,7 +58,7 @@ export function SkillsPage({ data, call, setData, notify, integrations, onTry })
         </span>
         <span>Texto completo: só quando a skill é usada</span>
       </div>
-      <div className="skills-tabs" role="tablist" aria-label="Skills">
+      <div className="skills-tabs tab-ink-host" role="tablist" aria-label="Skills">
         {TABS.map(([id, label, n]) => (
           <button key={id} role="tab" aria-selected={tab === id} data-tab={id} onClick={() => setTab(id)}>
             {id === 'add' && <Plus size={14} />}
@@ -65,6 +66,7 @@ export function SkillsPage({ data, call, setData, notify, integrations, onTry })
             {n !== null && n !== undefined && <span className="skills-n">{n}</span>}
           </button>
         ))}
+        <TabInk active="[aria-selected='true']" value={tab} />
       </div>
       {tab === 'lib' && (
         <SkillLibrary

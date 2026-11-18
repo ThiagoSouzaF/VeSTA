@@ -38,7 +38,11 @@ function RailItem({ icon: Icon, name, hint, active, onClick, count, live, classN
         {hint && <kbd>{hint}</kbd>}
       </span>
       {count > 0 && (
-        <span className={'count' + (live ? ' live' : '')} title={live ? name + ' rodando agora' : undefined}>
+        <span
+          key={count}
+          className={'count t-pop' + (live ? ' live' : '')}
+          title={live ? name + ' rodando agora' : undefined}
+        >
           {count}
         </span>
       )}

@@ -34,7 +34,7 @@
 }
 .backdrop-setting > div:first-child span {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-top: 6px;
 }
@@ -67,7 +67,7 @@
   padding: 6px 4px 0;
 }
 .backdrop-option > span:last-child {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   padding: 0 4px;
   line-height: 1.4;

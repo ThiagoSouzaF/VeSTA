@@ -2,6 +2,7 @@ import { memo, useMemo, useState } from 'react';
 import { ChevronUp, CornerDownRight, LoaderCircle, Square } from 'lucide-react';
 import { chatGroup, dockTasks, canStopTask } from '../lib/activity';
 import { Elapsed, StatusIcon } from './TaskTree';
+import { TabInk } from './TabInk';
 
 const TABS = [
   { id: 'running', label: 'Rodando' },
@@ -77,7 +78,7 @@ export const TaskDock = memo(function TaskDock({ chat, running, following, call 
     <div className={'task-dock' + (open ? ' open' : '')} data-testid="task-dock">
       {open && (
         <div className="task-dock-panel">
-          <div className="task-dock-tabs" role="tablist">
+          <div className="task-dock-tabs tab-ink-host" role="tablist">
             {TABS.map((x) => (
               <button
                 key={x.id}
@@ -89,6 +90,7 @@ export const TaskDock = memo(function TaskDock({ chat, running, following, call 
                 {x.label} · {lists[x.id].length}
               </button>
             ))}
+            <TabInk active="[aria-selected='true']" value={shown} />
           </div>
           <div className="task-dock-list">
             {lists[shown].map((item) => (
