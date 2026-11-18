@@ -28,5 +28,6 @@ App desktop (Electron + React/Vite) que reúne Claude Code, Codex, OpenCode e Dr
    - Rode com `node`: `test-ui-smoke`, `test-remote-e2e`, `test-tree-e2e`, `test-switch-provider`, `test-quest-e2e`, `test-quest-lead-e2e`.
    - Rode com `npx electron`: os de serviço, como `test-memory-agent`, `test-memory-prefs-e2e`, `test-chat-quest-e2e`, `test-drive-e2e`, `test-backup-e2e`.
    - Os E2E com IA real variam: se falhar uma vez, rode de novo antes de concluir que quebrou.
+4. Para provar uma mudança visível no app real (capturas e relatório), use a skill `verify-vesta`.
 
 Código limpo e modular. Testes ligados ao que mudou, sem redundância. Limpe o que o trabalho deixou em disco.
