@@ -9,6 +9,7 @@ import {
   Activity,
   Swords,
   BookOpen,
+  Bot,
 } from 'lucide-react';
 import { Mark } from './Brand';
 import { MascotAvatar, useMascot } from './Mascot';
@@ -17,6 +18,7 @@ import { STATE_LABEL } from '../lib/mascot';
 const PAGES = [
   { id: 'activity', name: 'Atividade', icon: Activity },
   { id: 'quests', name: 'Quests', icon: Swords },
+  { id: 'agents', name: 'Agents', icon: Bot },
   { id: 'memory', name: 'Memória', icon: Brain },
   { id: 'skills', name: 'Skills', icon: BookOpen },
   { id: 'usage', name: 'Uso', icon: BarChart3 },
@@ -51,7 +53,17 @@ function RailItem({ icon: Icon, name, hint, active, onClick, count, live, classN
 }
 
 // The left rail: the mascot (opens Atividade), Início, the Conversas drawer, a new chat and the other screens.
-export function Rail({ page, setPage, drawer, toggleDrawer, openNew, data, taskCounts, questsRunning = 0 }) {
+export function Rail({
+  page,
+  setPage,
+  drawer,
+  toggleDrawer,
+  openNew,
+  data,
+  taskCounts,
+  questsRunning = 0,
+  agentsBadge,
+}) {
   const mascot = useMascot();
   return (
     <nav className="rail" aria-label="Principal">
@@ -96,11 +108,13 @@ export function Rail({ page, setPage, drawer, toggleDrawer, openNew, data, taskC
                 ? data.skills?.list?.filter((s) => s.enabled).length || 0
                 : n.id === 'quests'
                   ? questsRunning
-                  : n.id === 'activity'
-                    ? taskCounts.total
-                    : 0
+                  : n.id === 'agents'
+                    ? agentsBadge?.count || 0
+                    : n.id === 'activity'
+                      ? taskCounts.total
+                      : 0
           }
-          live={n.id !== 'memory' && n.id !== 'skills'}
+          live={n.id === 'agents' ? !!agentsBadge?.live : n.id !== 'memory' && n.id !== 'skills'}
         />
       ))}
       <div className="sidebar-bottom">

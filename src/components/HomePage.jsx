@@ -14,7 +14,7 @@ const SORTS = [
 
 // One tile per project plus the Espaço pessoal: how many chats, when it was last used and what is running now.
 export function projectTiles(data, taskCounts) {
-  const chats = filterChats(data.chats, data.quests, { projectId: '', search: '' });
+  const chats = filterChats(data.chats, data.quests, { projectId: '', search: '' }, data.agents);
   const tile = (id, name, path, project) => {
     const own = chats.filter((c) => (c.projectId || '') === id);
     return {

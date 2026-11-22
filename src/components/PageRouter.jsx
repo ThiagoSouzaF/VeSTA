@@ -5,6 +5,7 @@ import { ActivityPage } from './ActivityPage';
 import { QuestsPage } from './QuestsPage';
 import { MemoryPage } from './MemoryPage';
 import { SkillsPage } from './skills/SkillsPage';
+import { AgentsPage } from './agents/AgentsPage';
 import { UsagePage } from './UsagePage';
 import { ConnectionsPage } from './ConnectionsPage';
 import { AboutPage } from './AboutPage';
@@ -32,6 +33,8 @@ export function PageRouter({ page, loading, props }) {
       return <MemoryPage {...props.memory} />;
     case 'skills':
       return <SkillsPage {...props.skills} />;
+    case 'agents':
+      return <AgentsPage {...props.agents} />;
     case 'usage':
       return <UsagePage {...props.usage} />;
     case 'connections':

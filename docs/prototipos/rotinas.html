@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="ink">
+<head>
+<meta charset="utf-8" />
+<title>VeSTA · protótipo das Rotinas</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/400.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/600.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/700.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-mono/400.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-mono/700.css" />
+<style>
+/* Protótipo estático: só HTML/CSS/JS, nada do app. Visual Tinta Mangá, com o Papel para comparar. */
+:root {
+  --bg: #000; --side: #0a0a0c; --surface: #121214; --hover: #18181b;
+  --border: #27272a; --line: #52525b;
+  --text: #e4e4e7; --muted: #a1a1aa; --faint: #8b8b94;
+  --ink: #fff; --on-ink: #000;
+  --body: 'Space Grotesk', 'Segoe UI', sans-serif; --mono: 'Space Mono', Consolas, monospace;
+  --dots: radial-gradient(circle, rgb(255 255 255 / .06) 1px, transparent 1.2px) 0 0 / 8px 8px;
+  --chamfer: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  --chamfer-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: dark;
+}
+:root[data-theme='paper'] {
+  --bg: #f3f0e8; --side: #ebe7dc; --surface: #fbfaf6; --hover: #e4dfd2;
+  --border: #cfc9ba; --line: #8a8475;
+  --text: #17150f; --muted: #57524a; --faint: #6b665b;
+  --ink: #111; --on-ink: #fbfaf6;
+  --dots: radial-gradient(circle, rgb(0 0 0 / .07) 1px, transparent 1.2px) 0 0 / 8px 8px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--body); display: flex; flex-direction: column; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+input, textarea, select { font: inherit; color: inherit; }
+svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: square; }
+.mono { font-family: var(--mono); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---------- barra do protótipo (não faz parte do app) ---------- */
+.proto { display: flex; gap: 6px; align-items: center; padding: 8px 12px; border-bottom: 1px dashed var(--line); background: var(--side); flex-wrap: wrap; }
+.proto b { font: 700 11px var(--mono); letter-spacing: .12em; margin-right: 8px; background: var(--ink); color: var(--on-ink); padding: 2px 6px; }
+.proto button { font: 12px var(--mono); padding: 5px 10px; border: 1px solid var(--border); color: var(--muted); }
+.proto button.on { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.proto .sep { width: 1px; height: 22px; background: var(--border); margin: 0 6px; }
+.proto .note { flex: 1 1 320px; color: var(--faint); font-size: 12px; margin-left: 8px; min-width: 240px; }
+
+/* ---------- moldura ---------- */
+.app { flex: 1; display: flex; min-height: 0; position: relative; overflow: hidden; }
+.rail { width: 60px; flex: none; background: var(--side); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; }
+.avatar { width: 36px; height: 36px; border: 1px solid var(--line); background: #fff url('../../assets/mascot/state-idle.webp') center / cover; clip-path: var(--chamfer-sm); margin-bottom: 10px; }
+.rail .sep { width: 24px; height: 1px; background: var(--border); margin: 6px 0; }
+.rail .push { margin-top: auto; }
+.icon-btn { width: 34px; height: 34px; display: grid; place-items: center; color: var(--muted); border: 1px solid transparent; position: relative; }
+.icon-btn:hover { color: var(--text); background: var(--hover); border-color: var(--border); }
+.icon-btn.on { color: var(--on-ink); background: var(--ink); }
+.icon-btn[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); background: var(--ink); color: var(--on-ink); font: 11px var(--mono); padding: 3px 7px; white-space: nowrap; z-index: 30; }
+.icon-btn .badge { position: absolute; top: -4px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px; font: 700 10px/13px var(--mono); background: var(--ink); color: var(--on-ink); border: 1px solid var(--bg); text-align: center; }
+.icon-btn .new { position: absolute; top: -5px; right: -11px; font: 700 8px var(--mono); background: var(--ink); color: var(--on-ink); padding: 0 3px; border: 1px solid var(--bg); }
+
+.page { flex: 1; overflow: auto; background: var(--dots), var(--bg); }
+.page-in { max-width: 1160px; margin: 0 auto; padding: 36px 40px 56px; }
+.screen { display: none; }
+.screen.on { display: block; animation: settle .4s var(--ease); }
+@keyframes settle { from { opacity: 0; transform: translateY(4px); } }
+.chapter { display: inline-block; font: 700 11px var(--mono); letter-spacing: .1em; background: var(--ink); color: var(--on-ink); padding: 2px 8px; clip-path: var(--chamfer-sm); }
+h1 { font: 700 38px/1.05 var(--body); letter-spacing: -.03em; margin: 12px 0 8px; }
+h2 { font: 700 20px/1.2 var(--body); letter-spacing: -.02em; }
+h3 { font: 700 11px var(--mono); letter-spacing: .1em; color: var(--faint); margin: 0 0 8px; }
+.sub { color: var(--muted); max-width: 720px; }
+.head { display: flex; align-items: flex-end; gap: 16px; }
+.head .right { margin-left: auto; }
+
+.btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border: 1px solid var(--border); font: 600 13px var(--body); color: var(--text); background: var(--surface); transition: transform .15s var(--ease); }
+.btn:hover { border-color: var(--ink); transform: translateY(-1px); }
+.btn:active { transform: translateY(1px) scale(.985); }
+.btn.primary { background: var(--ink); color: var(--on-ink); border-color: var(--ink); clip-path: var(--chamfer-sm); }
+.btn.ghost { background: none; }
+.lnk { font: 11px var(--mono); text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
+.tag { display: inline-flex; align-items: center; gap: 5px; font: 11px var(--mono); padding: 1px 6px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+.tag.solid { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.tag.warn { border-color: var(--ink); color: var(--text); border-style: dashed; }
+.sw { width: 30px; height: 16px; border: 1px solid var(--line); position: relative; flex: none; }
+.sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; background: var(--line); transition: left .15s var(--ease); }
+.sw[aria-checked='true'] { background: var(--ink); border-color: var(--ink); }
+.sw[aria-checked='true']::after { left: 16px; background: var(--on-ink); }
+.strip { display: flex; flex-wrap: wrap; gap: 18px; margin: 22px 0 18px; padding: 10px 14px; border: 1px solid var(--border); background: var(--side); clip-path: var(--chamfer-sm); font-size: 13px; color: var(--muted); align-items: center; }
+.strip b { color: var(--text); font: 700 13px var(--mono); font-variant-numeric: tabular-nums; }
+
+/* estado de uma execução: ok, precisa de você, falhou, rodando */
+.st { display: inline-flex; align-items: center; gap: 6px; font: 11px var(--mono); white-space: nowrap; }
+.st::before { content: ''; width: 8px; height: 8px; border: 1px solid var(--ink); }
+.st.ok::before { background: var(--ink); }
+.st.need::before { background: var(--ink); clip-path: polygon(50% 0, 100% 100%, 0 100%); border: 0; width: 10px; height: 9px; }
+.st.fail::before { background: repeating-linear-gradient(45deg, var(--ink) 0 2px, transparent 2px 4px); }
+.st.run::before { border-radius: 50%; border-style: dashed; animation: spin 1.2s linear infinite; }
+.st.off::before { border-style: dashed; border-color: var(--line); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- 1 · lista + diário ---------- */
+.routines { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 18px; align-items: start; }
+.r-list { display: flex; flex-direction: column; gap: 8px; }
+.r-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 14px; padding: 14px 16px; border: 1px solid var(--border); background: var(--surface); text-align: left; width: 100%; transition: transform .25s var(--ease), border-color .15s; }
+.r-card:hover { transform: translateY(-2px); border-color: var(--line); }
+.r-card.on { border-color: var(--ink); box-shadow: inset 3px 0 0 var(--ink); }
+.r-card.paused { opacity: .55; }
+.r-name { font: 700 15px var(--body); }
+.r-when { font: 12px var(--mono); color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.r-meta { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.r-meta .next { margin-left: auto; font: 11px var(--mono); color: var(--faint); }
+.detail { position: sticky; top: 0; border: 1px solid var(--line); background: var(--side); clip-path: var(--chamfer); padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.detail .what { font-size: 14px; border-left: 2px solid var(--ink); padding: 2px 0 2px 10px; }
+.dl { display: grid; grid-template-columns: 100px 1fr; gap: 7px 12px; font-size: 13px; }
+.dl dt { color: var(--faint); font: 11px var(--mono); padding-top: 2px; }
+.runs { display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+.run { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; align-items: start; }
+.run time { font: 11px var(--mono); color: var(--faint); padding-top: 2px; font-variant-numeric: tabular-nums; }
+.run .sum { color: var(--text); }
+.run .sum small { display: block; color: var(--muted); font-size: 12px; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ---------- 2 · nova rotina ---------- */
+.builder { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 22px; align-items: start; }
+.sentence { font: 600 24px/1.9 var(--body); letter-spacing: -.01em; padding: 22px 24px; border: 1px solid var(--line); background: var(--surface); box-shadow: inset 3px 0 0 var(--ink); }
+.slot { position: relative; display: inline-block; }
+.slot > button { font: inherit; padding: 0 8px; border-bottom: 2px solid var(--ink); background: var(--hover); }
+.slot > button:hover { background: var(--ink); color: var(--on-ink); }
+.slot > button::after { content: ' ▾'; font-size: .6em; vertical-align: middle; opacity: .6; }
+.menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 260px; background: var(--side); border: 1px solid var(--ink); padding: 4px; display: none; flex-direction: column; transform-origin: top left; animation: drop .25s var(--ease); }
+.menu.open { display: flex; }
+@keyframes drop { from { opacity: 0; transform: scale(.97) translateY(-4px); } }
+.menu button { text-align: left; font: 13px/1.35 var(--body); padding: 7px 10px; }
+.menu button small { display: block; color: var(--muted); font-size: 11.5px; }
+.menu button:hover, .menu button[aria-selected='true'] { background: var(--ink); color: var(--on-ink); }
+.menu button:hover small, .menu button[aria-selected='true'] small { color: var(--on-ink); opacity: .8; }
+.task-box { margin-top: 16px; }
+.task-box textarea { width: 100%; min-height: 96px; background: var(--surface); border: 1px solid var(--border); padding: 10px 12px; font-size: 14px; outline: 0; resize: vertical; }
+.task-box textarea:focus { border-color: var(--ink); }
+.hint { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+.form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; padding: 20px; border: 1px solid var(--line); background: var(--surface); box-shadow: inset 3px 0 0 var(--ink); }
+.form .full { grid-column: 1 / -1; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label, .field .lbl { font: 700 11px var(--mono); letter-spacing: .08em; color: var(--faint); }
+.field input, .field textarea, .field select { background: var(--bg); border: 1px solid var(--border); padding: 8px 10px; outline: 0; }
+.field textarea { min-height: 80px; resize: vertical; }
+.seg { display: inline-flex; border: 1px solid var(--border); flex-wrap: wrap; }
+.seg button { font: 12px var(--body); padding: 6px 10px; color: var(--muted); }
+.seg button[aria-pressed='true'] { background: var(--ink); color: var(--on-ink); }
+.side-card { border: 1px solid var(--border); background: var(--side); padding: 16px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+.rule { display: flex; gap: 8px; align-items: flex-start; }
+.rule svg { margin-top: 2px; }
+.limits { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; align-items: center; }
+.limits select { background: var(--bg); border: 1px solid var(--border); padding: 4px 6px; font: 12px var(--mono); }
+.foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+
+/* ---------- 3 · precisa de você ---------- */
+.inbox { display: flex; flex-direction: column; gap: 12px; max-width: 860px; }
+.ask { border: 1px solid var(--ink); background: var(--surface); padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 18px; transition: opacity .35s var(--ease), transform .35s var(--ease); }
+.ask.gone { opacity: 0; transform: translateX(12px); }
+.ask .from { font: 11px var(--mono); color: var(--faint); display: flex; gap: 8px; align-items: center; }
+.ask h2 { font-size: 17px; margin-top: 2px; }
+.ask .body { grid-column: 1 / -1; font-size: 13.5px; color: var(--text); }
+.ask pre { grid-column: 1 / -1; font: 12px/1.5 var(--mono); background: var(--bg); border: 1px solid var(--border); padding: 10px 12px; white-space: pre-wrap; color: var(--muted); }
+.ask .actions { grid-column: 1 / -1; }
+.ask .why { grid-column: 1 / -1; font-size: 12px; color: var(--faint); }
+.done-line { color: var(--muted); font-size: 13px; padding: 18px; border: 1px dashed var(--border); text-align: center; }
+
+/* ---------- 4 · início ---------- */
+.away { border: 1px solid var(--line); background: var(--side); clip-path: var(--chamfer); padding: 16px 18px; margin: 22px 0; }
+.away-h { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.away-h .lnk { margin-left: auto; }
+.away ul { list-style: none; padding: 0; display: flex; flex-direction: column; }
+.away li { display: grid; grid-template-columns: 54px 150px minmax(0, 1fr) auto; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px; align-items: center; }
+.away li time { font: 11px var(--mono); color: var(--faint); }
+.away li b { font-weight: 700; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.tile { border: 1px solid var(--border); background: var(--surface); padding: 16px; min-height: 110px; display: flex; flex-direction: column; gap: 6px; }
+.tile b { font-size: 15px; }
+.tile small { color: var(--muted); }
+.tile .tag { align-self: flex-start; margin-top: auto; }
+
+.toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); background: var(--ink); color: var(--on-ink); padding: 8px 14px; font: 12px var(--mono); clip-path: var(--chamfer-sm); opacity: 0; pointer-events: none; transition: opacity .25s var(--ease), transform .35s var(--ease); }
+.toast.on { opacity: 1; transform: translate(-50%, -6px); }
+.why-box { margin-top: 26px; padding: 14px 16px; border: 1px dashed var(--line); font-size: 13px; color: var(--muted); }
+.why-box b { color: var(--text); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; } }
+</style>
+</head>
+<body>
+<div class="proto" role="toolbar" aria-label="Telas do protótipo">
+  <b>PROTÓTIPO</b>
+  <button data-go="list" class="on">1 · Rotinas</button>
+  <button data-go="new">2 · Nova rotina</button>
+  <button data-go="inbox">3 · Precisa de você</button>
+  <button data-go="home">4 · Início</button>
+  <span class="sep"></span>
+  <button data-build="sentence" class="on" title="Só vale para a tela 2">Criar: A · frase</button>
+  <button data-build="form" title="Só vale para a tela 2">Criar: B · formulário</button>
+  <span class="sep"></span>
+  <button id="theme">Tema: Tinta</button>
+  <span class="note" id="note"></span>
+</div>
+
+<div class="app">
+  <nav class="rail" aria-label="Principal">
+    <div class="avatar" title="Vesta"></div>
+    <button class="icon-btn" data-tip="Início" data-go="home"><svg class="i"><use href="#i-grid"/></svg></button>
+    <button class="icon-btn" data-tip="Conversas"><svg class="i"><use href="#i-chat"/></svg></button>
+    <button class="icon-btn" data-tip="Novo chat · Ctrl N"><svg class="i"><use href="#i-plus"/></svg></button>
+    <div class="sep"></div>
+    <button class="icon-btn" data-tip="Atividade"><svg class="i"><use href="#i-activity"/></svg></button>
+    <button class="icon-btn" data-tip="Quests"><svg class="i"><use href="#i-swords"/></svg></button>
+    <button class="icon-btn on" data-tip="Rotinas" data-go="list" id="rail-rot"><svg class="i"><use href="#i-clock"/></svg><span class="badge" id="rail-badge">2</span></button>
+    <button class="icon-btn" data-tip="Memória"><svg class="i"><use href="#i-brain"/></svg></button>
+    <button class="icon-btn" data-tip="Skills"><svg class="i"><use href="#i-book"/></svg></button>
+    <button class="icon-btn" data-tip="Uso"><svg class="i"><use href="#i-chart"/></svg></button>
+    <button class="icon-btn push" data-tip="Preferências"><svg class="i"><use href="#i-settings"/></svg></button>
+  </nav>
+
+  <main class="page">
+    <div class="page-in">
+
+      <!-- =================== 1 · ROTINAS =================== -->
+      <section class="screen on" id="s-list">
+        <div class="head">
+          <div>
+            <span class="chapter">CH_06 // ROTINAS</span>
+            <h1>Trabalham enquanto você não está.</h1>
+            <p class="sub">Uma rotina é um pedido que uma IA cumpre sozinha, na hora marcada ou quando algo acontece, com a memória e as skills do VeSTA. Ela só lê ou trabalha numa cópia; o que sai do seu computador espera o seu sim.</p>
+          </div>
+          <button class="btn primary right" data-go="new"><svg class="i"><use href="#i-plus"/></svg>Nova rotina</button>
+        </div>
+        <div class="strip">
+          <span><b>4</b> ligadas</span>
+          <span><b id="need-n">2</b> esperando você</span>
+          <span>Hoje: <b>5</b> execuções, <b>~6%</b> do limite de 5h do Claude</span>
+          <span style="margin-left:auto">VeSTA na bandeja: <b>sim</b></span>
+        </div>
+        <div class="routines">
+          <div class="r-list" id="r-list"></div>
+          <aside class="detail" id="detail" aria-live="polite"></aside>
+        </div>
+      </section>
+
+      <!-- =================== 2 · NOVA ROTINA =================== -->
+      <section class="screen" id="s-new">
+        <span class="chapter">CH_06 // NOVA ROTINA</span>
+        <h1>O que fazer, quando, e até onde.</h1>
+        <p class="sub">Monte como uma frase. O VeSTA mostra ao lado o que a rotina pode e não pode fazer antes de você ligar.</p>
+        <div class="builder" style="margin-top:22px">
+          <div>
+            <div id="b-sentence">
+              <div class="sentence" id="sentence"></div>
+              <div class="task-box">
+                <h3>O PEDIDO</h3>
+                <textarea id="task">Leia os commits e as issues de ontem, o que ficou pendente na memória deste projeto, e me dê um resumo de 5 linhas com o que fazer primeiro hoje.</textarea>
+                <p class="hint">Pode ser texto ou uma skill: comece com <b class="mono">/</b> (ex.: <span class="mono">/revisar-pr</span>). A rotina recebe a memória do projeto como um chat normal.</p>
+              </div>
+            </div>
+            <div id="b-form" hidden>
+              <div class="form">
+                <div class="field full"><label for="f-name">NOME</label><input id="f-name" value="Bom dia do projeto" /></div>
+                <div class="field full"><label for="f-task">O PEDIDO</label><textarea id="f-task">Leia os commits e as issues de ontem, o que ficou pendente na memória deste projeto, e me dê um resumo de 5 linhas com o que fazer primeiro hoje.</textarea></div>
+                <div class="field"><span class="lbl">QUANDO</span>
+                  <select><option>Em um horário</option><option>Ao abrir o VeSTA</option><option>Quando um arquivo mudar</option><option>Evento no GitHub</option><option>Quando outra rotina terminar</option><option>Só quando eu pedir (celular ou aqui)</option></select>
+                </div>
+                <div class="field"><span class="lbl">HORÁRIO</span><div class="seg" data-seg><button aria-pressed="true">Dias úteis</button><button aria-pressed="false">Todo dia</button><button aria-pressed="false">Semanal</button></div><input value="08:30" style="width:90px" aria-label="Hora" /></div>
+                <div class="field"><span class="lbl">QUEM FAZ</span><select><option>Claude</option><option>ChatGPT (Codex)</option><option>OpenCode</option><option>Drael</option><option>O VeSTA escolhe</option></select></div>
+                <div class="field"><span class="lbl">ONDE</span><select><option>VeSTA</option><option>Seshat</option><option>Mora</option><option>Espaço pessoal</option></select></div>
+                <div class="field full"><span class="lbl">PODE</span><div class="seg" data-seg><button aria-pressed="true">Só ler</button><button aria-pressed="false">Editar numa cópia</button><button aria-pressed="false">Editar direto</button></div></div>
+                <div class="field full"><span class="lbl">ME AVISA</span><div class="seg" data-seg><button aria-pressed="false">Sempre</button><button aria-pressed="true">Só se precisar de mim</button><button aria-pressed="false">Nunca (só o diário)</button></div></div>
+              </div>
+            </div>
+            <div class="foot">
+              <button class="btn ghost" data-go="list">Cancelar</button>
+              <button class="btn" id="try">Testar agora</button>
+              <button class="btn primary" id="create">Ligar a rotina</button>
+            </div>
+          </div>
+
+          <aside class="side-card" aria-label="O que a rotina pode fazer">
+            <h3 style="margin:0">ANTES DE LIGAR</h3>
+            <div class="rule"><svg class="i"><use href="#i-check"/></svg><span id="can-line">Lê o projeto <b>VeSTA</b> e a memória dele. Não edita arquivos.</span></div>
+            <div class="rule"><svg class="i"><use href="#i-lock"/></svg><span>Push, comentário, e-mail ou mensagem: <b>sempre pedem o seu sim</b> em "Precisa de você". Isso não se desliga.</span></div>
+            <div class="rule"><svg class="i"><use href="#i-clock"/></svg><span id="miss-line">VeSTA fechado na hora marcada: roda quando você abrir, uma vez só.</span></div>
+            <h3 style="margin:6px 0 0">LIMITES</h3>
+            <div class="limits">
+              <span>Tempo máximo por execução</span><select><option>10 min</option><option>30 min</option><option>1 h</option></select>
+              <span>Execuções por dia</span><select><option>1</option><option>3</option><option>10</option></select>
+              <span>Para se passar de</span><select><option>10% do limite do plano</option><option>25%</option><option>US$ 1 (API)</option></select>
+            </div>
+            <p class="hint" style="margin:0">Cada execução vira uma conversa no diário da rotina: dá para abrir, continuar ou apagar.</p>
+          </aside>
+        </div>
+      </section>
+
+      <!-- =================== 3 · PRECISA DE VOCÊ =================== -->
+      <section class="screen" id="s-inbox">
+        <span class="chapter">CH_06 // PRECISA DE VOCÊ</span>
+        <h1>Duas decisões esperando.</h1>
+        <p class="sub">O que as rotinas querem fazer fora do seu computador, ou onde travaram. Também chega no celular.</p>
+        <div class="inbox" id="inbox" style="margin-top:22px"></div>
+      </section>
+
+      <!-- =================== 4 · INÍCIO =================== -->
+      <section class="screen" id="s-home">
+        <span class="chapter">CH_01 // INÍCIO</span>
+        <h1>Bom dia, Thiago.</h1>
+        <p class="sub">Projetos em quadrados, como hoje. A faixa nova só aparece quando alguma rotina rodou desde a última vez que você abriu o VeSTA.</p>
+        <div class="away">
+          <div class="away-h"><h3 style="margin:0">ENQUANTO VOCÊ ESTAVA FORA</h3><button class="lnk" data-go="list">Ver rotinas</button></div>
+          <ul>
+            <li><time>08:30</time><b>Bom dia do projeto</b><span>3 commits ontem; comece pelo teste do <span class="mono">quest-lead</span>, que voltou a falhar.</span><span class="st ok">ok</span></li>
+            <li><time>07:12</time><b>Revisar PRs abertos</b><span>Revisou o PR 42 e escreveu 4 comentários. Publicar no GitHub?</span><button class="st need lnk" data-go="inbox">precisa de você</button></li>
+            <li><time>Seg 09:00</time><b>Atualizar dependências</b><span>2 testes vermelhos depois de subir o Electron; nada foi juntado.</span><span class="st fail">falhou</span></li>
+          </ul>
+        </div>
+        <div class="tiles">
+          <div class="tile"><b>VeSTA</b><small>Electron · 3 chats hoje</small><span class="tag">2 rotinas</span></div>
+          <div class="tile"><b>Seshat</b><small>Estudo ativo</small><span class="tag">1 rotina</span></div>
+          <div class="tile"><b>Mora</b><small>Go · produção</small><span class="tag">sem rotina</span></div>
+          <div class="tile"><b>Espaço pessoal</b><small>Conversas soltas</small><span class="tag">1 rotina</span></div>
+        </div>
+      </section>
+
+      <div class="why-box" id="why"></div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol>
+  <symbol id="i-swords" viewBox="0 0 24 24"><path d="M14 4h6v6L9 21l-6-6zM4 14l6 6M16 16l4 4M18 14l-4 4"/></symbol>
+  <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 6 1V5a2 2 0 0 0-3-1zM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-6 1"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><path d="M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l12 8-12 8z"/></symbol>
+</svg>
+
+<script>
+// ---------------- dados de exemplo (inventados, só para o protótipo) ----------------
+const ROUTINES = [
+  { id: 'bomdia', name: 'Bom dia do projeto', when: 'Dias úteis · 08:30', kind: 'horário', ai: 'Claude', where: 'VeSTA', can: 'Só ler', tell: 'Só se precisar de mim', on: true, next: 'amanhã 08:30',
+    what: 'Leia os commits e as issues de ontem e o que ficou pendente na memória; resuma em 5 linhas o que fazer primeiro hoje.',
+    runs: [['08:30', 'ok', 'Resumo do dia', 'Comece pelo teste do quest-lead, que voltou a falhar.'], ['Ontem', 'ok', 'Resumo do dia', '3 commits, nenhuma issue nova.'], ['Qui', 'ok', 'Resumo do dia', 'Release 0.23.0 publicada; nada pendente.']] },
+  { id: 'prs', name: 'Revisar PRs abertos', when: 'Quando abrir um PR · ThiagoSouzaF/VeSTA', kind: 'GitHub', ai: 'ChatGPT (Codex)', where: 'VeSTA', can: 'Só ler', tell: 'Sempre', on: true, next: 'no próximo PR', skill: '/revisar-pr',
+    what: '/revisar-pr no PR que abriu; escreva os comentários, mas publique só com o meu sim.',
+    runs: [['07:12', 'need', 'PR 42 · motion tokens', '4 comentários prontos para publicar.'], ['Ter', 'ok', 'PR 41 · skills bundled', 'Sem comentários: aprovado.']] },
+  { id: 'deps', name: 'Atualizar dependências', when: 'Segundas · 09:00', kind: 'horário', ai: 'OpenCode', where: 'VeSTA', can: 'Editar numa cópia', tell: 'Só se precisar de mim', on: true, next: 'seg 09:00',
+    what: 'Numa branch própria, suba as dependências de patch e minor, rode npm test e o smoke; se tudo passar, peça para juntar.',
+    runs: [['Seg', 'fail', 'Electron 39 → 40', '2 testes vermelhos (test-remote-e2e). Nada foi juntado; a branch ficou para você ver.'], ['Seg -1', 'need', 'Vite 7.2 → 7.3', 'Tudo verde. Juntar na main?']] },
+  { id: 'faxina', name: 'Faxina da memória', when: 'Domingos · 20:00', kind: 'horário', ai: 'Drael', where: 'Espaço pessoal', can: 'Só ler', tell: 'Nunca (só o diário)', on: true, next: 'dom 20:00',
+    what: 'Procure páginas da memória duplicadas ou vencidas e proponha o que unir ou apagar.',
+    runs: [['Dom', 'ok', '3 propostas', 'Duas páginas sobre o Mora repetem a migração para Go.']] },
+  { id: 'seshat', name: 'Revisão espaçada do Seshat', when: 'Só quando eu pedir · celular', kind: 'sob demanda', ai: 'Claude', where: 'Seshat', can: 'Só ler', tell: 'Sempre', on: false, next: 'desligada',
+    what: 'Monte 10 perguntas do que estudei nesta semana, das mais esquecidas para as mais lembradas.',
+    runs: [] },
+];
+const ST = { ok: 'ok', need: 'precisa de você', fail: 'falhou', run: 'rodando', off: 'desligada' };
+const NOTES = {
+  list: 'Tela 1: cada rotina mostra o gatilho, quem faz e o último resultado. Clique numa para ver o diário: cada execução é uma conversa que dá para abrir e continuar.',
+  new: 'Tela 2: compare A (frase com lacunas) e B (formulário). Nos dois, o quadro ao lado diz o que a rotina pode fazer antes de você ligar.',
+  inbox: 'Tela 3: tudo que sai do computador espera aqui (e no celular). Aprove ou recuse; a rotina continua de onde parou.',
+  home: 'Tela 4: no Início, uma faixa com o que rodou enquanto você estava fora. Some quando não há nada novo.',
+};
+const WHY = {
+  list: '<b>Por que isso é um agente:</b> o VeSTA deixa de só responder quando você escreve. Ele tem um <b>gatilho</b> (hora ou evento), um <b>objetivo</b> (o pedido), <b>ferramentas</b> (a IA escolhida, com memória e skills), um <b>limite</b> (permissões, tempo, uso do plano) e um <b>diário</b> do que fez. O Hermes funciona assim; aqui as IAs continuam sendo as suas, com os seus logins.',
+  new: '<b>Decisão para você:</b> A ou B? A frase é mais rápida de ler e deixa claro o que a rotina faz; o formulário mostra tudo de uma vez e é mais fácil de editar depois. Dá para ter os dois (frase para criar, formulário para editar).',
+  inbox: '<b>Regra fixa:</b> uma rotina nunca publica, envia ou junta código sozinha. Ela prepara e pede. Isso segue as regras do VeSTA (sem telemetria, segredos só no cofre, nada sai sem você).',
+  home: '<b>Em aberto:</b> o VeSTA precisa ficar na bandeja para as rotinas rodarem na hora. Fechado, a rotina roda quando você abrir (ou é pulada, se você preferir).',
+};
+
+// ---------------- telas ----------------
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+let screen = 'list';
+function go(name) {
+  screen = name;
+  $$('.screen').forEach((s) => s.classList.toggle('on', s.id === 's-' + name));
+  $$('.proto [data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === name));
+  $$('.rail .icon-btn').forEach((b) => b.classList.toggle('on', b.dataset.go === name || (name !== 'home' && b.id === 'rail-rot')));
+  $('#note').textContent = NOTES[name];
+  $('#why').innerHTML = WHY[name];
+  $('.page').scrollTop = 0;
+}
+document.addEventListener('click', (e) => {
+  const g = e.target.closest('[data-go]');
+  if (g) go(g.dataset.go);
+});
+$('#theme').addEventListener('click', () => {
+  const paper = document.documentElement.dataset.theme !== 'paper';
+  document.documentElement.dataset.theme = paper ? 'paper' : 'ink';
+  $('#theme').textContent = 'Tema: ' + (paper ? 'Papel' : 'Tinta');
+});
+let toastT;
+function toast(text) {
+  const t = $('#toast');
+  t.textContent = text;
+  t.classList.add('on');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('on'), 2200);
+}
+
+// ---------------- 1 · lista + diário ----------------
+let sel = 'prs';
+function lastState(r) {
+  return r.on ? (r.runs[0]?.[1] || 'off') : 'off';
+}
+function renderList() {
+  $('#r-list').innerHTML = ROUTINES.map((r) => `
+    <button class="r-card${r.id === sel ? ' on' : ''}${r.on ? '' : ' paused'}" data-r="${r.id}">
+      <span class="r-name">${r.name}</span>
+      <span class="sw" role="switch" aria-checked="${r.on}" aria-label="Ligar ${r.name}" data-sw="${r.id}"></span>
+      <span class="r-when"><svg class="i" style="width:13px;height:13px"><use href="#i-clock"/></svg>${r.when}</span>
+      <span></span>
+      <span class="r-meta">
+        <span class="tag">${r.ai}</span><span class="tag">${r.where}</span><span class="tag${r.can === 'Só ler' ? '' : ' warn'}">${r.can}</span>
+        ${r.skill ? `<span class="tag solid">${r.skill}</span>` : ''}
+        <span class="st ${lastState(r)}">${ST[lastState(r)]}</span>
+        <span class="next">próxima: ${r.next}</span>
+      </span>
+    </button>`).join('');
+  renderDetail();
+}
+function renderDetail() {
+  const r = ROUTINES.find((x) => x.id === sel);
+  $('#detail').innerHTML = `
+    <div><h3>ROTINA</h3><h2>${r.name}</h2></div>
+    <p class="what">${r.what}</p>
+    <dl class="dl">
+      <dt>QUANDO</dt><dd>${r.when}</dd>
+      <dt>QUEM FAZ</dt><dd>${r.ai}</dd>
+      <dt>ONDE</dt><dd>${r.where}</dd>
+      <dt>PODE</dt><dd>${r.can}${r.can === 'Editar numa cópia' ? ' <small style="color:var(--muted)">(branch própria, pede para juntar)</small>' : ''}</dd>
+      <dt>ME AVISA</dt><dd>${r.tell}</dd>
+    </dl>
+    <div class="actions">
+      <button class="btn primary" data-run="${r.id}"><svg class="i"><use href="#i-play"/></svg>Rodar agora</button>
+      <button class="btn" data-go="new">Editar</button>
+      <button class="btn ghost">Duplicar</button>
+    </div>
+    <div>
+      <h3>DIÁRIO</h3>
+      <div class="runs">${r.runs.length ? r.runs.map(([t, s, title, sum]) => `
+        <div class="run"><time>${t}</time><span class="sum">${title}<small>${sum}</small></span>
+          ${s === 'need' ? `<button class="st need lnk" data-go="inbox">${ST[s]}</button>` : `<span class="st ${s}">${ST[s]}</span>`}</div>`).join('')
+        : '<p class="hint">Ainda não rodou. Ligue a rotina ou use "Rodar agora".</p>'}</div>
+    </div>`;
+}
+$('#r-list').addEventListener('click', (e) => {
+  const sw = e.target.closest('[data-sw]');
+  if (sw) {
+    const r = ROUTINES.find((x) => x.id === sw.dataset.sw);
+    r.on = !r.on;
+    toast(r.name + (r.on ? ' ligada' : ' desligada'));
+    renderList();
+    return;
+  }
+  const c = e.target.closest('[data-r]');
+  if (c) { sel = c.dataset.r; renderList(); }
+});
+$('#detail').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-run]');
+  if (!b) return;
+  const r = ROUTINES.find((x) => x.id === b.dataset.run);
+  r.runs.unshift(['agora', 'run', 'Rodando…', r.ai + ' começou; o diário atualiza sozinho.']);
+  renderList();
+  setTimeout(() => {
+    r.runs[0] = ['agora', 'ok', 'Terminou', 'Resultado pronto. Abra a conversa para ver ou continuar.'];
+    renderList();
+    toast(r.name + ': terminou');
+  }, 2400);
+});
+
+// ---------------- 2 · nova rotina (A · frase) ----------------
+const SLOTS = {
+  when: { label: 'Dias úteis às 08:30', opts: [
+    ['Dias úteis às 08:30', 'Em um horário, todo dia útil'],
+    ['Todo dia às 22:00', 'Em um horário'],
+    ['Ao abrir o VeSTA', 'Uma vez por dia, na primeira abertura'],
+    ['Quando um arquivo mudar', 'Numa pasta do projeto (ex.: docs/)'],
+    ['Quando abrir um PR', 'No repositório do projeto (usa o login do gh)'],
+    ['Quando outra rotina terminar', 'Encadeia: ex. depois de "Atualizar dependências"'],
+    ['Só quando eu pedir', 'Aqui ou pelo celular'],
+  ] },
+  ai: { label: 'o Claude', opts: [['o Claude', 'bom em ler e resumir'], ['o ChatGPT (Codex)', 'usa o limite do plano'], ['o OpenCode', 'por token na API'], ['o Drael', 'só consulta'], ['o VeSTA escolhe', 'pela tarefa e pelo uso de cada plano']] },
+  where: { label: 'VeSTA', opts: [['VeSTA', 'projeto'], ['Seshat', 'projeto'], ['Mora', 'projeto'], ['Espaço pessoal', 'sem pasta']] },
+  can: { label: 'só lendo', opts: [['só lendo', 'não edita nada'], ['numa cópia', 'branch própria; pede para juntar'], ['editando direto', 'na pasta do projeto; cuidado']] },
+  tell: { label: 'só se precisar de mim', opts: [['sempre', 'no Início e no celular'], ['só se precisar de mim', 'aprovação, falha ou dúvida'], ['nunca', 'fica só no diário']] },
+};
+const pick = { when: SLOTS.when.label, ai: SLOTS.ai.label, where: SLOTS.where.label, can: SLOTS.can.label, tell: SLOTS.tell.label };
+const slot = (k) => `<span class="slot"><button data-slot="${k}" aria-haspopup="listbox">${pick[k]}</button><span class="menu" role="listbox" data-menu="${k}">${SLOTS[k].opts.map(([v, s]) => `<button role="option" aria-selected="${v === pick[k]}" data-val="${v}">${v}<small>${s}</small></button>`).join('')}</span></span>`;
+function renderSentence() {
+  $('#sentence').innerHTML = `${slot('when')}, ${slot('ai')} trabalha em ${slot('where')}, ${slot('can')}, e me avisa ${slot('tell')}.`;
+  const can = { 'só lendo': 'Lê o projeto <b>' + pick.where + '</b> e a memória dele. Não edita arquivos.', 'numa cópia': 'Edita numa <b>branch própria</b> de ' + pick.where + ', roda os testes e pede para juntar.', 'editando direto': '<b>Edita arquivos</b> de ' + pick.where + ' direto. Use só em rotinas que você já testou.' };
+  $('#can-line').innerHTML = can[pick.can];
+  $('#miss-line').textContent = /PR|arquivo|outra rotina|pedir/.test(pick.when)
+    ? 'Evento com o VeSTA fechado: entra na fila e roda quando você abrir.'
+    : 'VeSTA fechado na hora marcada: roda quando você abrir, uma vez só.';
+}
+$('#sentence').addEventListener('click', (e) => {
+  const opt = e.target.closest('[data-val]');
+  if (opt) {
+    pick[opt.closest('[data-menu]').dataset.menu] = opt.dataset.val;
+    renderSentence();
+    return;
+  }
+  const b = e.target.closest('[data-slot]');
+  if (!b) return;
+  const m = $(`[data-menu="${b.dataset.slot}"]`);
+  const open = !m.classList.contains('open');
+  $$('.menu.open').forEach((x) => x.classList.remove('open'));
+  m.classList.toggle('open', open);
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('.slot')) $$('.menu.open').forEach((x) => x.classList.remove('open')); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $$('.menu.open').forEach((x) => x.classList.remove('open')); });
+$$('[data-seg]').forEach((g) => g.addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  $$('button', g).forEach((x) => x.setAttribute('aria-pressed', x === b));
+}));
+$$('[data-build]').forEach((b) => b.addEventListener('click', () => {
+  $$('[data-build]').forEach((x) => x.classList.toggle('on', x === b));
+  $('#b-sentence').hidden = b.dataset.build !== 'sentence';
+  $('#b-form').hidden = b.dataset.build !== 'form';
+  go('new');
+}));
+$('#try').addEventListener('click', () => toast('Rodando uma vez, sem ligar: o resultado abre como conversa'));
+$('#create').addEventListener('click', () => { toast('Rotina ligada · próxima: amanhã 08:30'); go('list'); });
+
+// ---------------- 3 · precisa de você ----------------
+const ASKS = [
+  { id: 'a1', from: 'Revisar PRs abertos · ChatGPT (Codex) · 07:12', title: 'Publicar 4 comentários no PR 42?', body: 'A revisão terminou. Os comentários ficam no GitHub com o seu usuário.', pre: 'motion.css:142  "--duration-micro * 2" repete o atraso de .content-page; extrair para um token?\nuseTabInk.js:31  o ResizeObserver não é desligado ao desmontar.\n… e mais 2', why: 'Pede o seu sim porque publica fora do computador.', yes: 'Publicar', no: 'Não publicar' },
+  { id: 'a2', from: 'Atualizar dependências · OpenCode · seg 09:41', title: 'Juntar "Vite 7.2 → 7.3" na main?', body: 'Branch rotina/deps-vite: npm test, format:check, build e smoke passaram.', pre: 'package.json       vite ^7.2.4 → ^7.3.1\npackage-lock.json  37 linhas', why: 'Pede o seu sim porque muda a main.', yes: 'Juntar', no: 'Deixar a branch' },
+];
+function renderInbox() {
+  const n = ASKS.length;
+  $('#need-n').textContent = n;
+  $('#rail-badge').textContent = n;
+  $('#rail-badge').hidden = !n;
+  $('#s-inbox h1').textContent = n ? (n === 1 ? 'Uma decisão esperando.' : 'Duas decisões esperando.') : 'Nada esperando você.';
+  $('#inbox').innerHTML = n ? ASKS.map((a) => `
+    <article class="ask" data-ask="${a.id}">
+      <div><div class="from"><span class="st need"></span>${a.from}</div><h2>${a.title}</h2></div>
+      <button class="lnk" style="align-self:start">Abrir a conversa</button>
+      <p class="body">${a.body}</p>
+      <pre>${a.pre}</pre>
+      <div class="actions"><button class="btn primary" data-yes="${a.id}">${a.yes}</button><button class="btn" data-no="${a.id}">${a.no}</button><button class="btn ghost">Responder…</button></div>
+      <p class="why">${a.why}</p>
+    </article>`).join('') : '<p class="done-line">Tudo decidido. As rotinas seguem sozinhas.</p>';
+}
+$('#inbox').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-yes],[data-no]');
+  if (!b) return;
+  const id = b.dataset.yes || b.dataset.no;
+  const a = ASKS.find((x) => x.id === id);
+  const card = $(`[data-ask="${id}"]`);
+  card.classList.add('gone');
+  setTimeout(() => {
+    ASKS.splice(ASKS.indexOf(a), 1);
+    renderInbox();
+    toast((b.dataset.yes ? a.yes : a.no) + ': a rotina continua');
+  }, 350);
+});
+
+renderList();
+renderSentence();
+renderInbox();
+go('list');
+</script>
+</body>
+</html>

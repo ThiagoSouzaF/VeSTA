@@ -1,0 +1,960 @@
+/* Agent Mode: the numbers strip, today's lanes, the agent cards and the drawer (diary + form).
+ * Built on the theme tokens; the ink look (Tinta Mangá and Papel) adds chamfers, hard shadows and ink fills at the end.
+ * Status reads by shape as well as colour: running pulses, waiting is a triangle, failed is struck through. */
+.agents-page {
+  --skill-mono: var(--font-mono, Consolas, 'Cascadia Mono', monospace);
+  --skill-radius: 8px;
+  --agent-ok: var(--green);
+  --agent-run: var(--accent);
+  --agent-wait: var(--orange);
+  --agent-fail: var(--danger);
+  position: relative;
+}
+
+/* ---- numbers ---- */
+.agents-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  align-items: center;
+  margin: -14px 0 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--skill-radius);
+  background: var(--side);
+  color: var(--muted);
+  font-size: 12px;
+}
+.agents-strip b {
+  color: var(--text);
+  font: 700 13px var(--skill-mono);
+  font-variant-numeric: tabular-nums;
+}
+.agents-strip .live b {
+  color: var(--agent-run);
+}
+.agents-strip .attention b {
+  color: var(--agent-wait);
+}
+.agents-next {
+  margin-left: auto;
+}
+
+/* ---- today ---- */
+.agent-timeline {
+  margin-bottom: 20px;
+  padding: 12px 14px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--skill-radius);
+  background: var(--surface);
+}
+.agent-timeline > header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.agent-timeline > header b {
+  color: var(--text);
+  font: 700 11px var(--skill-mono);
+  letter-spacing: 0.12em;
+}
+.agent-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 11px;
+}
+.agent-legend i {
+  margin-left: 8px;
+}
+.agent-lanes {
+  position: relative;
+  --label: 150px;
+}
+.agent-ruler {
+  display: grid;
+  grid-template-columns: var(--label) 1fr;
+  height: 16px;
+}
+.agent-ruler > div {
+  position: relative;
+}
+.agent-ruler > div span {
+  position: absolute;
+  transform: translateX(-50%);
+  color: var(--faint);
+  font: 11px var(--skill-mono);
+  font-variant-numeric: tabular-nums;
+}
+.agent-ruler > div span:first-child {
+  transform: none;
+}
+.agent-ruler > div span:last-child {
+  transform: translateX(-100%);
+}
+.agent-lane {
+  display: grid;
+  grid-template-columns: var(--label) 1fr;
+  align-items: center;
+  width: 100%;
+  min-height: 30px;
+  padding: 0;
+  border-top: 1px solid var(--border-soft);
+  text-align: left;
+}
+.agent-lane:hover,
+.agent-lane.selected {
+  background: var(--hover);
+}
+.agent-lane.off {
+  opacity: 0.5;
+}
+.agent-lane-name {
+  overflow: hidden;
+  padding: 0 10px 0 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.agent-track {
+  position: relative;
+  height: 30px;
+}
+.agent-track small {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  transform: translateY(-50%);
+  color: var(--faint);
+  font-size: 11px;
+}
+.agent-hour {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--border-soft);
+}
+.agent-mark,
+.agent-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--agent-ok);
+  border-radius: 50%;
+  background: var(--agent-ok);
+}
+.agent-mark {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transition: transform var(--duration-quick, 150ms) var(--ease-smooth-out, ease-out);
+}
+.agent-lane:hover .agent-mark {
+  transform: translate(-50%, -50%) scale(1.25);
+}
+:is(.agent-mark, .agent-legend i).error {
+  border-color: var(--agent-fail);
+  background: repeating-linear-gradient(45deg, var(--agent-fail) 0 2px, transparent 2px 4px);
+}
+:is(.agent-mark, .agent-legend i).planned {
+  border-style: dashed;
+  border-color: var(--muted);
+  background: transparent;
+}
+.agent-mark.running {
+  border-color: var(--agent-run);
+  background: var(--agent-run);
+  animation: agent-pulse 1.4s var(--ease-in-out, ease-in-out) infinite;
+}
+@keyframes agent-pulse {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--agent-run) 25%, transparent);
+  }
+}
+.agent-now {
+  position: absolute;
+  top: 12px;
+  bottom: 0;
+  left: calc(var(--label) + (100% - var(--label)) * var(--now) / 100%);
+  width: 0;
+  border-left: 1.5px solid var(--text);
+  pointer-events: none;
+}
+.agent-now span {
+  position: absolute;
+  top: -12px;
+  left: 4px;
+  font: 700 10px var(--skill-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ---- filters ---- */
+.agents-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.agents-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+.agents-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin-bottom: -1px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.agents-tabs button[aria-selected='true'] {
+  color: var(--text);
+}
+
+/* ---- cards ---- */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
+}
+.agent-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 236px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--skill-radius);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast, 250ms) var(--ease-smooth-out, ease-out),
+    border-color var(--duration-quick, 150ms);
+}
+.agent-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: var(--skill-radius) 0 0 var(--skill-radius);
+  background: transparent;
+}
+.agent-card.running::before {
+  background: var(--agent-run);
+}
+.agent-card.waiting::before {
+  background: var(--agent-wait);
+}
+.agent-card.error::before {
+  background: var(--agent-fail);
+}
+.agent-card.off {
+  opacity: 0.62;
+}
+@media (hover: hover) and (pointer: fine) {
+  .agent-card:hover {
+    transform: translateY(calc(var(--lift, 2px) * -1));
+    border-color: var(--faint);
+  }
+}
+.agent-card.selected {
+  border-color: var(--accent);
+}
+.agent-card > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.agent-card > header .skill-switch {
+  margin-left: auto;
+}
+.agent-new {
+  padding: 0 5px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  font: 700 10px var(--skill-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.agent-card-open {
+  padding: 0;
+  text-align: left;
+}
+.agent-card h3 {
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.agent-who,
+.agent-when {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12.5px;
+}
+.agent-who span {
+  color: var(--muted);
+}
+.agent-when {
+  color: var(--muted);
+}
+.agent-when b {
+  margin-left: auto;
+  color: var(--text);
+  font: 700 11px var(--skill-mono);
+  font-variant-numeric: tabular-nums;
+}
+.agent-last {
+  display: -webkit-box;
+  flex: 1;
+  overflow: hidden;
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--side);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.5;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.agent-last.error {
+  color: var(--agent-fail);
+}
+.agent-card > footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.agent-history {
+  display: inline-flex;
+  gap: 3px;
+  min-width: 60px;
+}
+.agent-history i {
+  width: 6px;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--agent-ok);
+}
+.agent-history i.error {
+  background: repeating-linear-gradient(45deg, var(--agent-fail) 0 2px, transparent 2px 3px);
+  outline: 1px solid var(--agent-fail);
+  outline-offset: -1px;
+}
+.agent-history i.running {
+  background: var(--agent-run);
+  animation: agent-blink 1.2s steps(2) infinite;
+}
+@keyframes agent-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+.agent-traits {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: var(--muted);
+}
+.agent-mode {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: 11px var(--skill-mono);
+  white-space: nowrap;
+}
+.agent-card.add {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 236px;
+  border-style: dashed;
+  background: none;
+  color: var(--muted);
+  font-weight: 600;
+}
+.agent-card.add:hover {
+  color: var(--text);
+}
+
+/* the state word with its mark: running pulses, waiting is a triangle, failed is hatched */
+.agent-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font: 11px var(--skill-mono);
+  white-space: nowrap;
+}
+.agent-status i {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+.agent-status.ok {
+  color: var(--agent-ok);
+}
+.agent-status.ok i {
+  background: currentColor;
+}
+.agent-status.running {
+  color: var(--agent-run);
+}
+.agent-status.running i {
+  background: currentColor;
+  animation: agent-pulse 1.4s ease-in-out infinite;
+  --agent-run: currentColor;
+}
+.agent-status.waiting {
+  color: var(--agent-wait);
+}
+.agent-status.waiting i {
+  width: 10px;
+  border: 0;
+  border-radius: 0;
+  background: currentColor;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.agent-status.error {
+  color: var(--agent-fail);
+}
+.agent-status.error i {
+  border-radius: 1px;
+  background: repeating-linear-gradient(45deg, currentColor 0 2px, transparent 2px 3px);
+}
+.agent-status.off i,
+.agent-status.new i {
+  border-style: dashed;
+}
+
+/* ---- empty ---- */
+.agents-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 26px;
+  border: 1px dashed var(--border);
+  border-radius: var(--skill-radius);
+}
+.agents-empty h2 {
+  font-size: 22px;
+}
+.agents-empty > p {
+  color: var(--muted);
+}
+.agents-templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  width: 100%;
+  margin: 6px 0;
+}
+.agent-template {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--skill-radius);
+  background: var(--surface);
+  text-align: left;
+  transition: transform var(--duration-fast, 250ms) var(--ease-smooth-out, ease-out);
+}
+.agent-template:hover {
+  transform: translateY(-2px);
+  border-color: var(--faint);
+}
+.agent-template span {
+  color: var(--accent);
+  font: 11px var(--skill-mono);
+}
+.agent-template small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.agent-template.blank {
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  background: none;
+}
+.agent-note {
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.agent-empty-line {
+  padding: 14px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---- drawer ---- */
+.agent-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(520px, 100vw);
+  overflow-y: auto;
+  padding: 22px 22px 28px;
+  border-left: 1px solid var(--border);
+  background: var(--side);
+  box-shadow: var(--shadow);
+  --panel-from: 24px;
+  animation: t-panel-in var(--duration-slow, 400ms) var(--ease-smooth-out, ease-out);
+}
+.agent-drawer[data-state='closing'] {
+  animation: t-panel-out var(--duration-medium, 350ms) var(--ease-smooth-out, ease-out) forwards;
+}
+.agent-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.agent-drawer-head > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.agent-drawer-head h2 {
+  font-size: 22px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  word-break: break-word;
+}
+.agent-kicker {
+  color: var(--faint);
+  font: 700 11px var(--skill-mono);
+  letter-spacing: 0.12em;
+}
+.agent-prompt {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.agent-dl {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 9px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+.agent-dl dt {
+  padding-top: 2px;
+  color: var(--faint);
+  font: 11px var(--skill-mono);
+}
+.agent-dl dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+}
+.agent-dl small {
+  color: var(--muted);
+}
+.agent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.agent-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.agent-diary h3 {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: var(--faint);
+  font: 700 11px var(--skill-mono);
+  letter-spacing: 0.12em;
+}
+.agent-diary h3 span {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.agent-diary ol {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.agent-diary ol::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 5px;
+  border-left: 1px dashed var(--border);
+}
+.agent-run-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
+  animation: t-settle var(--duration-fast, 250ms) var(--ease-smooth-out, ease-out);
+}
+.agent-run-dot {
+  width: 11px;
+  height: 11px;
+  margin-top: 4px;
+  border: 1.5px solid var(--agent-ok);
+  border-radius: 50%;
+  background: var(--agent-ok);
+}
+.agent-run-row.error .agent-run-dot {
+  border-color: var(--agent-fail);
+  background: repeating-linear-gradient(45deg, var(--agent-fail) 0 2px, var(--side) 2px 3px);
+}
+.agent-run-row.running .agent-run-dot {
+  border-color: var(--agent-run);
+  background: var(--agent-run);
+  animation: agent-pulse 1.4s ease-in-out infinite;
+}
+.agent-run-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.agent-run-meta b {
+  color: var(--text);
+  font: 700 12px var(--skill-mono);
+}
+.agent-run-meta .agent-status {
+  margin-left: auto;
+}
+.agent-run-row p {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.agent-run-row.error p {
+  color: var(--agent-fail);
+}
+.agent-run-row .text-link {
+  align-self: start;
+  margin-top: 2px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ---- form ---- */
+.agent-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.agent-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.agent-field > label,
+.agent-label {
+  color: var(--faint);
+  font: 700 11px var(--skill-mono);
+  letter-spacing: 0.1em;
+}
+.agent-field input:not([type='checkbox']),
+.agent-field textarea,
+.agent-field select {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.agent-field :is(input, textarea, select):focus {
+  border-color: var(--accent);
+}
+.agent-field textarea {
+  min-height: 110px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.agent-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.agent-row select {
+  flex: 1 1 160px;
+}
+.agent-ais {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.agent-ais button,
+.agent-modes button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  text-align: left;
+  font-size: 12.5px;
+  transition:
+    border-color var(--duration-quick, 150ms),
+    transform var(--duration-quick, 150ms) var(--ease-smooth-out, ease-out);
+}
+.agent-ais button:active,
+.agent-modes button:active {
+  transform: scale(var(--press-scale, 0.985));
+}
+.agent-ais button small {
+  color: var(--faint);
+  font-size: 11px;
+}
+.agent-ais button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.agent-ais button[aria-checked='true'],
+.agent-modes button[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.agent-modes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.agent-modes small {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.agent-seg {
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.agent-seg button {
+  flex: 1 1 auto;
+  padding: 7px 10px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.agent-seg button + button {
+  border-left: 1px solid var(--border);
+}
+.agent-seg button[aria-checked='true'] {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+.agent-days {
+  display: flex;
+  gap: 4px;
+}
+.agent-days button {
+  width: 42px;
+  padding: 6px 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font: 11px var(--skill-mono);
+}
+.agent-days button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--text);
+}
+.agent-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.agent-preview {
+  margin-left: auto;
+  color: var(--text);
+  font: 12px var(--skill-mono);
+}
+.agent-toggles {
+  display: grid;
+  gap: 6px;
+}
+.agent-toggle {
+  display: grid;
+  grid-template-columns: 16px 16px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.agent-toggle svg {
+  margin-top: 2px;
+  color: var(--muted);
+}
+.agent-toggle span {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+.agent-toggle small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.agent-form-foot {
+  position: sticky;
+  bottom: -28px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin: 0 -22px -28px;
+  padding: 12px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--side);
+}
+.agent-form-foot .left {
+  margin-right: auto;
+}
+
+@media (max-width: 760px) {
+  .agent-lanes {
+    --label: 96px;
+  }
+  .agent-ais,
+  .agent-modes {
+    grid-template-columns: 1fr 1fr;
+  }
+  .agents-next {
+    margin-left: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-card,
+  .agent-drawer,
+  .agent-mark,
+  .agent-run-row {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* ---- Tinta Mangá and Papel: hard edges, chamfers, ink fills, status by shape (no colour) ---- */
+:root[data-look='ink'] .agents-page {
+  --agent-ok: var(--ink);
+  --agent-run: var(--ink);
+  --agent-wait: var(--ink);
+  --agent-fail: var(--ink);
+  background: var(--dots);
+}
+:root[data-look='ink'] :is(.agents-strip, .agent-timeline, .agent-card, .agent-template) {
+  border-radius: 0;
+  clip-path: var(--chamfer);
+}
+:root[data-look='ink'] .agent-card:hover,
+:root[data-look='ink'] .agent-card.selected {
+  border-color: var(--ink);
+  box-shadow: 4px 4px 0 var(--line-strong);
+}
+:root[data-look='ink'] .agent-card.running::before,
+:root[data-look='ink'] .agent-card.waiting::before {
+  width: 4px;
+  border-radius: 0;
+}
+:root[data-look='ink'] .agent-card.error::before {
+  width: 4px;
+  border-radius: 0;
+  background: repeating-linear-gradient(-45deg, var(--ink) 0 3px, transparent 3px 6px);
+}
+:root[data-look='ink'] .agent-last {
+  border-radius: 0;
+  border-left: 2px solid var(--line-strong);
+}
+:root[data-look='ink'] .agent-drawer {
+  border-left-color: var(--line-strong);
+  box-shadow: -6px 0 0 var(--hover);
+}
+:root[data-look='ink']
+  :is(
+    .agent-ais button,
+    .agent-modes button,
+    .agent-seg,
+    .agent-days button,
+    .agent-field input,
+    .agent-field textarea,
+    .agent-field select,
+    .agent-toggle,
+    .agent-mode,
+    .agent-new
+  ) {
+  border-radius: 0;
+}
+:root[data-look='ink'] :is(.agent-ais button, .agent-modes button)[aria-checked='true'] {
+  border-color: var(--ink);
+  background: var(--hover);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+:root[data-look='ink'] .agent-seg button[aria-checked='true'] {
+  background: var(--ink);
+  color: var(--paper, var(--bg));
+}
+:root[data-look='ink'] .agent-days button[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper, var(--bg));
+}
+:root[data-look='ink'] .agent-prompt {
+  border-left-color: var(--ink);
+}
+:root[data-look='ink'] .agent-template span,
+:root[data-look='ink'] .agent-new {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+:root[data-look='ink'] .agent-history i.error {
+  outline-color: var(--ink);
+}

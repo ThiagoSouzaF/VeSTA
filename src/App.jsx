@@ -229,7 +229,7 @@ export function App() {
   function openProject(id) {
     setProjectId(id);
     setDrawer(true);
-    const latest = filterChats(data.chats, data.quests, { projectId: '', search: '' })
+    const latest = filterChats(data.chats, data.quests, { projectId: '', search: '' }, data.agents)
       .filter((c) => (c.projectId || '') === id)
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
     if (latest) goChat(latest);
@@ -272,6 +272,14 @@ export function App() {
   );
   const counts = useMemo(() => runningCounts(groups), [groups]);
   const questsRunning = useMemo(() => runningQuests(data.quests), [data.quests]);
+  // Agents on the rail: how many run now (live), else how many results arrived since Agent Mode was last opened.
+  const agentsBadge = useMemo(() => {
+    const list = data.agents || [];
+    const running = list.filter((a) => a.runs?.[0]?.status === 'running').length;
+    return running
+      ? { count: running, live: true }
+      : { count: list.reduce((n, a) => n + (a.unseen || 0), 0), live: false };
+  }, [data.agents]);
   // Stable callback for the quests screen: reads the chats through a ref so text deltas do not change its identity.
   const chatsRef = useRef(data.chats);
   chatsRef.current = data.chats;
@@ -331,7 +339,7 @@ export function App() {
     [data.chats]
   );
   // The sidebar groups chats by project itself, so only the search narrows the list.
-  const filteredChats = filterChats(data.chats, data.quests, { projectId: '', search });
+  const filteredChats = filterChats(data.chats, data.quests, { projectId: '', search }, data.agents);
   const shownMemories = filterMemories(data.memories, { filter: memoryFilter, projectId, search: memorySearch });
   const newMemory = () =>
     setModal({ type: 'memory', title: '', body: '', kind: 'preference', projectId: projectId || '' });
@@ -418,6 +426,7 @@ export function App() {
         requestAnimationFrame(() => textarea.current?.focus());
       },
     },
+    agents: { data, integrations, call, setData: replaceData, notify, onOpenChat: openChatById },
     usage: { call, usage: data.usage },
     connections: { setBusy, setIntegrations, call, notify, busy, integrations, memoryStatus, setMemoryStatus },
     about: { version: data.appVersion, onBack: () => setPage('settings') },
@@ -437,6 +446,7 @@ export function App() {
             data={data}
             taskCounts={counts}
             questsRunning={questsRunning}
+            agentsBadge={agentsBadge}
           />
           {drawer && (
             <ConversationDrawer

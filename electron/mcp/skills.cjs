@@ -27,7 +27,7 @@ function createSkillsMcp(ctx, { skills }) {
   const get = typeof skills === 'function' ? skills : () => skills;
   const authorize = (chatId) => {
     const chat = ctx.store.state.chats.find((c) => c.id === chatId);
-    if (!chat || chat.skillDraft || !get()?.hasAny()) return null;
+    if (!chat || chat.skillDraft || chat.skills === false || !get()?.hasAny()) return null;
     return chat;
   };
   const allowed = (chat, name) => {

@@ -46,6 +46,7 @@ export const empty = {
   chats: [],
   memories: [],
   quests: [],
+  agents: [],
   running: [],
   skills: { list: [], drafts: [] },
 };

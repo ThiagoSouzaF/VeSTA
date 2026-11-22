@@ -36,6 +36,8 @@ const defaults = () => ({
   chats: [],
   memories: [],
   quests: [],
+  // Agent Mode (see shared/agents.cjs): named jobs an AI does on its own, on a schedule or on request.
+  agents: [],
   usage: emptyUsage(),
   remote: defaultRemote(),
   // Preferências → Backup (see backup.cjs): destination, schedule and the result of the last run.

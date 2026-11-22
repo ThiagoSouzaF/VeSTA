@@ -46,13 +46,15 @@ export function MainHeader({
                     ? 'Memória compartilhada'
                     : page === 'skills'
                       ? 'Skills'
-                      : page === 'usage'
-                        ? 'Uso'
-                        : page === 'connections'
-                          ? 'Conexões'
-                          : page === 'about'
-                            ? 'Sobre a VeSTA'
-                            : 'Preferências'}
+                      : page === 'agents'
+                        ? 'Agent Mode'
+                        : page === 'usage'
+                          ? 'Uso'
+                          : page === 'connections'
+                            ? 'Conexões'
+                            : page === 'about'
+                              ? 'Sobre a VeSTA'
+                              : 'Preferências'}
         </strong>
       </div>
       <div className="header-actions">

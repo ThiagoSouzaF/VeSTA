@@ -11,6 +11,7 @@ const { createAppMcp } = require('../mcp/app.cjs');
 const { createSkillsMcp } = require('../mcp/skills.cjs');
 const { createSkills } = require('../skills/engine.cjs');
 const { seedBundled } = require('../skills/bundled.cjs');
+const { createAgentEngine } = require('../agents/engine.cjs');
 const { run } = require('../util/proc.cjs');
 const { createAttachmentStore } = require('../attachments/store.cjs');
 const { createRemote } = require('../remote/index.cjs');
@@ -70,6 +71,10 @@ async function openServices(ctx, { electron, bus, methods }) {
   }
   ctx.skillsMcp = createSkillsMcp(ctx, { skills: () => ctx.skills });
   bus.subscribe((event) => event.type === 'chat-done' && ctx.skills.onChatDone(event));
+  // Agent Mode: the clock wakes agents on their schedule; a time missed while VeSTA was closed runs once now.
+  ctx.agents = createAgentEngine(ctx);
+  ctx.agents.startClock();
+  bus.subscribe((event) => event.type === 'chat-done' && ctx.agents.onChatDone(event));
   store.save();
   // Chat attachments: copies kept under userData; leftovers of unsent drafts and deleted chats are cleaned at start.
   ctx.nativeImage = nativeImage;
@@ -121,6 +126,7 @@ function closeServices(ctx) {
   ctx.questMcp?.close().catch(() => {});
   ctx.appMcp?.close().catch(() => {});
   ctx.skillsMcp?.close().catch(() => {});
+  ctx.agents?.stopClock();
   ctx.memory?.close().catch(() => {});
 }
 
