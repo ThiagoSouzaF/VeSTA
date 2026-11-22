@@ -1,7 +1,7 @@
 // E2E (Electron offscreen, no real AI): Skills.
 //   1. the Skills page starts empty; paste a skill, an AI adapts it (fake driver), review side by side, save
 //   2. the tile opens the drawer: "Só com /" takes it out of the catalog, the budget follows
-//   3. Na sua IA lists what Codex has (a fake CODEX_HOME) and brings one in as it came
+//   3. Na sua IA lists what Codex has (a fake CODEX_HOME), checks its health and brings it in as it came
 //   4. "/" in the composer: the menu filters, Tab completes, the message carries the skill (chip + activity) and the AI
 //      receives the skill text; a fresh session gets the catalog and the vesta-skills server
 //   5. screenshots of the library and the drawer in Tinta Mangá and Papel
@@ -12,6 +12,7 @@ const fs = require('node:fs'),
 const { _electron: electron } = require('playwright');
 const scratch = require('./test-scratch.cjs');
 const { mainWindow } = require('./test-windows.cjs');
+const { readBundled } = require('../electron/skills/bundled.cjs');
 
 const root = path.join(__dirname, '..');
 const data = scratch('skills');
@@ -22,7 +23,7 @@ fs.mkdirSync(path.join(claudeHome, 'skills'), { recursive: true });
 fs.mkdirSync(path.join(codexHome, 'skills', 'commits-curtos'), { recursive: true });
 fs.writeFileSync(
   path.join(codexHome, 'skills', 'commits-curtos', 'SKILL.md'),
-  '---\nname: commits-curtos\ndescription: Mensagens de commit curtas, no imperativo, em português.\n---\n\n# Commits\n\nUma linha, até 60 caracteres.\n'
+  '---\nname: commits-curtos\ndescription: Mensagens de commit curtas, no imperativo, em português.\n---\n\n# Commits\n\nUma linha, até 60 caracteres. Confira com `npx commitlint --edit`.\n'
 );
 const evidence = path.join(data, 'evidencias');
 fs.mkdirSync(evidence, { recursive: true });
@@ -124,12 +125,13 @@ const step = async (name, fn) => {
       await page.locator('.skill-tile[data-skill="ui-revamp"]').waitFor();
       assert.ok(await page.getByText('Vem com o VeSTA').first().isVisible());
       const seeded = await state();
-      assert.equal(seeded.bundledSkills['ui-revamp'], 1);
+      const given = readBundled().find((b) => b.name === 'ui-revamp').version;
+      assert.equal(seeded.bundledSkills['ui-revamp'], given);
       await page.locator('.skill-tile[data-skill="ui-revamp"]').click();
       await page.getByRole('button', { name: 'Remover' }).click();
       await page.getByRole('button', { name: 'Confirmar remoção' }).click();
       await page.getByText('Nenhuma skill no VeSTA ainda').waitFor();
-      assert.equal((await state()).bundledSkills['ui-revamp'], 1, 'remembered, so it is not given again');
+      assert.equal((await state()).bundledSkills['ui-revamp'], given, 'remembered, so it is not given again');
     });
 
     await step('paste → an AI adapts → side-by-side review → save', async () => {
@@ -176,8 +178,18 @@ const step = async (name, fn) => {
       await row.waitFor();
       await row.getByRole('button', { name: 'Trazer para o VeSTA' }).click();
       await page.getByRole('heading', { name: 'Quem lê e adapta?' }).waitFor();
+      // The health check: the unpinned npx is a warning, a description that never says when to use it a tip.
+      await page.locator('.skill-health li[data-health="unpinned"]').waitFor();
+      assert.match(await page.locator('.skill-health').innerText(), /ATENÇÃO[\s\S]*npx commitlint[\s\S]*DICA/);
+      assert.equal(await page.locator('.skills-chosen .skill-tag.warn').filter({ hasText: '1 aviso' }).count(), 1);
+      await page.waitForTimeout(700); // the panel settles in (motion.css) before the picture
+      await shot('3-verificacao');
       await page.getByRole('button', { name: 'Salvar sem adaptar' }).click();
       await page.locator('.skills-prow.ready').waitFor();
+      // Kept as it came: the review still shows what the check found.
+      await page
+        .locator('.skill-health[aria-label="O QUE A VERIFICAÇÃO AINDA APONTA"] li[data-health="unpinned"]')
+        .waitFor();
       await page.getByRole('button', { name: /^Salvar 1 skill$/ }).click();
       await page.locator('.skill-tile[data-skill="commits-curtos"]').waitFor();
       const meta = (await state()).skills.list.find((s) => s.name === 'commits-curtos');

@@ -944,3 +944,62 @@
   border-color: var(--ink);
   box-shadow: 6px 6px 0 var(--line-strong);
 }
+
+/* Health check of an imported skill (electron/skills/health.cjs): a risk is red, a warning orange, a tip quiet. */
+.skill-tag.risk {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.skill-health {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.skill-health h4 {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font: 11px var(--skill-mono);
+  letter-spacing: 0.04em;
+}
+.skill-health ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.skill-health li {
+  display: grid;
+  grid-template-columns: 14px 64px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.skill-health li svg {
+  align-self: center;
+}
+.skill-health li b {
+  font: 11px var(--skill-mono);
+}
+.skill-health li.risk :is(svg, b) {
+  color: var(--danger);
+}
+.skill-health li.warn :is(svg, b) {
+  color: var(--orange);
+}
+.skill-health li.tip :is(svg, b) {
+  color: var(--muted);
+}
+.skill-health-ok {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.skill-health-ok svg {
+  color: var(--green);
+}

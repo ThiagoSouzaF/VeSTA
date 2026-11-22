@@ -14,6 +14,7 @@ const { scanNative } = require('./native.cjs');
 const S = require('./sources.cjs');
 const G = require('./github.cjs');
 const { buildAdaptPrompt, parseAdaptReply } = require('./adapt.cjs');
+const H = require('./health.cjs');
 
 const NATIVE_TTL = 60000;
 const MAX_PARALLEL = 3;
@@ -39,6 +40,12 @@ function createSkills(ctx, { root, deps = {} } = {}) {
     return nativeCache.value;
   }
 
+  // The library's other skills, for the "looks like /x" check.
+  const others = () => lib.list().map((s) => ({ name: s.name, description: s.description }));
+  // The adapted (or kept) text, with the supporting files it brings.
+  const draftHealth = (d) =>
+    d.text ? H.checkSkill({ name: d.name, text: d.text, files: d.candidate.files }, { others: others() }) : [];
+
   // ---- What the screen sees ------------------------------------------------------------------------------------
   const draftSummary = (d) => ({
     id: d.id,
@@ -54,6 +61,7 @@ function createSkills(ctx, { root, deps = {} } = {}) {
     source: d.candidate.source,
     exists: !!lib.get(d.name),
     hasScripts: !!d.candidate.hasScripts,
+    health: draftHealth(d),
   });
   const summary = () => ({ list: lib.list(), drafts: [...drafts.values()].map(draftSummary) });
 
@@ -88,6 +96,7 @@ function createSkills(ctx, { root, deps = {} } = {}) {
     // Only the latest few scans are kept (each may hold a whole repository's SKILL.md files).
     for (const [id] of [...scans].slice(0, Math.max(0, scans.size - 4))) scans.delete(id);
     scans.set(scanId, { at: Date.now(), candidates });
+    const known = others();
     return {
       scanId,
       label: label || candidates[0]?.source.label || '',
@@ -102,6 +111,7 @@ function createSkills(ctx, { root, deps = {} } = {}) {
         license: c.source.license || '',
         exists: !!lib.get(c.name),
         tokens: F.tokens(c.text),
+        health: H.checkSkill(c, { others: known }),
       })),
     };
   }
@@ -162,7 +172,15 @@ function createSkills(ctx, { root, deps = {} } = {}) {
       return fail(d, e.message);
     }
     Promise.resolve()
-      .then(() => send(ctx, { chatId: chat.id, text: buildAdaptPrompt(d.candidate, { lang: d.lang }) }))
+      .then(() =>
+        send(ctx, {
+          chatId: chat.id,
+          text: buildAdaptPrompt(d.candidate, {
+            lang: d.lang,
+            health: H.checkSkill(d.candidate, { others: others() }),
+          }),
+        })
+      )
       .catch((e) => fail(d, e.message));
   }
   function dropChat(d) {
@@ -290,6 +308,7 @@ function createSkills(ctx, { root, deps = {} } = {}) {
   const hasAny = () => lib.list().some((s) => s.enabled);
   // The lines that tell the AI what it may load (only "A IA decide" skills; "Só com /" ones cost nothing here).
   function catalogHint(chat) {
+    if (chat.skills === false) return ''; // an agent the person set to work without skills
     const auto = usable(chat).filter((s) => s.mode === 'auto');
     if (!auto.length) return '';
     return (

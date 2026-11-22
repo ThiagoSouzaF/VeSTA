@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { fmt } from '../../lib/skills';
 import { modelLabel } from '../../lib/format';
-import { ModeSeg } from './SkillBits';
+import { ModeSeg, HealthTag, HealthList } from './SkillBits';
 
 const STEPS = ['De onde vem', 'Quais skills', 'Quem adapta', 'Revisar e salvar'];
 const ADAPTERS = [
@@ -193,9 +193,22 @@ export function AddSkill({ seed, skills, call, setData, notify, integrations, on
                   <b className="mono">/{c.name}</b>
                   {c.exists && <span className="skill-tag warn">substitui a do VeSTA</span>}
                   {c.hasScripts && <span className="skill-tag warn">tem scripts</span>}
+                  <HealthTag health={c.health} />
                 </li>
               ))}
             </ul>
+            {chosen.map((c) => (
+              <HealthList
+                key={c.key}
+                health={c.health}
+                title={chosen.length > 1 ? 'VERIFICAÇÃO · /' + c.name : 'VERIFICAÇÃO'}
+              />
+            ))}
+            {chosen.some((c) => c.health?.length) && (
+              <p className="skills-hint">
+                Ao adaptar, a IA recebe essa lista e corrige o que der. Na revisão você vê o que ainda ficou.
+              </p>
+            )}
             {installed.length ? (
               <div className="skills-ai-pick" role="group" aria-label="IA que adapta">
                 {installed.map(([id, name, why]) => (
@@ -319,6 +332,7 @@ function PickStep({ scan, picked, setPicked, filter, setFilter, onBack, onNext }
             <span className="skills-pick-tags">
               {c.exists && <span className="skill-tag">já no VeSTA</span>}
               {c.hasScripts && <span className="skill-tag warn">tem scripts</span>}
+              <HealthTag health={c.health} />
               <span className="skill-tag">~{fmt(c.tokens)} tk</span>
             </span>
           </label>
@@ -443,6 +457,11 @@ function ReviewStep({ drafts, call, setData, notify, installed, onAddMore, onSav
               ))}
             </ul>
           )}
+          <HealthList
+            health={current.health}
+            title="O QUE A VERIFICAÇÃO AINDA APONTA"
+            clean="A verificação não achou nada a corrigir nesta versão."
+          />
           {current.compat && Object.entries(current.compat).some(([, v]) => v !== 'ok') && (
             <p className="skills-hint">
               Não funciona em:{' '}

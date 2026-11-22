@@ -6,7 +6,8 @@ const { PROVIDERS } = require('./library.cjs');
 const MAX_FILES_CHARS = 40000;
 const LANGS = { 'pt-BR': 'português do Brasil', keep: 'o mesmo idioma do original' };
 
-function buildAdaptPrompt(candidate, { lang = 'pt-BR' } = {}) {
+// health: what health.cjs found in the original, handed over so the adapted text fixes it.
+function buildAdaptPrompt(candidate, { lang = 'pt-BR', health = [] } = {}) {
   let budget = MAX_FILES_CHARS;
   const files = (candidate.files || []).map((f) => {
     const take = Math.max(0, Math.min(f.text.length, budget, 6000));
@@ -42,6 +43,13 @@ function buildAdaptPrompt(candidate, { lang = 'pt-BR' } = {}) {
       'Primeiro o SKILL.md adaptado completo, num bloco ```skill. Depois um bloco ```json assim:\n' +
       '```json\n{"compat":{"claude":"ok","codex":"ok","opencode":"ok","drael":"ok ou o motivo de não funcionar"},"changes":["o que você trocou, uma linha cada"]}\n```\n' +
       'Em compat, escreva "ok" quando a IA consegue seguir a skill; senão, o motivo curto (ex.: "precisa editar arquivos").',
+    health.length
+      ? '## O que a verificação do VeSTA apontou no original\n' +
+        'Corrija na versão adaptada: tire caracteres invisíveis e segredos, fixe a versão dos pacotes (`pacote@x.y.z`), ' +
+        'troque "baixar e rodar no terminal" por um passo que a pessoa confere antes e comece a description dizendo quando usar. ' +
+        'Liste cada correção em changes.\n' +
+        health.map((h) => '- ' + h.text + (h.where && h.where !== 'SKILL.md' ? ' (' + h.where + ')' : '')).join('\n')
+      : '',
     '## SKILL.md original\n```markdown\n' + candidate.text + '\n```',
     files.length ? '## Arquivos de apoio\n' + files.join('\n\n') : '',
   ]
