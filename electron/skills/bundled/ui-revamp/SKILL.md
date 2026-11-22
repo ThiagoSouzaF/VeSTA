@@ -1,7 +1,7 @@
 ---
 name: ui-revamp
-description: Refaz a interface do software desta conversa com TasteSkill (disciplina de tela), transitions.dev (movimento) e React Bits (componentes animados). Use quando o usuário pedir para refazer, modernizar, dar vida ou melhorar a UI ou o visual de um app, site ou tela.
-version: 1
+description: Use para refazer, modernizar ou dar vida à UI de um app, site ou tela desta conversa, com TasteSkill (disciplina de tela), transitions.dev (movimento) e React Bits (peças animadas).
+version: 2
 ---
 
 # UI revamp
@@ -71,3 +71,11 @@ Grave na memória com `memory_write_page`:
 - no perfil (scope `profile`), só preferência durável nova que o usuário expressou, como a resposta das cores quando ele disser que vale sempre.
 
 Termine dizendo o que mudou por tela, o que não foi verificado e as licenças das peças copiadas (créditos no código).
+
+## Se der errado
+
+- **Sem web:** siga só com `fontes.md` e diga que não conferiu as novidades das fontes.
+- **Memória fora do ar ou ferramenta falhando:** diga qual falhou, siga com a conversa e pergunte o que a memória responderia.
+- **Teste, lint ou build vermelho depois de uma camada:** pare, corrija ou desfaça só essa camada antes da próxima; não empilhe mudança sobre erro.
+- **Comando `npx` das fontes:** não rode sem o usuário pedir; quando rodar, fixe a versão (`pacote@x.y.z`, nunca `@latest`) e mostre o comando antes.
+- **Peça do React Bits pede dependência nova** (`motion`, `gsap`): porte sem ela ou pergunte antes de instalar.

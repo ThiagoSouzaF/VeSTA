@@ -1,6 +1,6 @@
 # As três fontes da ui-revamp
 
-Conferido em novembro de 2026. Se tiver web, confira o que mudou nos links.
+Conferido em novembro de 2026. Se tiver web, confira o que mudou nos links. Os comandos `npx` abaixo são referência: rode só com pedido do usuário e com a versão fixada (`pacote@x.y.z`).
 
 ## TasteSkill — disciplina de tela
 
@@ -70,7 +70,7 @@ Erros comuns: esquecer a classe de fechamento (`is-closing`) e o reflow (`void e
 ## React Bits — peças animadas
 
 - Site https://reactbits.dev, repositório https://github.com/DavidHDev/react-bits. Licença MIT + Commons Clause: use em qualquer app, mantenha o aviso de copyright nos arquivos copiados; não revenda nem redistribua os componentes como pacote.
-- Instale como código seu: `npx shadcn@latest add @react-bits/<Nome>-<JS|TS>-<CSS|TW>` ou copie a fonte. Variantes JS/TS e CSS/Tailwind.
+- Instale como código seu: `npx shadcn@<versão> add @react-bits/<Nome>-<JS|TS>-<CSS|TW>` ou copie a fonte. Variantes JS/TS e CSS/Tailwind.
 - Categorias: Text Animations, Animations, Components, Backgrounds, Micro.
 - **Sem dependência extra** (só React): ClickSpark, Counter, LatticeLoader, DotGrid, LetterGlitch, PixelTransition, HalftoneReveal, ShinyText, HoldButton, Crosshair.
 - **Com `motion`** (porte sem ele quando possível): DecryptedText, CountUp, BlurText, StatusMark, SquishSwitch, ThoughtLine. **Com `gsap`**: TextType, ScrambledText, FadeContent, AnimatedContent.
