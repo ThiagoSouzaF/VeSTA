@@ -958,3 +958,187 @@
 :root[data-look='ink'] .agent-history i.error {
   outline-color: var(--ink);
 }
+
+/* ---- what the agent learned (drawer), its own skills (form) ---- */
+.agent-review {
+  padding: 0 5px;
+  border: 1px dashed var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  font: 700 10px var(--skill-mono);
+  letter-spacing: 0.04em;
+}
+.agent-learning {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.agent-learning h3 {
+  display: flex;
+  gap: 8px;
+  color: var(--faint);
+  font: 700 11px var(--skill-mono);
+  letter-spacing: 0.12em;
+}
+.agent-learning h3 span {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.agent-suggestion {
+  padding: 12px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-bg);
+  animation: t-settle var(--duration-fast, 250ms) var(--ease-smooth-out, ease-out);
+}
+.agent-suggestion p {
+  margin: 6px 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.agent-learn-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.agent-learn-meta span {
+  margin-left: auto;
+  color: var(--faint);
+  font-size: 11px;
+}
+.agent-learn-actions,
+.agent-teach {
+  display: flex;
+  gap: 8px;
+}
+.agent-learn-actions button,
+.agent-lessons button,
+.agent-teach button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.agent-lessons {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.agent-lessons li {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto auto;
+  align-items: start;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-soft);
+  animation: t-settle var(--duration-fast, 250ms) var(--ease-smooth-out, ease-out);
+}
+.agent-lessons li > svg {
+  margin-top: 3px;
+  color: var(--muted);
+}
+.agent-lessons.pending li {
+  padding-inline: 8px;
+  margin-bottom: 4px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+}
+.agent-lessons.pending li > svg {
+  color: var(--accent);
+}
+.agent-lessons p {
+  font-size: 13px;
+  line-height: 1.45;
+}
+.agent-lessons small {
+  color: var(--faint);
+  font-size: 11px;
+}
+.agent-lessons.kept li {
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+}
+.agent-teach input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.agent-label small {
+  margin-left: 6px;
+  font: 400 11px var(--font-ui, inherit);
+  letter-spacing: 0;
+}
+.agent-skill-pick,
+.agent-skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.agent-skill-pick button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: 600 12px var(--skill-mono);
+  transition:
+    border-color var(--duration-quick, 150ms),
+    background var(--duration-quick, 150ms);
+}
+.agent-skill-pick button small {
+  color: var(--faint);
+  font: 400 10.5px var(--font-ui, inherit);
+}
+.agent-skill-pick button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.agent-skill-pick button.gone {
+  border-style: dashed;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.agent-skill-pick button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.agent-skill-chip {
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: 600 11.5px var(--skill-mono);
+}
+:root[data-look='ink']
+  :is(
+    .agent-review,
+    .agent-suggestion,
+    .agent-lessons.pending li,
+    .agent-teach input,
+    .agent-skill-pick button,
+    .agent-skill-chip
+  ) {
+  border-radius: 0;
+}
+:root[data-look='ink'] :is(.agent-review, .agent-suggestion, .agent-lessons.pending li > svg) {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+:root[data-look='ink'] .agent-suggestion {
+  background: var(--hover);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+:root[data-look='ink'] .agent-skill-pick button[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper, var(--bg));
+}
+:root[data-look='ink'] .agent-skill-pick button[aria-pressed='true'] small {
+  color: inherit;
+  opacity: 0.7;
+}

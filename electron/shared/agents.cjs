@@ -1,12 +1,17 @@
 // Agents (Agent Mode): a named job an AI does on its own, on a schedule or when the person asks, with the memory and
 // the skills of VeSTA. Pure functions, no I/O: used by the engine (main process), the tests and the screen.
 //
-// Agent { id, name, prompt, provider, model, projectId, mode, memory, skills, schedule, enabled, catchUp, runs[],
-//         nextRunAt, unseen, createdAt, updatedAt }
+// Agent { id, name, prompt, provider, model, projectId, mode, memory, skills, skillNames[], schedule, enabled, catchUp,
+//         runs[], lessons[], suggestion, nextRunAt, unseen, createdAt, updatedAt }
+//   skills      the "A IA decide" catalog of the library; skillNames are the agent's own skills, sent whole every run
 //   mode      'read' (Consulta) | 'ask' (Pedir permissão: each command waits for the person) | 'edit' (Acesso completo)
 //   schedule  { kind: 'manual' | 'daily' | 'weekdays' | 'weekly' | 'interval', time: 'HH:MM', days: [0-6], hours }
 //   catchUp   a scheduled time missed while VeSTA was closed runs once when it opens
 //   unseen    runs that ended since the person last opened Agent Mode (the rail badge)
+// Lesson { id, text, status: 'pending' | 'kept' | 'dropped', from: 'run' | 'chat' | 'person', at, runId }: what the
+//   agent learned; only kept ones (approved by the person, or written by them) reach the next runs. Dropped ones stay
+//   hidden so the agent does not propose them again.
+// suggestion { text, at, runId } | null: a better task the agent proposed; it replaces the prompt only on a yes.
 // Run { id, at, endedAt, trigger: 'schedule' | 'manual' | 'catch-up', status: 'running' | 'ok' | 'error', chatId,
 //       summary, error }
 // Message meant for the person (this file also runs in the renderer, so it cannot require errors.cjs).
@@ -20,6 +25,11 @@ const MAX_RUNS = 30;
 const MAX_NAME = 60;
 const MAX_PROMPT = 8000;
 const MAX_SUMMARY = 280;
+const MAX_SKILLS = 8;
+const MAX_LESSON = 240;
+const MAX_KEPT = 20;
+const MAX_LESSONS = 40;
+const MAX_ERRORS = 3;
 const DAY = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const HOUR = 3600000;
 
@@ -88,6 +98,9 @@ function normalizeAgent(input = {}, prev = null) {
     mode: MODES.includes(input.mode) ? input.mode : 'read',
     memory: input.memory !== false,
     skills: input.skills !== false,
+    skillNames: [...new Set((Array.isArray(input.skillNames) ? input.skillNames : []).map((n) => clean(n, 80)))]
+      .filter(Boolean)
+      .slice(0, MAX_SKILLS),
     schedule: normalizeSchedule(input.schedule),
     enabled: input.enabled !== false,
     catchUp: input.catchUp !== false,
@@ -111,10 +124,46 @@ function summaryOf(text) {
   return plain.length > MAX_SUMMARY ? plain.slice(0, MAX_SUMMARY - 1).trimEnd() + '…' : plain;
 }
 
-// The message a run sends: who the agent is, the rules of working alone, its last result, then the task.
-function buildPrompt(agent, { now = Date.now(), projectName = '' } = {}) {
+// Tagged lines at the end of a reply (also bold or in a list): "Lição: ..." (up to 2) and "Pedido sugerido: ...".
+const LESSON = /^\s*(?:[-*]\s*)?(?:\*\*)?Li[çc][ãa]o:?(?:\*\*)?:?\s*(.+)$/gim;
+const SUGGESTION = /^\s*(?:[-*]\s*)?(?:\*\*)?Pedido sugerido:?(?:\*\*)?:?\s*(.+)$/im;
+const noCode = (text) => String(text || '').replace(/```[\s\S]*?```/g, ' ');
+const plainLine = (t, max) => {
+  const v = String(t).replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim();
+  return v.length > max ? v.slice(0, max - 1).trimEnd() + '…' : v;
+};
+function lessonsOf(text) {
+  return [...noCode(text).matchAll(LESSON)]
+    .map((m) => plainLine(m[1], MAX_LESSON))
+    .filter((t) => t.replace(/[.…\s]/g, '').length > 3) // not the "Lição: …" of the instructions
+    .slice(0, 2);
+}
+function suggestionOf(text) {
+  const m = SUGGESTION.exec(noCode(text));
+  return m ? clean(m[1], MAX_PROMPT) : '';
+}
+// A lesson the agent already has (same words, ignoring case and spaces) is not added again.
+const sameLesson = (a, b) => plainLine(a, MAX_LESSON).toLowerCase() === plainLine(b, MAX_LESSON).toLowerCase();
+const keptLessons = (a) => (a.lessons || []).filter((l) => l.status === 'kept');
+const pendingLessons = (a) => (a.lessons || []).filter((l) => l.status === 'pending');
+// The failures since the last run that worked, newest first: the next run is told so it does not repeat them.
+function recentErrors(agent) {
+  const out = [];
+  for (const r of agent.runs || []) {
+    if (r.status === 'ok') break;
+    if (r.status === 'error') out.push(r);
+  }
+  return out.slice(0, MAX_ERRORS);
+}
+
+// The message a run sends: who the agent is, the rules of working alone, what it learned, its recent failures, its
+// last result, its own skills, then the task. skills: [{ name, body }] (read by the engine from the library).
+function buildPrompt(agent, { now = Date.now(), projectName = '', skills = [] } = {}) {
   const last = (agent.runs || []).find((r) => r.status === 'ok' && r.summary);
   const when = new Date(now).toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' });
+  const day = (t) => new Date(t).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  const kept = keptLessons(agent).slice(0, MAX_KEPT);
+  const errors = recentErrors(agent);
   return [
     'Você é o agent "' + agent.name + '" do VeSTA, rodando sozinho (' + when + '): ninguém está acompanhando agora.',
     '## Como trabalhar\n' +
@@ -124,8 +173,20 @@ function buildPrompt(agent, { now = Date.now(), projectName = '' } = {}) {
       ' quando ajudarem.\n' +
       '- Não publique nada fora deste computador (push, PR, comentários, mensagens, e-mails): prepare e descreva para a pessoa aprovar.\n' +
       '- Se travar ou precisar de uma decisão, pare e diga exatamente o que precisa.\n' +
-      '- Termine com uma linha "Resumo: …" de uma frase: o que fez, o que achou ou o que precisa da pessoa.',
-    last ? '## Última execução\n' + last.summary : '',
+      '- Termine com uma linha "Resumo: …" de uma frase: o que fez, o que achou ou o que precisa da pessoa.\n' +
+      '- Se aprendeu algo que deve valer nas próximas vezes (um atalho, uma armadilha, uma preferência da pessoa), escreva também uma linha "Lição: …" por aprendizado, no máximo duas. Se a pessoa corrigir você nesta conversa, faça o mesmo. Ela aprova antes de valer.\n' +
+      '- Se a tarefa abaixo estiver ambígua ou desatualizada, proponha uma versão melhor numa linha "Pedido sugerido: …". Ela só vale com o sim da pessoa.',
+    kept.length ? '## O que você já aprendeu (aprovado pela pessoa)\n' + kept.map((l) => '- ' + l.text).join('\n') : '',
+    errors.length
+      ? '## Execuções que falharam desde a última que deu certo\n' +
+        errors.map((r) => '- ' + day(r.at) + ': ' + (r.error || r.summary || 'sem detalhe')).join('\n') +
+        '\nNão repita o mesmo caminho. Se o erro não depende de você, diga exatamente o que a pessoa precisa fazer.'
+      : '',
+    last ? '## Última execução que deu certo\n' + last.summary : '',
+    skills.length
+      ? '## Skills deste agent\nSiga estas skills, escolhidas pela pessoa para este trabalho.\n\n' +
+        skills.map((k) => '<skill nome="' + k.name + '">\n' + k.body + '\n</skill>').join('\n\n')
+      : '',
     '## Tarefa\n' + agent.prompt,
   ]
     .filter(Boolean)
@@ -147,5 +208,12 @@ module.exports = {
   lastRun,
   dueAgents,
   summaryOf,
+  lessonsOf,
+  suggestionOf,
+  sameLesson,
+  keptLessons,
+  pendingLessons,
+  recentErrors,
   buildPrompt,
+  MAX_LESSONS,
 };

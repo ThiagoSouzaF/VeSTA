@@ -3,7 +3,9 @@
 //   2. a new agent from the form: name, AI, task, "Dias úteis" at a time, mode; the card shows the schedule
 //   3. "Rodar agora": running on the card, then the result line, the diary, and the run's chat (outside Conversas)
 //   4. the clock: an agent whose time comes runs by itself (trigger "agenda"); the rail badge, cleared on the screen
-//   5. off and on, and the Papel theme
+//   5. learning: an agent's "Lição:" lines and "Pedido sugerido:" wait for a yes in its drawer; what is kept (and a
+//      lesson the person writes) reaches the next run, with the failures since the last success
+//   6. off and on, and the Papel theme
 // Needs a fresh `npm run build`. Usage: node scripts/test-agents-e2e.cjs
 // Seeded agents are never due at launch: the fake driver is installed only after the window opens, so nothing may
 // reach a real AI before it.
@@ -66,7 +68,7 @@ const AGENTS = [
     id: 'a-testes',
     name: 'Testes de toda noite',
     prompt: 'Rode npm test. Se algo falhar, investigue sem mudar código e diga a causa provável.',
-    provider: 'codex',
+    provider: 'claude',
     model: '',
     projectId: 'p1',
     mode: 'ask',
@@ -114,6 +116,14 @@ fs.writeFileSync(
 );
 const REPLY =
   'Li os commits de ontem.\n\nResumo: 3 commits ontem; comece pelo teste do quest-lead, que voltou a falhar.';
+// What "Testes de toda noite" answers: two lessons and a better task.
+const LEARNED = [
+  'Rodei npm test: 2 falhas no test-remote-e2e, as duas por porta ocupada.',
+  'Lição: o test-remote-e2e falha quando a porta 4319 está ocupada; confira antes de culpar o código.',
+  'Lição: rode npm run build antes dos E2E, eles usam o dist.',
+  'Pedido sugerido: Rode npm run build e depois npm test. Se algo falhar, confira portas ocupadas antes de investigar o código e diga a causa provável.',
+  'Resumo: 2 falhas por porta ocupada, nada no código.',
+].join('\n');
 
 let failed = 0;
 const step = async (name, fn) => {
@@ -144,7 +154,7 @@ const step = async (name, fn) => {
     await page.waitForSelector('.loading', { state: 'detached' });
     // No real AI: every turn answers REPLY after a short wait (long enough to see "rodando").
     await app.evaluate(
-      (_, { electronDir, reply }) => {
+      (_, { electronDir, reply, learned }) => {
         const req = (f) => process.mainModule.require(electronDir + '/' + f);
         const main = req('main.cjs'),
           drivers = req('ai/drivers.cjs');
@@ -153,16 +163,21 @@ const step = async (name, fn) => {
         globalThis.__turns = [];
         drivers.start = (provider, spec, ctx) => {
           globalThis.__turns.push({ provider, prompt: ctx.prompt });
+          const text = ctx.prompt.includes('agent "Testes de toda noite"') ? learned : reply;
           const done = {};
           setTimeout(() => {
-            ctx.parse.accept({ type: 'assistant', message: { content: [{ type: 'text', text: reply }] } });
-            ctx.parse.accept({ type: 'result', result: reply, num_turns: 1 });
+            ctx.parse.accept({ type: 'assistant', message: { content: [{ type: 'text', text }] } });
+            ctx.parse.accept({ type: 'result', result: text, num_turns: 1 });
             done.resolve({ code: 0, stderr: '' });
           }, 1800);
           return { done: new Promise((r) => (done.resolve = r)), stop() {} };
         };
       },
-      { electronDir: path.join(root, 'electron').split(String.fromCharCode(92)).join('/'), reply: REPLY }
+      {
+        electronDir: path.join(root, 'electron').split(String.fromCharCode(92)).join('/'),
+        reply: REPLY,
+        learned: LEARNED,
+      }
     );
     const turns = () => app.evaluate(() => globalThis.__turns);
     const state = () => page.evaluate(async () => (await window.vesta.call('bootstrap')).state);
@@ -212,6 +227,12 @@ const step = async (name, fn) => {
       await page.getByLabel('Hora', { exact: true }).fill('07:45');
       assert.match(await page.locator('.agent-preview').innerText(), /^Dias úteis às 07:45/);
       await page.locator('.agent-modes [data-mode="read"]').click();
+      // Its own skill: /ui-revamp ships with VeSTA, so the library has it.
+      await page.locator('.agent-skill-pick [data-skill="ui-revamp"]').click();
+      assert.equal(
+        await page.locator('.agent-skill-pick [data-skill="ui-revamp"]').getAttribute('aria-pressed'),
+        'true'
+      );
       await shot('2-novo-agent');
       await page.getByRole('button', { name: 'Criar agent' }).click();
       await page.locator('.agent-drawer[data-agent="Bom dia do VeSTA"] .agent-diary').waitFor();
@@ -221,6 +242,8 @@ const step = async (name, fn) => {
       assert.deepEqual(a.schedule, { kind: 'weekdays', time: '07:45', days: [], hours: 4 });
       assert.ok(a.nextRunAt > Date.now());
       assert.equal(new Date(a.nextRunAt).getHours(), 7);
+      assert.deepEqual(a.skillNames, ['ui-revamp']);
+      assert.match(await page.locator('.agent-drawer .agent-skill-chips').innerText(), /\/ui-revamp/);
     });
 
     await step('"Rodar agora": running, then the result, the diary and the chat outside Conversas', async () => {
@@ -236,6 +259,11 @@ const step = async (name, fn) => {
       assert.match(t.prompt, /agent "Bom dia do VeSTA"/);
       assert.match(t.prompt, /Não publique nada fora deste computador/);
       assert.match(t.prompt, /## Tarefa\nLeia os commits de ontem/);
+      assert.match(
+        t.prompt,
+        /## Skills deste agent[\s\S]*<skill nome="ui-revamp">\n[\s\S]+<\/skill>/,
+        'its skill, whole'
+      );
       const s = await state();
       const a = s.agents.find((x) => x.name === 'Bom dia do VeSTA');
       const chat = s.chats.find((c) => c.id === a.runs[0].chatId);
@@ -281,6 +309,61 @@ const step = async (name, fn) => {
       assert.match(await card('Faxina da memória').innerText(), /3 commits ontem/);
     });
 
+    await step('learning: lessons and a suggested task wait for a yes; what is kept reaches the next run', async () => {
+      const before = (await turns()).length;
+      await card('Testes de toda noite').getByRole('button', { name: 'Rodar Testes de toda noite agora' }).click();
+      await agentUntil('a-testes', (a) => a.runs[0].status === 'ok');
+      const first = (await turns())[before];
+      assert.match(first.prompt, /falharam desde a última que deu certo\n- .+: test-remote-e2e: 2 falhas/);
+      assert.doesNotMatch(first.prompt, /aprovado pela pessoa/);
+      await card('Testes de toda noite').locator('.agent-review').waitFor();
+      assert.equal(await card('Testes de toda noite').locator('.agent-review').innerText(), '3 para revisar');
+      assert.match(await page.locator('.agents-strip').innerText(), /3\s*aprendizados para revisar/);
+      await card('Testes de toda noite').click();
+      const drawer = page.locator('.agent-drawer[data-agent="Testes de toda noite"]');
+      await drawer.locator('.agent-suggestion').waitFor();
+      assert.equal(await drawer.locator('[data-lesson="pending"]').count(), 2);
+      await shot('5-aprendeu');
+      await drawer.getByRole('button', { name: /^Manter a lição: o test-remote-e2e/ }).click();
+      await drawer.locator('[data-lesson="kept"]').waitFor();
+      await drawer.getByRole('button', { name: /^Apagar a lição: rode npm run build/ }).click();
+      await drawer.locator('[data-lesson="pending"]').waitFor({ state: 'detached' });
+      await drawer.getByLabel('Ensinar uma lição').fill('Nunca rode o deploy');
+      await drawer.getByRole('button', { name: 'Ensinar' }).click();
+      await page.waitForFunction(() => document.querySelectorAll('[data-lesson="kept"]').length === 2);
+      await drawer.getByRole('button', { name: 'Usar este pedido' }).click();
+      await drawer.locator('.agent-suggestion').waitFor({ state: 'detached' });
+      assert.match(await drawer.locator('.agent-prompt').innerText(), /^Rode npm run build e depois npm test/);
+      const a = (await state()).agents.find((x) => x.id === 'a-testes');
+      assert.deepEqual(
+        a.lessons.map((l) => [l.status, l.from]),
+        [
+          ['kept', 'person'],
+          ['dropped', 'run'],
+          ['kept', 'run'],
+        ]
+      );
+      assert.equal(a.suggestion, null);
+      await page.keyboard.press('Escape');
+      await card('Testes de toda noite').locator('.agent-review').waitFor({ state: 'detached' });
+      // The next run carries what was kept and the new task; the last run worked, so no failures.
+      await card('Testes de toda noite').getByRole('button', { name: 'Rodar Testes de toda noite agora' }).click();
+      await agentUntil('a-testes', (x) => x.runs.length === 3 && x.runs[0].status === 'ok');
+      const next = (await turns()).at(-1).prompt;
+      assert.match(
+        next,
+        /aprovado pela pessoa\)\n- Nunca rode o deploy\n- o test-remote-e2e falha quando a porta 4319/
+      );
+      assert.doesNotMatch(next, /rode npm run build antes dos E2E/, 'the dropped lesson is gone');
+      assert.doesNotMatch(next, /falharam desde/);
+      assert.match(next, /## Tarefa\nRode npm run build e depois npm test\./);
+      // The same answer again: lessons it has, or that were dropped, are not proposed again; the suggestion is the
+      // task itself.
+      const again = (await state()).agents.find((x) => x.id === 'a-testes');
+      assert.equal(again.lessons.filter((l) => l.status === 'pending').length, 0, 'not even the dropped one');
+      assert.equal(again.suggestion, null);
+    });
+
     await step('off and on; Papel', async () => {
       await card('Faxina da memória').getByRole('switch').click();
       await agentUntil('a-faxina', (a) => !a.enabled && a.nextRunAt === null, 5000);
@@ -292,10 +375,10 @@ const step = async (name, fn) => {
       await page.locator('.agents-tabs [data-filter="all"]').click();
       await page.evaluate(() => window.vesta.call('saveSettings', { theme: 'paper' }));
       await page.waitForFunction(() => document.documentElement.dataset.theme === 'paper');
-      await shot('5-visao-geral-papel');
+      await shot('6-visao-geral-papel');
       await card('Testes de toda noite').click();
       await page.locator('.agent-drawer[data-agent="Testes de toda noite"]').waitFor();
-      await shot('6-gaveta-papel');
+      await shot('7-gaveta-papel');
     });
   } finally {
     await app.close();

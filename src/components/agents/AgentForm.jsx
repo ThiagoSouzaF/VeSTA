@@ -28,6 +28,7 @@ export const blankAgent = (integrations = {}) => ({
   mode: 'read',
   memory: true,
   skills: true,
+  skillNames: [],
   catchUp: true,
   enabled: true,
   schedule: { kind: 'weekdays', time: '08:30', days: [1, 3, 5], hours: 4 },
@@ -46,11 +47,34 @@ function Toggle({ icon: Icon, label, hint, on, onChange }) {
   );
 }
 
-export function AgentForm({ initial, integrations = {}, projects = [], busy, onSave, onCancel, onRemove, isNew }) {
+const MAX_OWN_SKILLS = 8;
+
+export function AgentForm({
+  initial,
+  integrations = {},
+  projects = [],
+  skills = [],
+  busy,
+  onSave,
+  onCancel,
+  onRemove,
+  isNew,
+}) {
   const [f, setF] = useState(() => ({
     ...initial,
+    skillNames: initial.skillNames || [],
     schedule: { days: [1, 3, 5], hours: 4, time: '08:30', ...initial.schedule },
   }));
+  // The library's enabled skills, plus any chosen one that is now off or gone (shown so it can be taken out).
+  const library = skills.filter((s) => s.enabled);
+  const missing = f.skillNames.filter((n) => !library.some((s) => s.name === n));
+  const pick = (name) =>
+    setF((x) => ({
+      ...x,
+      skillNames: x.skillNames.includes(name)
+        ? x.skillNames.filter((n) => n !== name)
+        : [...x.skillNames, name].slice(0, MAX_OWN_SKILLS),
+    }));
   const set = (patch) => setF((x) => ({ ...x, ...patch }));
   const sch = (patch) => setF((x) => ({ ...x, schedule: { ...x.schedule, ...patch } }));
   const models = integrations[f.provider]?.models || [];
@@ -142,6 +166,38 @@ export function AgentForm({ initial, integrations = {}, projects = [], busy, onS
           placeholder="Escreva como pediria num chat. Pode chamar uma skill com /nome."
           onChange={(e) => set({ prompt: e.target.value })}
         />
+      </div>
+
+      <div className="agent-field">
+        <span className="agent-label">
+          SKILLS DESTE AGENT <small>vão inteiras em toda execução</small>
+        </span>
+        {library.length || missing.length ? (
+          <div className="agent-skill-pick" role="group" aria-label="Skills deste agent">
+            {library.map((s) => (
+              <button
+                key={s.name}
+                type="button"
+                aria-pressed={f.skillNames.includes(s.name)}
+                data-skill={s.name}
+                title={s.description}
+                disabled={!f.skillNames.includes(s.name) && f.skillNames.length >= MAX_OWN_SKILLS}
+                onClick={() => pick(s.name)}
+              >
+                /{s.name}
+                {s.tokens ? <small>~{s.tokens} tokens</small> : null}
+              </button>
+            ))}
+            {missing.map((n) => (
+              <button key={n} type="button" aria-pressed="true" className="gone" onClick={() => pick(n)}>
+                /{n}
+                <small>fora da biblioteca</small>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="agent-note">Nenhuma skill ligada na biblioteca (tela Skills).</p>
+        )}
       </div>
 
       <div className="agent-field">
@@ -255,8 +311,8 @@ export function AgentForm({ initial, integrations = {}, projects = [], busy, onS
         />
         <Toggle
           icon={BookOpen}
-          label="Skills"
-          hint="Pode carregar as skills ligadas do VeSTA."
+          label="Outras skills"
+          hint="Além das deste agent, pode carregar as skills ligadas do VeSTA quando combinarem."
           on={f.skills}
           onChange={(skills) => set({ skills })}
         />

@@ -5,7 +5,7 @@ import { PROVIDERS } from '../../lib/constants';
 import { MODES } from '../../lib/modes';
 import { ProviderIcon } from '../ProviderIcon';
 import { Switch } from '../skills/SkillBits';
-import { STATUS, agoLabel, describeSchedule, lastRun, statusOf, untilLabel } from '../../lib/agents';
+import { STATUS, agoLabel, describeSchedule, lastRun, statusOf, toReview, untilLabel } from '../../lib/agents';
 
 export function AgentCard({ agent: a, chats, projects, now, selected, onOpen, onToggle, onRun }) {
   const status = statusOf(a, chats);
@@ -13,6 +13,7 @@ export function AgentCard({ agent: a, chats, projects, now, selected, onOpen, on
   const project = projects.find((p) => p.id === a.projectId);
   const history = (a.runs || []).slice(0, 12).reverse();
   const busy = status === 'running' || status === 'waiting';
+  const review = toReview(a);
   return (
     <article
       className={'agent-card ' + status + (selected ? ' selected' : '')}
@@ -25,6 +26,11 @@ export function AgentCard({ agent: a, chats, projects, now, selected, onOpen, on
           {STATUS[status]}
         </span>
         {a.unseen > 0 && <span className="agent-new">novo</span>}
+        {review > 0 && (
+          <span className="agent-review" title="Lições ou pedido esperando o seu sim">
+            {review} para revisar
+          </span>
+        )}
         <Switch
           on={a.enabled}
           label={(a.enabled ? 'Desligar ' : 'Ligar ') + a.name}

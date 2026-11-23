@@ -2,7 +2,20 @@
 // The rules themselves (schedule, next run) live in electron/shared/agents.cjs, shared with the main process.
 import shared from '../../electron/shared/agents.cjs';
 
-export const { describeSchedule, nextRun, normalizeSchedule, isRunning, lastRun, DAY, INTERVALS } = shared;
+export const {
+  describeSchedule,
+  nextRun,
+  normalizeSchedule,
+  isRunning,
+  lastRun,
+  keptLessons,
+  pendingLessons,
+  DAY,
+  INTERVALS,
+} = shared;
+
+// What the agent learned and waits for the person's yes: pending lessons and a suggested task.
+export const toReview = (agent) => pendingLessons(agent).length + (agent.suggestion ? 1 : 0);
 
 const HOUR = 3600000;
 

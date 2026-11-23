@@ -8,6 +8,7 @@ import { modelLabel } from '../../lib/format';
 import { ProviderIcon } from '../ProviderIcon';
 import { Switch } from '../skills/SkillBits';
 import { AgentForm } from './AgentForm';
+import { AgentLearning } from './AgentLearning';
 import {
   STATUS,
   TRIGGER,
@@ -106,6 +107,7 @@ export function AgentDrawer({
             busy={busy}
             integrations={integrations}
             projects={data.projects}
+            skills={data.skills?.list || []}
             onSave={save}
             onCancel={() => (isNew ? onClose() : setEditing(false))}
             onRemove={
@@ -146,6 +148,18 @@ export function AgentDrawer({
                   · memória {a.memory ? 'sim' : 'não'} · skills {a.skills ? 'sim' : 'não'}
                 </small>
               </dd>
+              {(a.skillNames || []).length > 0 && (
+                <>
+                  <dt>SKILLS</dt>
+                  <dd className="agent-skill-chips">
+                    {a.skillNames.map((n) => (
+                      <span key={n} className="agent-skill-chip">
+                        /{n}
+                      </span>
+                    ))}
+                  </dd>
+                </>
+              )}
             </dl>
             <div className="agent-actions">
               {running ? (
@@ -178,6 +192,8 @@ export function AgentDrawer({
                 Configurar
               </button>
             </div>
+
+            <AgentLearning agent={a} now={now} busy={busy} act={act} />
 
             <section className="agent-diary" aria-label="Diário">
               <h3>

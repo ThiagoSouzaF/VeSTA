@@ -9,7 +9,16 @@ import { AgentCard } from './AgentCard';
 import { AgentDrawer } from './AgentDrawer';
 import { AgentTimeline } from './AgentTimeline';
 import { blankAgent } from './AgentForm';
-import { FILTERS, TEMPLATES, describeSchedule, filterAgents, nextUp, statusOf, untilLabel } from '../../lib/agents';
+import {
+  FILTERS,
+  TEMPLATES,
+  describeSchedule,
+  filterAgents,
+  nextUp,
+  statusOf,
+  toReview,
+  untilLabel,
+} from '../../lib/agents';
 
 // Relative times ("em 25 min") stay true while the screen is open.
 function useNow(ms = 30000) {
@@ -43,6 +52,7 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
   const statuses = useMemo(() => agents.map((a) => statusOf(a, data.chats)), [agents, data.chats]);
   const count = (s) => statuses.filter((x) => x === s).length;
   const active = agents.filter((a) => a.enabled).length;
+  const review = agents.reduce((n, a) => n + toReview(a), 0);
   const next = nextUp(agents);
   const shown = filterAgents(agents, { filter, query });
   const create = (template = {}) => setOpen({ draft: { ...blankAgent(integrations), ...template } });
@@ -115,6 +125,11 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
             <span>
               <b>{count('error')}</b> com falha na última
             </span>
+            {review > 0 && (
+              <span className="attention">
+                <b>{review}</b> aprendizado{review === 1 ? '' : 's'} para revisar
+              </span>
+            )}
             <span className="agents-next">
               {next ? (
                 <>

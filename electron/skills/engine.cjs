@@ -316,6 +316,13 @@ function createSkills(ctx, { root, deps = {} } = {}) {
       auto.map((s) => '- ' + s.name + ': ' + clip(s.description, CATALOG_DESC)).join('\n')
     );
   }
+  // An agent's own skill, whole (Agent Mode sends it with every run): { name, body } of an enabled skill, or null.
+  function inline(name) {
+    const meta = lib.get(name);
+    if (!meta || !meta.enabled) return null;
+    lib.used(meta.name);
+    return { name: meta.name, body: F.parseSkill(lib.read(meta.name).text).body };
+  }
   // "/nome resto" -> { skill, text (the prompt), note } for an enabled VeSTA skill; null otherwise (the text goes as is).
   function expand(chat, text) {
     const m = SLASH.exec(String(text || ''));
@@ -376,6 +383,7 @@ function createSkills(ctx, { root, deps = {} } = {}) {
     hasAny,
     catalogHint,
     expand,
+    inline,
     set,
     remove,
     read: (name) => lib.read(name),

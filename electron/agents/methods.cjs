@@ -10,6 +10,8 @@ function agentMethods(ctx) {
     agentToggle: done((a) => ctx.agents.toggle(a)),
     agentRemove: done((a) => ctx.agents.remove(a)),
     agentSeen: done(() => ctx.agents.seen()),
+    agentLesson: done((a) => ctx.agents.lesson(a)),
+    agentSuggestion: done((a) => ctx.agents.suggestion(a)),
     // The screen also needs the chat of the run, to open it.
     agentRun: (args) => ({ ...ctx.agents.runNow(args || {}), state: ctx.state() }),
   };
