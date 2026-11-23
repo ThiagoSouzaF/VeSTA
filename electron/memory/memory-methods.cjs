@@ -18,10 +18,8 @@ function memoryMethods(ctx) {
           agents: ctx.store.state.settings.memoryTools !== false,
           endpoint: mcp,
           spool: { pending: spoolCount(dir), last: spool },
-          consolidation: {
-            provider: ctx.store.state.settings.memoryConsolidate || 'off',
+          sessions: {
             open: ctx.store.state.chats.filter((c) => c.memorySession).length,
-            last: ctx.memorySessions?.status.lastConsolidation || null,
             error: ctx.memorySessions?.status.lastError || null,
           },
         };
@@ -98,6 +96,19 @@ function memoryMethods(ctx) {
       return true;
     },
     searchMemory: ({ query, projectId }) => ctx.memory.query(bounded(query, 500), projectId),
+    // Consolidar (tela Memória): the AI and the schedule, and a run right now.
+    consolidationSet: (input = {}) => {
+      ctx.consolidator.configure({
+        provider: input.provider,
+        model: input.model === undefined ? undefined : bounded(input.model, 120),
+        schedule: input.schedule,
+      });
+      return state();
+    },
+    consolidationRun: () => {
+      ctx.consolidator.runNow();
+      return state();
+    },
   };
 }
 module.exports = { memoryMethods };

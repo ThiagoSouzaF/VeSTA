@@ -1,7 +1,9 @@
-// E2E (real AIs): a real chat becomes an AI Memory session that the Codex consolidates into rule/gotcha pages.
-//   Claude (haiku) answers one message in a project -> the session goes idle (VESTA_MEMORY_IDLE_MS) -> session-end ->
-//   memory_consolidate with AI_MEMORY_LLM_PROVIDER=codex -> pages mirrored in the Memória screen and searchable.
-// Needs Claude and a logged-in Codex CLI. Uses a throwaway VESTA_DATA_DIR and project, never %APPDATA%\VeSTA.
+// E2E (real AI): a real chat becomes an AI Memory session that waits for the consolidation, and the Consolidar
+// panel of the Memória screen has Claude (haiku) turn it into rule/gotcha pages.
+//   Claude answers one message in a project -> the session goes idle (VESTA_MEMORY_IDLE_MS) -> session-end -> it waits
+//   ("1 conversa esperando") -> "Consolidar agora" -> a hidden chat -> pages in the AI Memory, the screen and the search.
+//   Also: the schedule picker saves at once, the hidden chat never shows in Conversas, the server has no LLM.
+// Needs Claude. Uses a throwaway VESTA_DATA_DIR and project, never %APPDATA%\VeSTA.
 // Needs a fresh `npm run build`. Usage: node scripts/test-memory-consolidation-e2e.cjs [shots-dir]
 const assert = require('node:assert/strict');
 const fs = require('node:fs'),
@@ -29,13 +31,13 @@ const RULE =
         memoryEnabled: true,
         capture: true,
         captureRaw: false,
-        memoryConsolidate: 'codex',
         memoryTools: false,
       },
       projects: [{ id: 'proj', name: 'projeto-mem', path: projectDir, createdAt: Date.now() }],
       chats: [],
       memories: [],
       quests: [],
+      consolidation: { provider: 'claude', model: 'claude-haiku-5-5', schedule: { kind: 'manual' } },
     })
   );
   const env = {
@@ -60,7 +62,6 @@ const RULE =
     const get = async () => (await call('bootstrap')).state;
     const boot = await call('bootstrap');
     assert.ok(boot.integrations.claude?.installed, 'Claude precisa estar instalado');
-    assert.ok(boot.integrations.codex?.installed, 'Codex precisa estar instalado (consolidação)');
 
     const created = await call('createChat', {
       provider: 'claude',
@@ -92,18 +93,55 @@ const RULE =
     }
     assert.ok(chat.memorySession?.turns === 1 || !chat.memorySession, 'a conversa abriu uma sessão de memória');
 
-    // Idle -> session-end -> consolidation by the Codex.
-    let mem = [];
+    // Idle -> session-end -> waiting for the consolidation (nothing runs on its own with the schedule on "manual").
+    let state;
+    for (let i = 0; i < 60; i++) {
+      state = await get();
+      if (state.memoryToConsolidate?.length) break;
+      await wait(500);
+    }
+    assert.equal(state.memoryToConsolidate.length, 1, 'a conversa espera a consolidação');
+    assert.equal(state.chats.find((c) => c.id === chatId).memorySession, undefined, 'sessão encerrada');
+    assert.ok(!state.memories.some((m) => m.kind === 'insight'), 'o servidor não consolida sozinho');
+
+    // Memória screen: the panel shows what waits; the schedule saves at once; the button runs it.
+    await page.locator('.rail-item').filter({ hasText: 'Memória' }).click();
+    const panel = page.locator('.memory-consolidation');
+    await panel.waitFor();
+    assert.match(await panel.locator('strong').innerText(), /1 conversa esperando/);
+    assert.equal(await panel.locator('[data-ai="claude"]').getAttribute('aria-checked'), 'true');
+    await panel.getByLabel('Quando consolidar').selectOption('interval');
+    await panel.getByLabel('Intervalo').selectOption('6');
+    for (let i = 0; i < 20 && (await get()).consolidation.schedule.hours !== 6; i++) await wait(200);
+    state = await get();
+    assert.deepEqual([state.consolidation.schedule.kind, state.consolidation.schedule.hours], ['interval', 6]);
+    assert.ok(Math.abs(state.consolidation.nextRunAt - (Date.now() + 6 * 3600000)) < 60000, 'próxima em 6 h');
+    assert.match(await panel.innerText(), /A cada 6 horas/);
+    await page.screenshot({ path: path.join(shots, 'mem-consolidar-esperando.png') });
     const t1 = Date.now();
-    for (let i = 0; i < 180; i++) {
-      mem = (await get()).memories;
-      if (mem.some((m) => m.kind === 'insight')) break;
+    await panel.getByRole('button', { name: 'Consolidar agora' }).click();
+    await panel.getByRole('button', { name: 'Consolidando…' }).waitFor();
+    const hidden = (await get()).chats.find((c) => c.memoryConsolidation);
+    assert.ok(
+      hidden && hidden.mode === 'read' && hidden.memory === false,
+      'um chat oculto, só leitura e fora da memória'
+    );
+    let mem = [];
+    for (let i = 0; i < 240; i++) {
+      state = await get();
+      if (state.consolidation.runs[0]?.status !== 'running') break;
       await wait(1000);
     }
-    const status = await call('memoryStatus');
-    console.log('consolidação:', JSON.stringify(status.consolidation), '·', Math.round((Date.now() - t1) / 1000) + 's');
+    // bootstrap snapshots the state before it waits for the AI probe: read it again once the run is over.
+    state = await get();
+    mem = state.memories;
+    const run = state.consolidation.runs[0];
+    console.log('consolidação:', JSON.stringify(run), '·', Math.round((Date.now() - t1) / 1000) + 's');
     console.log('páginas:', mem.map((m) => m.path + ' — ' + m.title).join(' | '));
-    assert.ok(!status.consolidation.error, 'erro na consolidação: ' + JSON.stringify(status.consolidation.error));
+    assert.equal(run.status, 'ok', 'erro na consolidação: ' + run.error);
+    assert.equal(run.trigger, 'manual');
+    assert.ok(!state.chats.some((c) => c.memoryConsolidation), 'o chat oculto foi apagado');
+    assert.deepEqual(state.memoryToConsolidate, [], 'nada mais esperando');
     assert.ok(
       mem.some((m) => m.kind === 'insight'),
       'a consolidação gerou regra/armadilha/aprendizado'
@@ -117,24 +155,23 @@ const RULE =
       'tudo no projeto da conversa'
     );
     assert.ok(!mem.some((m) => m.path.startsWith('conversas/')), 'sem página bruta por resposta');
-    assert.equal((await get()).chats.find((c) => c.id === chatId).memorySession, undefined, 'sessão encerrada');
     assert.match(mem.map((m) => m.title + ' ' + m.body).join(' '), /_MS/, 'a regra do _MS foi extraída');
+    await panel.getByText(/Nada esperando/).waitFor();
+    assert.match(await panel.innerText(), /Última[\s\S]*1 conversa/);
 
     // Searchable through the AI Memory, as the next conversations will see it.
     const found = String(await call('searchMemory', { query: 'TTL milissegundos', projectId: 'proj' }));
     console.log('busca:', found.replace(/\s+/g, ' ').slice(0, 220));
     assert.match(found, /_MS|milissegundos/i);
 
-    // Memória screen: the "Regras e decisões" tab lists the consolidated pages; Preferências shows the new switches.
-    await page.locator('nav .nav-item', { hasText: 'Memória' }).click();
+    // The "Regras e decisões" tab lists the consolidated pages.
     await page.locator('.memory-toolbar .tabs button', { hasText: 'Regras e decisões' }).click();
     await page.locator('.memory-grid .memory-card').first().waitFor();
-    await page.screenshot({ path: path.join(shots, 'mem-aprendizados.png') });
-    await page.locator('.sidebar-bottom .nav-item').click();
-    await page.locator('[aria-label="Consolidar com IA (Codex)"]').scrollIntoViewIfNeeded();
-    await page.screenshot({ path: path.join(shots, 'mem-preferencias.png') });
+    await page.screenshot({ path: path.join(shots, 'mem-consolidado.png') });
     assert.deepEqual(problems, [], problems.join('\n'));
-    console.log('PASS: conversa real consolidada pelo Codex em páginas do AI Memory. Screenshots em ' + shots);
+    console.log(
+      'PASS: conversa real consolidada pelo Claude (botão Consolidar) em páginas do AI Memory. Screenshots em ' + shots
+    );
   } catch (e) {
     console.error('FAIL:', e.message);
     process.exitCode = 1;

@@ -19,6 +19,7 @@ const { createConfirmer } = require('../remote/confirm.cjs');
 const { Memory } = require('../memory/client.cjs');
 const { stopStale } = require('../memory/server-lock.cjs');
 const { createMemorySessions } = require('../memory/sessions.cjs');
+const { createConsolidator } = require('../memory/consolidator.cjs');
 const { applyPendingRestore, PENDING } = require('../backup/archive.cjs');
 const { createBackups, defaultBackupFolder } = require('../backup/methods.cjs');
 const { createDrive } = require('../backup/gdrive.cjs');
@@ -87,12 +88,10 @@ async function openServices(ctx, { electron, bus, methods }) {
   ctx.remote = createRemote({ ctx, methods, bus, deps: { confirm: (request) => confirmer.confirm(request) } });
   if (store.state.remote.enabled) ctx.remote.start().catch(() => {});
   ctx.memory = new Memory(exe, path.join(dataDir, 'memory'), {
-    // Consolidation reuses the Codex CLI login; the answer excerpt only reaches the store with capture on.
-    // The hourly auto-improve reviewer stays off: one consolidation per conversation stretch, nothing more.
-    // Always the same environment, so toggling the preference never restarts the server under running agents:
-    // the app alone decides whether to call memory_consolidate.
+    // No LLM on the server: the consolidation is done by an AI the person picks (memory/consolidator.cjs), so the
+    // server never calls one on its own (the hourly auto-improve reviewer stays off too). The answer excerpt only
+    // reaches the store with capture on.
     env: () => ({
-      AI_MEMORY_LLM_PROVIDER: 'codex',
       AI_MEMORY_CAPTURE_ASSISTANT: 'true',
       AI_MEMORY_AUTO_IMPROVE__SCHEDULER__ENABLED: 'false',
       // The profile (how the user works, sent to every project) learns on its own only what was said in two projects
@@ -101,9 +100,13 @@ async function openServices(ctx, { electron, bus, methods }) {
       AI_MEMORY_PROFILE__MIN_PROJECTS: '2',
     }),
   });
+  // Closed stretches wait for the consolidation, by the button in Memória or on its schedule.
+  ctx.consolidator = createConsolidator(ctx);
+  ctx.consolidator.startClock();
+  bus.subscribe((event) => event.type === 'chat-done' && ctx.consolidator.onChatDone(event));
   // VESTA_MEMORY_IDLE_MS only shortens the 30 min idle close for the E2E tests.
   ctx.memorySessions = createMemorySessions(ctx, { idleMs: Number(process.env.VESTA_MEMORY_IDLE_MS) || undefined });
-  // Stretches left open by the previous run are closed and consolidated in the background.
+  // Stretches left open by the previous run are closed in the background.
   if (store.state.settings.memoryEnabled) ctx.memorySessions.recover();
   // Keys kept on this computer (backup password, Google Drive) are sealed by the OS keychain, never plain text.
   ctx.secrets = createSecrets(safeStorage);
@@ -127,6 +130,7 @@ function closeServices(ctx) {
   ctx.appMcp?.close().catch(() => {});
   ctx.skillsMcp?.close().catch(() => {});
   ctx.agents?.stopClock();
+  ctx.consolidator?.stopClock();
   ctx.memory?.close().catch(() => {});
 }
 

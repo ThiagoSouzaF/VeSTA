@@ -47,6 +47,14 @@ test('old stores without a version or theme migrate too, and migrateStore leaves
   assert.equal(migrateStore(state, 3).settings.theme, 'ink');
 });
 
+test('v6: the Codex consolidation switch goes; with it off, the new schedule starts as "only when asked"', () => {
+  const on = migrateStore({ settings: { memoryConsolidate: 'codex' } }, 5);
+  assert.equal(on.settings.memoryConsolidate, undefined);
+  assert.equal(on.consolidation, undefined, 'the default (daily at 03:00) applies');
+  const off = migrateStore({ settings: { memoryConsolidate: 'off' } }, 5);
+  assert.deepEqual(off.consolidation, { schedule: { kind: 'manual' } });
+});
+
 test('theme selection accepts the four themes and rejects anything else', () => {
   assert.deepEqual(THEMES, ['ink', 'obsidian', 'aurora', 'paper']);
   const dir = tmp();

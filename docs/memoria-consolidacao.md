@@ -1,16 +1,18 @@
 # Consolidação nativa do AI Memory — teste (fase 1)
 
+> **Atualização (0.26):** a consolidação não usa mais o login do Codex no servidor. As sessões fechadas esperam em `state.memoryToConsolidate`, e uma IA escolhida pela pessoa (Claude, Codex, OpenCode ou Drael) as consolida numa conversa oculta, pelo botão ou pela agenda do painel **Consolidar** da tela Memória. Código: `electron/memory/consolidator.cjs` (fila, agenda, execução) e `electron/memory/consolidate.cjs` (o pedido e a leitura da resposta). Testes: `test/memory-consolidator.test.cjs` e `scripts/test-memory-consolidation-e2e.cjs` (Claude real). O texto abaixo registra o desenho original.
+
 Teste feito em 2026-10-21 com `runtime/ai-memory.exe` (v3.0.0), numa pasta temporária e com um servidor próprio (`serve --transport http`, workspace `vesta`, projeto `teste`). Os dados reais do app não foram usados.
 
 ## Resumo
 
 Funciona. O VeSTA pode fazer o papel dos hooks sem instalar nada nas IAs. Ele envia o ciclo de vida de cada chat ao servidor que já sobe hoje. No fim da sessão, chama `memory_consolidate`, que usa o login do Codex que você já tem. Num chat de teste, saíram três páginas destiladas, todas no projeto certo:
 
-| Página | Exemplo real do teste |
-|---|---|
+| Página             | Exemplo real do teste                                                            |
+| ------------------ | -------------------------------------------------------------------------------- |
 | `sessions/<id>.md` | "Correção da expiração de login do app mobile": narrativa curta do que foi feito |
-| `gotchas/…` | "TTL do login mobile em segundos tratado como minutos" |
-| `_rules/…` | "Use milissegundos e o sufixo _MS para todo TTL" |
+| `gotchas/…`        | "TTL do login mobile em segundos tratado como minutos"                           |
+| `_rules/…`         | "Use milissegundos e o sufixo \_MS para todo TTL"                                |
 
 A busca `memory_query "TTL milissegundos"` devolve a regra em primeiro lugar. Cada consolidação levou cerca de 9 s.
 

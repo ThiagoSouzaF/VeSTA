@@ -30,8 +30,6 @@ function settingsMethods(ctx) {
         'autoUpdate',
       ])
         if (typeof input[key] === 'boolean') s[key] = input[key];
-      // The server always has the LLM configured; this only decides whether the app asks for consolidations.
-      if (['codex', 'off'].includes(input.memoryConsolidate)) s.memoryConsolidate = input.memoryConsolidate;
       ctx.store.save();
       sync();
       return state();

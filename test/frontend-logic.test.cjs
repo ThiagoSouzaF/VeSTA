@@ -282,6 +282,7 @@ test('filters: chats hide the ones owned by an existing quest, follow the projec
     { id: 'b', title: 'Outro assunto', projectId: 'p2' },
     { id: 'c', title: 'Quest do login', projectId: 'p1', questId: 'q1' },
     { id: 'd', title: 'Quest apagada', projectId: 'p1', questId: 'gone' },
+    { id: 'e', title: 'Consolidar memória', projectId: null, memoryConsolidation: 'r1' },
   ];
   const quests = [{ id: 'q1' }];
   assert.deepEqual(

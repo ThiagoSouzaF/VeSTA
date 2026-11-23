@@ -411,6 +411,8 @@ export function App() {
       queryResult,
       shownMemories,
       setModal,
+      integrations,
+      setData: replaceData,
     },
     skills: {
       data,

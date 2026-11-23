@@ -27,11 +27,6 @@ const UPDATE = {
   mascot: bool('Mostrar a mascote Vesta.'),
   memoryEnabled: bool('Usar a memória compartilhada (AI Memory) nas conversas.'),
   capture: bool('Aprender com as conversas (cada conversa vira uma sessão no AI Memory).'),
-  memoryConsolidate: {
-    type: 'string',
-    enum: ['codex', 'off'],
-    description: 'Consolidar sessões com IA (codex) ou não (off). O conteúdo vai para a OpenAI com codex.',
-  },
   captureRaw: bool('Guardar também cada resposta inteira como página (modo antigo, muito volume).'),
   memoryTools: bool('As IAs podem consultar e gravar na memória por ferramentas.'),
   followMinutes: {
@@ -78,7 +73,6 @@ function snapshot(ctx) {
     memoria: {
       memoryEnabled: s.memoryEnabled,
       capture: s.capture !== false,
-      memoryConsolidate: s.memoryConsolidate,
       captureRaw: !!s.captureRaw,
       memoryTools: s.memoryTools !== false,
     },
@@ -110,7 +104,7 @@ function createAppMcp(ctx, { methods }) {
     const chat = chatOf(chatId);
     if (!chat || ctx.store.state.settings.chatSettings === false) return null;
     if (chat.questId && chat.questRole !== 'lead') return null;
-    if (chat.skillDraft) return null;
+    if (chat.skillDraft || chat.memoryConsolidation) return null;
     if (chat.agentId) return null; // an agent working alone never changes the app's preferences
     return chat;
   };

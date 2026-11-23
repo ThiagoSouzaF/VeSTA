@@ -1,7 +1,7 @@
 // Lists shown in the sidebar and in Memória: what the search box, the project picker and the memory tabs leave visible.
 
 // Chats started by a quest live in the quest (its board and its own chat), not in Conversas; the runs of an agent
-// live in Agent Mode. A deleted quest's or agent's chats come back to the list, so nothing becomes unreachable.
+// live in Agent Mode; skill adaptations and memory consolidations are hidden work of the app. A deleted quest's or agent's chats come back to the list, so nothing becomes unreachable.
 export function filterChats(chats, quests, { projectId, search }, agents = []) {
   const questIds = new Set(quests.map((q) => q.id));
   const agentIds = new Set(agents.map((a) => a.id));
@@ -10,6 +10,7 @@ export function filterChats(chats, quests, { projectId, search }, agents = []) {
     (c) =>
       !(c.questId && questIds.has(c.questId)) &&
       !c.skillDraft &&
+      !c.memoryConsolidation &&
       !(c.agentId && agentIds.has(c.agentId)) &&
       (!projectId || c.projectId === projectId) &&
       c.title.toLowerCase().includes(needle)

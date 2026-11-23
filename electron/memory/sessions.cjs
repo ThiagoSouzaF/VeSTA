@@ -1,15 +1,14 @@
 // Chats as AI Memory sessions. The VeSTA plays the role of the native hooks for every AI (no hook is installed in
 // ~/.claude or ~/.codex): it posts the lifecycle of each conversation stretch to the server it already runs, and when
-// the stretch ends (30 min idle, AI or project switched, app reopened) it asks the server to consolidate it with an LLM
-// into session / rule / gotcha / concept pages. See docs/memoria-consolidacao.md.
+// the stretch ends (30 min idle, AI or project switched, app reopened) it closes it on the server and leaves it waiting
+// for the consolidation by the AI the person picked (consolidator.cjs). See docs/memoria-consolidacao.md.
 //
 // chat.memorySession = { id (UUID, kept by the server), provider, projectId, startedAt, lastAt, turns }
-// state.memoryPending = [{ session, chatId, reason, ended, attempts }]  closed stretches still to end/consolidate:
-//   persisted, so a failure (server down, Codex logged out, quota) is retried on the next close or app start.
+// state.memoryPending = [{ session, chatId, reason, attempts }]  closed stretches still to end on the server:
+//   persisted, so a failure (server down) is retried on the next close or app start.
 const { randomUUID } = require('node:crypto');
 const { redact } = require('./redact.cjs');
 const { agentName: agentOf } = require('./protocol.cjs');
-const { sleep } = require('../util/sys.cjs');
 const { ellipsis: clip } = require('../util/text.cjs');
 
 const IDLE_MS = 30 * 60 * 1000;
@@ -17,37 +16,13 @@ const MAX_TOOLS = 30;
 const MAX_ATTEMPTS = 3;
 // Assistant capture (#196) exists for Claude Code and Codex only; the other AIs report a plain stop.
 const answersCaptured = (provider) => provider === 'claude' || provider === 'codex';
-// Consolidation reply -> notes mirrored in the Memória screen.
-function notesFrom(reply, { projectId, chatId, now }) {
-  let outcomes = [];
-  try {
-    outcomes = JSON.parse(reply).outcomes || [];
-  } catch {
-    return [];
-  }
-  return outcomes
-    .filter((o) => o && o.path && !o.dry_run)
-    .map((o) => ({
-      id: randomUUID(),
-      path: String(o.path),
-      title: clip(redact(o.new_title || o.path), 200),
-      kind: String(o.path).startsWith('sessions/') ? 'session' : 'insight',
-      projectId: projectId || null,
-      chatId,
-      body: clip(redact(o.new_body_markdown || ''), 12000),
-      createdAt: now,
-    }));
-}
-
 function createMemorySessions(ctx, deps = {}) {
   const now = deps.now || Date.now;
   const idleMs = deps.idleMs ?? IDLE_MS;
-  // Lets the server write the queued session-end (it answers 202) before the consolidation reads the session.
-  const settleMs = deps.settleMs ?? 1500;
   const timers = new Map();
   const queues = new Map();
   const waiters = new Map(); // session id -> callbacks of end() promises
-  const status = { lastError: null, lastConsolidation: null };
+  const status = { lastError: null };
   let draining = null;
   const store = () => ctx.store;
   const state = () => ctx.store.state;
@@ -55,7 +30,6 @@ function createMemorySessions(ctx, deps = {}) {
   const pending = () => (state().memoryPending ||= []);
   const chatOf = (id) => state().chats.find((c) => c.id === id);
   const enabled = (chat) => !!(settings().memoryEnabled && settings().capture !== false && chat?.memory);
-  const consolidating = () => settings().memoryConsolidate === 'codex';
   const commit = () => {
     store().save();
     ctx.sync?.();
@@ -102,49 +76,21 @@ function createMemorySessions(ctx, deps = {}) {
     t.unref?.();
     timers.set(chat.id, t);
   };
-  const settle = (item, err, notes) => {
+  const settle = (item, err) => {
     const w = waiters.get(item.session.id);
     waiters.delete(item.session.id);
-    if (w) err ? w.reject(err) : w.resolve(notes);
+    if (w) err ? w.reject(err) : w.resolve(item.session);
   };
 
-  async function consolidate(s, chatId) {
-    const reply = await ctx.memory.call(
-      'memory_consolidate',
-      { session_id: s.id, multi_page: true },
-      { timeout: 180000 }
-    );
-    const notes = notesFrom(reply, { projectId: s.projectId, chatId, now: now() });
-    // The chat was deleted while the LLM worked: its content must not outlive it.
-    if (!chatOf(chatId)) {
-      for (const n of notes)
-        await ctx.memory.call('memory_delete_page', { path: n.path, ...scopeOf(s) }).catch(() => {});
-      return [];
-    }
-    const key = (n) => (n.projectId || '') + '|' + n.path;
-    const fresh = new Set(notes.map(key));
-    state().memories = [...notes, ...state().memories.filter((n) => !fresh.has(key(n)))];
-    status.lastConsolidation = { at: now(), pages: notes.length, chatId };
-    commit();
-    return notes;
-  }
-  const scopeOf = (s) => ({ workspace: 'vesta', project: s.projectId || 'inbox' });
-
-  // One closed stretch: session-end (once), then the consolidation when it is on, the stretch had a finished turn and
-  // the chat still exists. Throws to keep the item for a later retry.
+  // One closed stretch: session-end on the server, then (when it had a finished turn and the chat still exists) it
+  // waits for the consolidation. Throws to keep the item for a later retry.
   async function handle(item) {
     const s = item.session,
       chat = chatOf(item.chatId);
-    if (!item.ended) {
-      await post(chat, s, 'session-end', { reason: item.reason });
-      item.ended = true;
-      commit();
-      if (settleMs) await sleep(settleMs);
-    }
-    if (!chat || !consolidating() || !s.turns) return [];
-    return consolidate(s, item.chatId);
+    await post(chat, s, 'session-end', { reason: item.reason });
+    if (chat && s.turns) ctx.consolidator?.enqueue(s, item.chatId);
   }
-  // Closed stretches are handled one at a time (one LLM call at a time), in order. Failed ones stay for the next run.
+  // Closed stretches are handled one at a time, in order. Failed ones stay for the next close or app start.
   function drain() {
     if (draining) return draining;
     draining = (async () => {
@@ -154,10 +100,10 @@ function createMemorySessions(ctx, deps = {}) {
         if (!item) break;
         tried.add(item.session.id);
         try {
-          const notes = await handle(item);
+          await handle(item);
           state().memoryPending = pending().filter((i) => i !== item);
           commit();
-          settle(item, null, notes);
+          settle(item, null);
         } catch (e) {
           fail(e);
           item.attempts = (item.attempts || 0) + 1;
@@ -172,8 +118,8 @@ function createMemorySessions(ctx, deps = {}) {
     return draining;
   }
 
-  // Closes the open stretch of a chat (if any) and consolidates it. Resolves when the consolidation is done.
-  // Only the close is queued with the chat's events: a new message never waits for the (slow) consolidation.
+  // Closes the open stretch of a chat (if any): it ends on the server and waits for the consolidation. Resolves with
+  // the closed session (null when there was none) once the server has it.
   function end(chatId, reason = 'exit') {
     const closed = chain(chatId, async () => {
       const chat = chatOf(chatId);
@@ -181,12 +127,12 @@ function createMemorySessions(ctx, deps = {}) {
       disarm(chatId);
       if (!s) return null;
       delete chat.memorySession;
-      pending().push({ session: s, chatId, reason, ended: false, attempts: 0 });
+      pending().push({ session: s, chatId, reason, attempts: 0 });
       commit();
       return s;
     });
     return closed.then((s) => {
-      if (!s) return [];
+      if (!s) return null;
       const done = new Promise((resolve, reject) => waiters.set(s.id, { resolve, reject }));
       drain();
       return done;
@@ -200,7 +146,7 @@ function createMemorySessions(ctx, deps = {}) {
     turnStart(chat, text) {
       if (!enabled(chat)) return Promise.resolve();
       const s = chat.memorySession;
-      // Another AI or project: the old stretch is closed (and consolidated) on its own.
+      // Another AI or project: the old stretch is closed on its own.
       if (s && (s.provider !== chat.provider || (s.projectId || null) !== (chat.projectId || null)))
         end(chat.id, 'switch').catch(() => {});
       return chain(chat.id, async () => {
@@ -280,7 +226,7 @@ function createMemorySessions(ctx, deps = {}) {
         })
         .catch(fail);
     },
-    // The chat moved to another project: its open stretch is closed (and consolidated) in the old project, and the new
+    // The chat moved to another project: its open stretch is closed in the old project, and the new
     // one gets a handoff, so an AI opening it finds where the conversation stands.
     handoffOnMove(chat, fromName) {
       const closed = end(chat.id, 'project-moved').catch(fail);
@@ -306,15 +252,16 @@ function createMemorySessions(ctx, deps = {}) {
       return Promise.all([closed, handed]);
     },
     // A deleted chat is not consolidated (its content should not outlive it): the timer goes away, its open stretch is
-    // closed on the server without an LLM pass, and its pending consolidations end without one (the chat is gone).
+    // closed on the server, and what waited for the consolidation is dropped.
     forget(chatId, session) {
       disarm(chatId);
-      if (session) pending().push({ session: { ...session, turns: 0 }, chatId, reason: 'deleted', ended: false });
+      ctx.consolidator?.forgetChat(chatId);
+      if (session) pending().push({ session: { ...session, turns: 0 }, chatId, reason: 'deleted' });
       commit();
       drain();
     },
-    // App (re)opened: stretches left open by the previous run (closed app, crash) are closed and consolidated now,
-    // together with the ones whose consolidation failed before.
+    // App (re)opened: stretches left open by the previous run (closed app, crash) are closed now, together with the
+    // ones whose close failed before.
     recover() {
       const open = state().chats.filter((c) => c.memorySession);
       const ends = open.map((c) => end(c.id, 'app-restart'));
@@ -327,4 +274,4 @@ function createMemorySessions(ctx, deps = {}) {
     },
   };
 }
-module.exports = { createMemorySessions, notesFrom, agentOf, answersCaptured, IDLE_MS };
+module.exports = { createMemorySessions, agentOf, answersCaptured, IDLE_MS };

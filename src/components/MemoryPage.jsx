@@ -27,6 +27,8 @@ import { Chapter } from './Chapter';
 import { ProfileList } from './ProfileList';
 import { useEffect, useState } from 'react';
 import { TabInk } from './TabInk';
+import { MemoryConsolidation } from './MemoryConsolidation';
+import { PROVIDERS } from '../lib/constants';
 export function MemoryPage({
   newMemory,
   data,
@@ -41,6 +43,8 @@ export function MemoryPage({
   queryResult,
   shownMemories,
   setModal,
+  integrations,
+  setData,
 }) {
   // Preferences the AIs learned live in the AI Memory profile, not in the app catalogue: count them too.
   const [learned, setLearned] = useState(0);
@@ -95,16 +99,18 @@ export function MemoryPage({
           <div>
             <strong className="summary-status">{memoryStatus?.connected ? 'Conectado' : 'Verificar conexão'}</strong>
             <span>
-              {memoryStatus?.consolidation?.provider === 'codex'
-                ? 'AI Memory · consolida com Codex' +
-                  (memoryStatus.consolidation.open
-                    ? ' · ' + memoryStatus.consolidation.open + ' sessão(ões) aberta(s)'
-                    : '')
-                : 'AI Memory · local · sem IA'}
+              {'AI Memory · consolida com ' + (PROVIDERS[data.consolidation?.provider || 'claude']?.name || 'IA')}
             </span>
           </div>
         </div>
       </div>
+      <MemoryConsolidation
+        data={data}
+        integrations={integrations}
+        openSessions={memoryStatus?.sessions?.open || 0}
+        call={call}
+        setData={setData}
+      />
       <div className="memory-toolbar">
         <div className="tabs tab-ink-host">
           {[

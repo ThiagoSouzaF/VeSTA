@@ -14,17 +14,9 @@ const TOGGLES = [
   {
     title: 'Aprender com as conversas',
     description:
-      'Cada conversa vira uma sessão no AI Memory: seus pedidos, as ferramentas usadas e um trecho da resposta. Depois de 30 minutos sem mensagens (ou ao trocar de IA ou de projeto) a sessão é encerrada.',
+      'Cada conversa vira uma sessão no AI Memory: seus pedidos, as ferramentas usadas e um trecho da resposta. Depois de 30 minutos sem mensagens (ou ao trocar de IA ou de projeto) a sessão é encerrada e espera a consolidação, que você controla na tela Memória.',
     on: (s) => s.capture !== false,
     toggle: (s) => ({ capture: s.capture === false }),
-  },
-  {
-    title: 'Consolidar com IA (Codex)',
-    description:
-      'Ao encerrar a sessão, o Codex resume a conversa e extrai regras, armadilhas e decisões em páginas próprias, usando o seu login do Codex (consome a cota do ChatGPT; o conteúdo da conversa vai para a OpenAI, mesmo em chats do Claude). Desligado, a sessão fica só com um resumo automático, sem IA.',
-    on: (s) => s.memoryConsolidate === 'codex',
-    toggle: (s) => ({ memoryConsolidate: s.memoryConsolidate === 'codex' ? 'off' : 'codex' }),
-    disabled: (s) => s.capture === false,
   },
   {
     title: 'Guardar também a conversa bruta',

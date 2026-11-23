@@ -1,29 +1,19 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createMemorySessions, notesFrom, agentOf } = require('../electron/memory/sessions.cjs');
+const { createMemorySessions, agentOf } = require('../electron/memory/sessions.cjs');
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const settle = async (n = 20) => {
   for (let i = 0; i < n; i++) await tick();
 };
-const REPLY = JSON.stringify({
-  outcomes: [
-    { path: 'sessions/x.md', new_title: 'Sessão', new_body_markdown: 'resumo' },
-    { path: '_rules/use-ms.md', new_title: 'Use _MS', new_body_markdown: 'regra' },
-    { path: 'gotchas/ttl.md', new_title: 'TTL', new_body_markdown: 'armadilha', dry_run: true },
-  ],
-});
-
-function harness({ settings = {}, idleMs = 60000, consolidate } = {}) {
+function harness({ settings = {}, idleMs = 60000 } = {}) {
   const events = [];
+  const queued = [];
+  const forgotten = [];
   const chat = { id: 'c1', provider: 'claude', projectId: 'p1', memory: true, messages: [] };
   const ctx = {
     store: {
-      state: {
-        settings: { memoryEnabled: true, capture: true, memoryConsolidate: 'codex', ...settings },
-        chats: [chat],
-        memories: [{ id: 'old', path: '_rules/use-ms.md', projectId: 'p1', kind: 'insight', title: 'antiga' }],
-      },
+      state: { settings: { memoryEnabled: true, capture: true, ...settings }, chats: [chat], memories: [] },
       save() {},
     },
     sync() {},
@@ -31,14 +21,15 @@ function harness({ settings = {}, idleMs = 60000, consolidate } = {}) {
     memory: {
       hook: async (event, agent, payload, projectId) => events.push({ event, agent, payload, projectId }),
       stopWithAnswer: async (agent, payload) => events.push({ event: 'stop+answer', agent, payload }),
-      call: async (name, args) => {
-        events.push({ event: 'call:' + name, args });
-        return consolidate ? consolidate() : REPLY;
-      },
+      call: async (name, args) => events.push({ event: 'call:' + name, args }),
+    },
+    consolidator: {
+      enqueue: (session, chatId) => queued.push({ session, chatId }),
+      forgetChat: (chatId) => forgotten.push(chatId),
     },
   };
-  const sessions = createMemorySessions(ctx, { idleMs, settleMs: 0 });
-  return { ctx, chat, events, sessions, names: () => events.map((e) => e.event) };
+  const sessions = createMemorySessions(ctx, { idleMs });
+  return { ctx, chat, events, queued, forgotten, sessions, names: () => events.map((e) => e.event) };
 }
 const answer = (text = 'feito', extra = {}) => ({
   status: 'done',
@@ -68,29 +59,24 @@ test('a turn opens a session in vesta/<project> and records prompt, tools and th
   h.sessions.dispose();
 });
 
-test('a second turn reuses the session; idle closes and consolidates it into the Memória notes', async () => {
+test('a second turn reuses the session; idle closes it, and it waits for the consolidation', async () => {
   const h = harness({ idleMs: 5 });
   await h.sessions.turnStart(h.chat, 'a');
   await h.sessions.turnEnd(h.chat, answer());
   await h.sessions.turnStart(h.chat, 'b');
   await h.sessions.turnEnd(h.chat, answer());
   assert.equal(h.names().filter((n) => n === 'session-start').length, 1);
+  const id = h.chat.memorySession.id;
   await new Promise((r) => setTimeout(r, 30));
   await settle();
   assert.ok(h.names().includes('session-end'));
-  const call = h.events.find((e) => e.event === 'call:memory_consolidate');
-  assert.equal(call.args.multi_page, true);
+  assert.ok(!h.names().some((n) => n.startsWith('call:')), 'the server never consolidates on its own');
   assert.equal(h.chat.memorySession, undefined);
-  const mem = h.ctx.store.state.memories;
   assert.deepEqual(
-    mem.map((m) => [m.path, m.kind, m.title]),
-    [
-      ['sessions/x.md', 'session', 'Sessão'],
-      ['_rules/use-ms.md', 'insight', 'Use _MS'],
-    ],
-    'the new version of a page replaces the old one; dry runs are ignored'
+    h.queued.map((q) => [q.session.id, q.session.turns, q.chatId]),
+    [[id, 2, 'c1']]
   );
-  assert.equal(h.sessions.status.lastConsolidation.pages, 2);
+  assert.deepEqual(h.ctx.store.state.memoryPending, []);
 });
 
 test('switching AI or project closes the old stretch and opens a new one', async () => {
@@ -110,28 +96,14 @@ test('switching AI or project closes the old stretch and opens a new one', async
   h.sessions.dispose();
 });
 
-test('a new message never waits for a slow consolidation', async () => {
-  let release;
-  const h = harness({ consolidate: () => new Promise((r) => (release = () => r(REPLY))) });
+test('end resolves with the closed session once the server has it', async () => {
+  const h = harness();
   await h.sessions.turnStart(h.chat, 'a');
   await h.sessions.turnEnd(h.chat, answer());
-  const ending = h.sessions.end(h.chat.id, 'idle');
-  await settle();
-  assert.ok(release, 'consolidation started');
-  await h.sessions.turnStart(h.chat, 'b');
-  assert.ok(h.chat.memorySession, 'the next turn opened a new session while the old one consolidates');
-  release();
-  await ending;
-  h.sessions.dispose();
-});
-
-test('consolidation off: the session stays local (rule-based page), no LLM call', async () => {
-  const h = harness({ settings: { memoryConsolidate: 'off' } });
-  await h.sessions.turnStart(h.chat, 'a');
-  await h.sessions.turnEnd(h.chat, answer());
-  await h.sessions.end(h.chat.id);
+  const id = h.chat.memorySession.id;
+  assert.equal((await h.sessions.end(h.chat.id)).id, id);
+  assert.equal(await h.sessions.end(h.chat.id), null, 'nothing open: nothing to close');
   assert.deepEqual(h.names(), ['session-start', 'user-prompt', 'post-tool-use', 'stop+answer', 'session-end']);
-  assert.deepEqual(h.ctx.store.state.memoryPending, []);
 });
 
 test('nothing is recorded with memory off, capture off or a chat outside the memory', async () => {
@@ -147,29 +119,26 @@ test('nothing is recorded with memory off, capture off or a chat outside the mem
   assert.deepEqual(h.events, []);
 });
 
-test('failed answers close the turn without the answer; empty sessions are not consolidated', async () => {
+test('failed answers close the turn without the answer; empty sessions do not wait for the consolidation', async () => {
   const h = harness();
   await h.sessions.turnStart(h.chat, 'a');
   await h.sessions.turnEnd(h.chat, answer('', { status: 'error', activities: [] }));
   assert.equal(h.names().at(-1), 'stop');
-  const h2 = harness();
-  await h2.sessions.turnStart(h2.chat, 'a');
-  await h2.sessions.end(h2.chat.id);
-  assert.ok(!h2.names().includes('call:memory_consolidate'), 'no finished turn, nothing to consolidate');
+  await h.sessions.end(h.chat.id);
+  assert.deepEqual(h.queued, [], 'no finished turn, nothing to consolidate');
 });
 
 test('recover closes stretches left open by the previous run; errors are kept for the status', async () => {
-  const h = harness({
-    consolidate: async () => {
-      throw new Error('cota esgotada');
-    },
-  });
+  const h = harness();
+  h.ctx.memory.hook = async () => {
+    throw new Error('servidor fora');
+  };
   h.chat.memorySession = { id: 'u', provider: 'claude', projectId: 'p1', startedAt: 1, lastAt: 1, turns: 2 };
   const [result] = await h.sessions.recover();
   assert.equal(result.status, 'rejected');
-  assert.equal(h.events[0].payload.reason, 'app-restart');
-  assert.match(h.sessions.status.lastError.message, /cota esgotada/);
+  assert.match(h.sessions.status.lastError.message, /servidor fora/);
   assert.equal(h.chat.memorySession, undefined);
+  assert.equal(h.ctx.store.state.memoryPending.length, 1, 'kept for a retry (persisted with the store)');
 });
 
 test('a hook failure does not block the next events of the chat', async () => {
@@ -189,41 +158,33 @@ test('a hook failure does not block the next events of the chat', async () => {
   h.sessions.dispose();
 });
 
-test('helpers: agent per AI and parsing of the consolidation reply', () => {
+test('helpers: agent per AI', () => {
   assert.equal(agentOf('claude'), 'claude-code');
   assert.equal(agentOf('codex'), 'codex');
   assert.equal(agentOf('opencode'), 'opencode');
   assert.equal(agentOf('drael'), 'drael');
-  assert.deepEqual(notesFrom('não é json', {}), []);
-  const notes = notesFrom(REPLY, { projectId: null, chatId: 'c', now: 5 });
-  assert.equal(notes.length, 2);
-  assert.equal(notes[1].kind, 'insight');
-  assert.equal(notes[1].projectId, null);
 });
 
-test('a failed consolidation stays queued and is retried on the next close, at most 3 times', async () => {
-  let fails = 1;
-  const h = harness({
-    consolidate: async () => {
-      if (fails-- > 0) throw new Error('codex deslogado');
-      return REPLY;
-    },
-  });
+test('a failed close stays queued and is retried on the next start, at most 3 times', async () => {
+  const h = harness();
   await h.sessions.turnStart(h.chat, 'a');
   await h.sessions.turnEnd(h.chat, answer());
-  await assert.rejects(h.sessions.end(h.chat.id), /codex deslogado/);
-  assert.equal(h.ctx.store.state.memoryPending.length, 1, 'kept for a retry (persisted with the store)');
-  assert.equal(h.ctx.store.state.memoryPending[0].ended, true, 'session-end is not sent twice');
+  const hook = h.ctx.memory.hook;
+  let fails = 1;
+  h.ctx.memory.hook = async (...a) => {
+    if (a[0] === 'session-end' && fails-- > 0) throw new Error('servidor fora');
+    return hook(...a);
+  };
+  await assert.rejects(h.sessions.end(h.chat.id), /servidor fora/);
+  assert.equal(h.ctx.store.state.memoryPending.length, 1);
+  assert.deepEqual(h.queued, []);
   await h.sessions.recover();
   await settle();
-  await new Promise((r) => setTimeout(r, 10));
   assert.deepEqual(h.ctx.store.state.memoryPending, []);
-  assert.equal(h.names().filter((n) => n === 'session-end').length, 1);
-  assert.equal(h.names().filter((n) => n === 'call:memory_consolidate').length, 2);
-  assert.ok(h.ctx.store.state.memories.some((m) => m.path === '_rules/use-ms.md' && m.title === 'Use _MS'));
+  assert.equal(h.queued.length, 1, 'once closed on the server it waits for the consolidation');
 });
 
-test('a deleted chat is closed on the server without consolidation, and its pending work is dropped', async () => {
+test('a deleted chat is closed on the server and never waits for the consolidation', async () => {
   const h = harness();
   await h.sessions.turnStart(h.chat, 'a');
   await h.sessions.turnEnd(h.chat, answer());
@@ -233,6 +194,7 @@ test('a deleted chat is closed on the server without consolidation, and its pend
   await settle();
   assert.equal(h.names().at(-1), 'session-end');
   assert.equal(h.events.at(-1).payload.reason, 'deleted');
-  assert.ok(!h.names().includes('call:memory_consolidate'));
+  assert.deepEqual(h.queued, []);
+  assert.deepEqual(h.forgotten, ['c1'], 'what waited for the consolidation goes too');
   assert.deepEqual(h.ctx.store.state.memoryPending, []);
 });

@@ -7,7 +7,7 @@ const { normalizeQuests, PROVIDER_IDS } = require('../shared/quests.cjs');
 const { defaultRemote, normalizeRemote } = require('../remote/index.cjs');
 const { writeAtomic } = require('../util/sys.cjs');
 // Bump when a one-time migration is added below.
-const STORE_VERSION = 5;
+const STORE_VERSION = 6;
 const THEMES = ['ink', 'obsidian', 'aurora', 'paper'];
 const defaults = () => ({
   version: STORE_VERSION,
@@ -17,8 +17,6 @@ const defaults = () => ({
     background: 'rain',
     memoryEnabled: true,
     capture: true,
-    // Consolidation of finished conversation stretches by an LLM ('codex' reuses the Codex CLI login, 'off' = none).
-    memoryConsolidate: 'codex',
     // Old behaviour: one raw page per answer (conversas/<chat>/<msg>.md). Off: conversations become sessions instead.
     captureRaw: false,
     memoryTools: true,
@@ -38,6 +36,10 @@ const defaults = () => ({
   quests: [],
   // Agent Mode (see shared/agents.cjs): named jobs an AI does on its own, on a schedule or on request.
   agents: [],
+  // Consolidation of the shared memory by an AI the person picks (memory/consolidator.cjs): the AI, the schedule,
+  // the last runs, and the closed conversation stretches waiting for it.
+  consolidation: null,
+  memoryToConsolidate: [],
   usage: emptyUsage(),
   remote: defaultRemote(),
   // Preferências → Backup (see backup.cjs): destination, schedule and the result of the last run.
@@ -46,8 +48,15 @@ const defaults = () => ({
 // One-time upgrades, keyed by the version a store file was saved with. Mutates and returns `state`.
 // v4: "Tinta Mangá" became the default theme, so existing installs move to it once; their later choice is respected.
 // v5: Gemini left VeSTA (0.19): its chats go away, and quests forget them (their steps already fall back to Claude).
+// v6: the AI Memory server no longer consolidates with the Codex login (0.26): an AI picked in the Memória screen does,
+//     on its schedule. The old switch goes; with it off, the schedule starts as "only when asked".
 function migrateStore(state, savedVersion) {
   if (savedVersion < 4) state.settings.theme = 'ink';
+  if (savedVersion < 6) {
+    if (state.settings.memoryConsolidate === 'off' && !state.consolidation)
+      state.consolidation = { schedule: { kind: 'manual' } };
+    delete state.settings.memoryConsolidate;
+  }
   if (savedVersion < 5 && Array.isArray(state.chats)) {
     const gone = new Set(state.chats.filter((c) => c.provider === 'gemini').map((c) => c.id));
     state.chats = state.chats.filter((c) => !gone.has(c.id));
