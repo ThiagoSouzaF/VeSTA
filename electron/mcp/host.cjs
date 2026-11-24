@@ -9,7 +9,8 @@ const { redact } = require('../memory/redact.cjs');
 // loopback only, a free port, and one random bearer token per chat and per app run. The token IS the scope: it maps to
 // one chat, and every tool runs as that chat; the model never names the chat it acts for.
 //   name                  server name the CLIs see (tools appear as mcp__<name>__<tool>)
-//   tools                 [[name, description, inputSchema], ...]
+//   tools                 [[name, description, inputSchema, annotations?], ...]; annotations such as
+//                         { readOnlyHint: true } let a CLI run the tool in its read-only mode (Claude Code plan mode)
 //   authorize(chatId)     the chat (or any value handlers need) when it may use the server now, else null
 //   tools(subject)?       when given as `visible`, the subset of tool names listed/callable for that subject
 //   call(subject, name, args)   runs a tool (args already filtered to the declared properties)
@@ -39,10 +40,11 @@ function createMcpHost({ name, tools, authorize, visible = () => null, call }) {
   function buildServer(chatId) {
     const s = new Server({ name, version: '1.0.0' }, { capabilities: { tools: {} } });
     s.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: allowed(authorize(chatId) || null).map(([n, description, inputSchema]) => ({
+      tools: allowed(authorize(chatId) || null).map(([n, description, inputSchema, annotations]) => ({
         name: n,
         description,
         inputSchema,
+        ...(annotations ? { annotations } : {}),
       })),
     }));
     s.setRequestHandler(CallToolRequestSchema, async ({ params }) => {

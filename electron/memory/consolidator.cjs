@@ -1,11 +1,14 @@
 // Consolidation of the shared memory by an AI the person picks (tela Memória → Consolidar). Closed conversation stretches
 // wait in state.memoryToConsolidate (sessions.cjs puts them there); a run, by the button or on the schedule, hands
-// each project's stretches to the AI in a hidden chat (mode read, no memory, `memoryConsolidation` set) through the
-// regular send flow, and writes the pages of its answer (consolidate.cjs) to AI Memory and to the Memória screen.
+// each project's stretches, with the memories that came from conversations (to merge the repeated ones), to the AI in
+// a hidden chat (mode read, no memory, `memoryConsolidation` set) through the regular send flow, and writes the pages
+// of its answer (consolidate.cjs) to AI Memory and to the Memória screen, deleting the memories they replace.
 //
 // state.consolidation = { provider, model, schedule (shared/agents.cjs), nextRunAt, runs: [Run] (newest first) }
 // Run { id, at, endedAt, trigger: 'manual' | 'schedule', provider, status: 'running' | 'ok' | 'error', stretches,
-//       pages, error }
+//       reviewed (memories sent), pages (written), removed (merged or redundant, deleted), error }
+// state.consolidation.compactedAt = { projectId: time }: the button reviews every project's memories; the schedule only
+// the projects with something new since the last pass.
 // deps (tests): { send(ctx, args), now(), installed(provider), setInterval, clearInterval }
 const { randomUUID } = require('node:crypto');
 const { UserError } = require('../app/errors.cjs');
@@ -35,6 +38,8 @@ function normalizeConfig(input) {
     schedule,
     nextRunAt: Number(input.nextRunAt) || null,
     runs: Array.isArray(input.runs) ? input.runs.slice(0, MAX_RUNS) : [],
+    // projectId ('' = personal space) -> when its memories were last reviewed for repetitions.
+    compactedAt: input.compactedAt && typeof input.compactedAt === 'object' ? input.compactedAt : {},
   };
 }
 
@@ -128,7 +133,6 @@ function createConsolidator(ctx, deps = {}) {
 
   // ---- Running ----------------------------------------------------------------------------------------------------
   async function consolidateBatch(batch, run) {
-    const existing = state().memories.filter((n) => n.kind === 'insight' && (n.projectId || null) === batch.projectId);
     const project = batch.projectId ? state().projects.find((p) => p.id === batch.projectId) : null;
     const chat = store.addChat({
       provider: run.provider,
@@ -142,30 +146,31 @@ function createConsolidator(ctx, deps = {}) {
     chat.skills = false;
     let reply;
     try {
-      reply = await turn(
-        chat,
-        C.buildConsolidationPrompt({ projectName: project?.name, stretches: batch.stretches, existing })
-      );
+      reply = await turn(chat, C.buildConsolidationPrompt({ projectName: project?.name, ...batch }));
     } finally {
       dropChat(chat.id);
     }
-    // Stretches whose chat was deleted meanwhile are left out (nothing of them is written).
-    const alive = batch.stretches.filter((s) => chatOf(s.item.chatId));
-    const { pages, sessions } = C.parseConsolidationReply(reply, {
-      sessionIds: alive.map((s) => s.item.sessionId),
-      existing,
+    const done = new Set(batch.stretches.map((s) => s.item.sessionId));
+    // A conversation deleted while the AI worked: its content must not outlive it, so this answer is dropped whole.
+    if (batch.stretches.some((s) => !chatOf(s.item.chatId))) {
+      state().memoryToConsolidate = waiting().filter((i) => !done.has(i.sessionId));
+      return commit();
+    }
+    const { pages, sessions, removed } = C.parseConsolidationReply(reply, {
+      sessionIds: [...done],
+      pages: batch.pages,
     });
-    const written = alive.length ? [...pages, ...sessions] : [];
+    const sc = scope(batch.projectId);
     const notes = [];
-    for (const p of written) {
+    for (const p of [...pages, ...sessions]) {
       await ctx.memory.call('memory_write_page', {
         path: p.path,
         body: '# ' + p.title + '\n\n' + p.body,
         tier: p.kind === 'session' ? 'episodic' : 'semantic',
         tags: ['vesta', p.kind],
-        ...scope(batch.projectId),
+        ...sc,
       });
-      const chatId = p.sessionId ? alive.find((s) => s.item.sessionId === p.sessionId)?.item.chatId : null;
+      const chatId = p.sessionId ? batch.stretches.find((s) => s.item.sessionId === p.sessionId)?.item.chatId : null;
       notes.push({
         id: randomUUID(),
         path: p.path,
@@ -177,23 +182,37 @@ function createConsolidator(ctx, deps = {}) {
         createdAt: now(),
       });
     }
+    // Merged or redundant memories go from the server (a page it no longer has is simply gone) and from the screen.
+    for (const path of removed) await ctx.memory.call('memory_delete_page', { path, ...sc }).catch(() => {});
     const key = (n) => (n.projectId || '') + '|' + n.path;
-    const fresh = new Set(notes.map(key));
-    state().memories = [...notes, ...state().memories.filter((n) => !fresh.has(key(n)))];
-    const done = new Set(batch.stretches.map((s) => s.item.sessionId));
+    const gone = new Set([...notes.map(key), ...removed.map((path) => key({ projectId: batch.projectId, path }))]);
+    state().memories = [...notes, ...state().memories.filter((n) => !gone.has(key(n)))];
     state().memoryToConsolidate = waiting().filter((i) => !done.has(i.sessionId));
-    if (alive.length) run.pages += pages.length;
+    if (batch.pages.length) cfg().compactedAt[batch.projectId || ''] = now();
+    run.pages += notes.length;
+    run.removed += removed.length;
     commit();
   }
-  // Takes everything waiting; one batch (one project) at a time. The first failure stops the run: the rest waits for
-  // the next one, and a stretch that failed 3 times is given up.
+  // Since the last pass over a project's memories, did any of them change? (a scheduled run skips the others)
+  const changed = (projectId) => {
+    const since = cfg().compactedAt[projectId || ''] || 0;
+    return state().memories.some(
+      (n) => (n.projectId || null) === projectId && C.fromConversations(n) && (n.updatedAt || n.createdAt || 0) > since
+    );
+  };
+  // Takes everything waiting and the memories to merge; one batch (one project) at a time. The first failure stops the
+  // run: the rest waits for the next one, and a stretch that failed 3 times is given up.
   function run(trigger) {
     if (current) throw new UserError('A consolidação já está rodando');
     const c = cfg();
     state().memoryToConsolidate = waiting().filter((i) => chatOf(i.chatId));
-    const batches = C.batchesOf(waiting(), chatOf);
+    const batches = C.batchesOf(waiting(), chatOf, {
+      memories: state().memories,
+      compact: trigger === 'manual' ? () => true : changed,
+    });
     if (!batches.length) {
-      if (trigger === 'manual') throw new UserError('Nenhuma conversa esperando consolidação');
+      if (trigger === 'manual')
+        throw new UserError('Nada para consolidar: nenhuma conversa esperando nem memórias de conversas para juntar');
       return null;
     }
     if (!installed(c.provider)) throw new UserError('A IA escolhida não está instalada (tela Conexões)');
@@ -205,7 +224,9 @@ function createConsolidator(ctx, deps = {}) {
       provider: c.provider,
       status: 'running',
       stretches: batches.reduce((n, b) => n + b.stretches.length, 0),
+      reviewed: batches.reduce((n, b) => n + b.pages.length, 0),
       pages: 0,
+      removed: 0,
       error: '',
     };
     c.runs = [r, ...c.runs].slice(0, MAX_RUNS);
@@ -249,6 +270,8 @@ function createConsolidator(ctx, deps = {}) {
           provider: c.provider,
           status: 'error',
           stretches: 0,
+          reviewed: 0,
+          removed: 0,
           pages: 0,
           error: e.message,
         },

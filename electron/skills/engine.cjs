@@ -15,6 +15,7 @@ const S = require('./sources.cjs');
 const G = require('./github.cjs');
 const { buildAdaptPrompt, parseAdaptReply } = require('./adapt.cjs');
 const H = require('./health.cjs');
+const { findSkill } = require('./find.cjs');
 
 const NATIVE_TTL = 60000;
 const MAX_PARALLEL = 3;
@@ -387,6 +388,8 @@ function createSkills(ctx, { root, deps = {} } = {}) {
     set,
     remove,
     read: (name) => lib.read(name),
+    // A skill by name in the library or in an AI's own folders (vesta_skill_find, /explain-skill).
+    find: (query, ai) => findSkill({ query, ai, lib, native }),
     readFile: (name, rel) => lib.readFile(name, rel),
     used: (name) => (lib.used(name), changed()),
     root: path.resolve(root),

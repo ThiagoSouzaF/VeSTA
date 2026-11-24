@@ -2,7 +2,8 @@
 // panel of the Memória screen has Claude (haiku) turn it into rule/gotcha pages.
 //   Claude answers one message in a project -> the session goes idle (VESTA_MEMORY_IDLE_MS) -> session-end -> it waits
 //   ("1 conversa esperando") -> "Consolidar agora" -> a hidden chat -> pages in the AI Memory, the screen and the search.
-//   Also: the schedule picker saves at once, the hidden chat never shows in Conversas, the server has no LLM.
+//   Also: two repeated memories already there are merged into one (and the note the person wrote stays untouched),
+//   the schedule picker saves at once, the hidden chat never shows in Conversas, the server has no LLM.
 // Needs Claude. Uses a throwaway VESTA_DATA_DIR and project, never %APPDATA%\VeSTA.
 // Needs a fresh `npm run build`. Usage: node scripts/test-memory-consolidation-e2e.cjs [shots-dir]
 const assert = require('node:assert/strict');
@@ -35,7 +36,36 @@ const RULE =
       },
       projects: [{ id: 'proj', name: 'projeto-mem', path: projectDir, createdAt: Date.now() }],
       chats: [],
-      memories: [],
+      // Two memories that say the same thing (from earlier conversations) and a note the person wrote.
+      memories: [
+        {
+          id: 'd1',
+          path: '_rules/ttl-nunca-em-segundos.md',
+          kind: 'insight',
+          title: 'TTL nunca em segundos',
+          body: 'Não use segundos para TTL: o login expirava cedo. Use milissegundos.',
+          projectId: 'proj',
+          createdAt: Date.now() - 86400000,
+        },
+        {
+          id: 'd2',
+          path: '_rules/ttl-em-milissegundos.md',
+          kind: 'insight',
+          title: 'TTL em milissegundos',
+          body: 'Todo TTL do projeto é em milissegundos.',
+          projectId: 'proj',
+          createdAt: Date.now() - 86400000,
+        },
+        {
+          id: 'n1',
+          path: 'notas/n1.md',
+          kind: 'note',
+          title: 'Reunião com o cliente',
+          body: 'Às sextas, 10h.',
+          projectId: 'proj',
+          createdAt: Date.now() - 86400000,
+        },
+      ],
       quests: [],
       consolidation: { provider: 'claude', model: 'claude-haiku-5-5', schedule: { kind: 'manual' } },
     })
@@ -102,13 +132,13 @@ const RULE =
     }
     assert.equal(state.memoryToConsolidate.length, 1, 'a conversa espera a consolidação');
     assert.equal(state.chats.find((c) => c.id === chatId).memorySession, undefined, 'sessão encerrada');
-    assert.ok(!state.memories.some((m) => m.kind === 'insight'), 'o servidor não consolida sozinho');
+    assert.equal(state.memories.length, 3, 'o servidor não consolida sozinho');
 
     // Memória screen: the panel shows what waits; the schedule saves at once; the button runs it.
     await page.locator('.rail-item').filter({ hasText: 'Memória' }).click();
     const panel = page.locator('.memory-consolidation');
     await panel.waitFor();
-    assert.match(await panel.locator('strong').innerText(), /1 conversa esperando/);
+    assert.match(await panel.locator('strong').innerText(), /1 conversa esperando[\s\S]*2 memórias das conversas/);
     assert.equal(await panel.locator('[data-ai="claude"]').getAttribute('aria-checked'), 'true');
     await panel.getByLabel('Quando consolidar').selectOption('interval');
     await panel.getByLabel('Intervalo').selectOption('6');
@@ -147,14 +177,14 @@ const RULE =
       'a consolidação gerou regra/armadilha/aprendizado'
     );
     assert.ok(
-      mem.some((m) => m.kind === 'session' && m.path.startsWith('sessions/')),
-      'página da sessão'
-    );
-    assert.ok(
       mem.every((m) => m.projectId === 'proj'),
       'tudo no projeto da conversa'
     );
     assert.ok(!mem.some((m) => m.path.startsWith('conversas/')), 'sem página bruta por resposta');
+    assert.equal(run.reviewed, 2, 'as duas memórias repetidas foram revisadas');
+    assert.ok(run.removed >= 1, 'as repetidas viraram uma só (removidas: ' + run.removed + ')');
+    assert.ok(!(mem.some((m) => m.id === 'd1') && mem.some((m) => m.id === 'd2')), 'não sobram as duas repetidas');
+    assert.equal(mem.find((m) => m.id === 'n1')?.body, 'Às sextas, 10h.', 'a nota da pessoa fica intacta');
     assert.match(mem.map((m) => m.title + ' ' + m.body).join(' '), /_MS/, 'a regra do _MS foi extraída');
     await panel.getByText(/Nada esperando/).waitFor();
     assert.match(await panel.innerText(), /Última[\s\S]*1 conversa/);

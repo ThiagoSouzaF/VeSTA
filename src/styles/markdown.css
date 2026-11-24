@@ -93,3 +93,33 @@
   border-top: 1px solid var(--border);
   margin: 20px 0;
 }
+
+/* Pictures and diagrams the AI draws (```svg and ```mermaid, see lib/markdown.js and lib/mermaid.js). */
+.markdown .md-figure {
+  margin: 10px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow-x: auto;
+  text-align: center;
+}
+.markdown .md-figure svg {
+  max-width: 100%;
+  height: auto;
+}
+/* A tall flowchart keeps its proportions but never takes over the conversation. */
+.markdown .md-mermaid[data-drawn='ok'] svg {
+  width: auto;
+  max-height: 520px;
+}
+.markdown .md-mermaid:not([data-drawn='ok']) {
+  text-align: left;
+}
+.markdown .md-mermaid:not([data-drawn='ok']) pre {
+  margin: 0;
+}
+:root[data-look='ink'] .markdown .md-figure {
+  border-radius: 0;
+  border-color: var(--line-strong, var(--border));
+}

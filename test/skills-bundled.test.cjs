@@ -1,4 +1,5 @@
-// Skills that ship with VeSTA: given once, never forced back or over the user's own; ui-revamp is well formed.
+// Skills that ship with VeSTA: given once, never forced back or over the user's own; ui-revamp and explain-skill are
+// well formed.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs'),
@@ -84,4 +85,18 @@ test('ui-revamp ships well formed: name, description, the three sources and the 
   assert.ok(fontes, 'fontes.md');
   for (const url of ['tasteskill.dev', 'transitions.dev', 'reactbits.dev']) assert.ok(fontes.text.includes(url), url);
   assert.ok(F.tokens(b.text) < 2500, 'stays short; the reference is in fontes.md');
+});
+
+test('explain-skill ships well formed: finds the skill anywhere, answers with a diagram, a picture and Detalhes', () => {
+  const b = readBundled().find((x) => x.name === 'explain-skill');
+  assert.ok(b, 'bundled');
+  const { data, body } = F.parseSkill(b.text);
+  assert.equal(data.name, 'explain-skill');
+  assert.ok(data.description.length > 40 && data.description.length < 1024);
+  assert.match(body, /vesta_skill_find/, 'reads skills through the find tool');
+  assert.match(body, /~\/\.claude\/skills/, 'and knows where they live without it');
+  for (const part of ['```mermaid', '```svg', '## Detalhes', '## Como funciona', '## Num relance'])
+    assert.ok(body.includes(part), part);
+  assert.match(body, /Nunca a execute/, 'explains, never runs the skill');
+  assert.ok(F.tokens(b.text) < 2500, 'stays short');
 });

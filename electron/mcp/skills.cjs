@@ -1,17 +1,32 @@
 // "vesta-skills": the MCP server that hands VeSTA's skills to every AI (Claude, Codex, OpenCode, Drael). The chat only
 // knows the short catalog; the full text of a skill is read when it is needed (vesta_skill_load), and its supporting
-// files one at a time (vesta_skill_file). One token per chat (host.cjs); offered only while some skill is on.
+// files one at a time (vesta_skill_file). vesta_skill_find reads any skill by name, also those an AI has on its own. One token per chat (host.cjs); offered only while some skill is on.
 const { createMcpHost } = require('./host.cjs');
 
 const NAME = 'vesta-skills';
 const obj = (properties = {}, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
 const nameProp = { type: 'string', description: 'Nome da skill (o que vem depois da "/").' };
+// Every tool only reads: marked so, they also work in Só consulta (Claude Code blocks other MCP tools in plan mode).
+const READ = { readOnlyHint: true };
 const TOOLS = [
-  ['vesta_skills_list', 'Lista as skills ligadas no VeSTA para esta IA: nome, descrição e quando usar.', obj()],
+  ['vesta_skills_list', 'Lista as skills ligadas no VeSTA para esta IA: nome, descrição e quando usar.', obj(), READ],
   [
     'vesta_skill_load',
     'Carrega o texto completo de uma skill do VeSTA (e a lista dos arquivos de apoio). Use quando o pedido combinar com a skill.',
     obj({ name: nameProp }, ['name']),
+    READ,
+  ],
+  [
+    'vesta_skill_find',
+    'Procura uma skill pelo nome na biblioteca do VeSTA e nas IAs instaladas (Claude Code, Codex) e devolve o SKILL.md inteiro, de onde vem e os arquivos de apoio. Use para explicar ou comparar uma skill.',
+    obj(
+      {
+        name: { type: 'string', description: 'Nome (ou parte do nome) da skill.' },
+        ia: { type: 'string', enum: ['vesta', 'claude', 'codex'], description: 'Opcional: onde procurar.' },
+      },
+      ['name']
+    ),
+    READ,
   ],
   [
     'vesta_skill_file',
@@ -20,6 +35,7 @@ const TOOLS = [
       'name',
       'path',
     ]),
+    READ,
   ],
 ];
 
@@ -51,6 +67,12 @@ function createSkillsMcp(ctx, { skills }) {
       const r = get().read(s.name);
       get().used(s.name);
       return { name: s.name, text: r.text, files: r.files.map((f) => f.path) };
+    },
+    vesta_skill_find: (chat, a) => {
+      const found = get().find(String(a.name || '').slice(0, 120), a.ia);
+      return found.length
+        ? found
+        : { encontrado: false, dica: 'Nenhuma skill com esse nome. Confira o nome na tela Skills.' };
     },
     vesta_skill_file: (chat, a) => {
       const s = allowed(chat, a.name);

@@ -92,22 +92,19 @@ test('prompt and reply: stretches by project, secrets out, pages to their folder
   close('c1', 's1', 'p1');
   close('c2', 's2', null);
   const chatOf = (id) => state.chats.find((c) => c.id === id);
-  const batches = C.batchesOf(state.memoryToConsolidate, chatOf);
+  const batches = C.batchesOf(state.memoryToConsolidate, chatOf, { memories: state.memories });
   assert.deepEqual(
-    batches.map((b) => [b.projectId, b.stretches.map((s) => s.item.sessionId)]),
+    batches.map((b) => [b.projectId, b.stretches.map((s) => s.item.sessionId), b.pages.map((n) => n.id)]),
     [
-      ['p1', ['s1']],
-      [null, ['s2']],
-    ]
+      ['p1', ['s1'], ['old']],
+      [null, ['s2'], []],
+    ],
+    'a project with new material also sends its memories'
   );
-  const prompt = C.buildConsolidationPrompt({
-    projectName: 'App mobile',
-    stretches: batches[0].stretches,
-    existing: state.memories,
-  });
+  const prompt = C.buildConsolidationPrompt({ projectName: 'App mobile', ...batches[0] });
   assert.match(prompt, /projeto "App mobile"/);
   assert.match(prompt, /<conversa id="s1"[^>]*titulo="Login mobile"/);
-  assert.match(prompt, /_rules\/ttl-em-ms\.md — TTL em ms/);
+  assert.match(prompt, /<memoria path="_rules\/ttl-em-ms\.md" titulo="TTL em ms">/);
   assert.doesNotMatch(prompt, /sk-abc/, 'secrets never reach the AI');
   const out = C.parseConsolidationReply(
     json({
@@ -122,7 +119,7 @@ test('prompt and reply: stretches by project, secrets out, pages to their folder
         { id: 'outra', summary: 'não é deste lote' },
       ],
     }),
-    { sessionIds: ['s1'], existing: state.memories }
+    { sessionIds: ['s1'], pages: state.memories }
   );
   assert.deepEqual(
     out.pages.map((p) => p.path),
@@ -149,7 +146,7 @@ test('a run writes the pages of each project in a hidden chat and empties the qu
           })
         : json({ pages: [{ type: 'concept', title: 'Respostas curtas', body: 'A pessoa prefere.' }], sessions: [] }),
   });
-  assert.throws(() => h.engine.runNow(), /Nenhuma conversa/);
+  assert.throws(() => h.engine.runNow(), /Nada para consolidar/, 'one memory and nothing new: nothing to do');
   h.close('c1', 's1', 'p1');
   h.close('c2', 's2', null);
   h.close('c2', 's2', null);
@@ -174,7 +171,108 @@ test('a run writes the pages of each project in a hidden chat and empties the qu
   assert.equal(mem.find((m) => m.path === 'sessions/s1.md').chatId, 'c1');
   assert.deepEqual(h.state.memoryToConsolidate, []);
   const [run] = h.state.consolidation.runs;
-  assert.deepEqual([run.status, run.trigger, run.stretches, run.pages], ['ok', 'manual', 2, 2]);
+  assert.deepEqual(
+    [run.status, run.trigger, run.stretches, run.reviewed, run.pages, run.removed],
+    ['ok', 'manual', 2, 1, 3, 0]
+  );
+});
+
+// Repeated memories of one project, a raw page of the old mode and a note the person wrote.
+const seedRepeated = (h) => {
+  const page = (id, path, kind, title, body, at = T0 - HOUR) => ({
+    id,
+    path,
+    kind,
+    title,
+    body,
+    projectId: 'p1',
+    createdAt: at,
+  });
+  h.state.memories = [
+    page('r1', '_rules/ttl-em-ms.md', 'insight', 'TTL em ms', 'Todo TTL em milissegundos.'),
+    page('r2', '_rules/ttl-ms.md', 'insight', 'Use _MS', 'Constantes de TTL terminam com _MS.'),
+    page('raw', 'conversas/c1/m1.md', 'session', 'Login mobile', 'Usuário: o login expira... IA: TTL em segundos.'),
+    page('mine', 'notas/x.md', 'note', 'Minha nota', 'escrita por mim'),
+  ];
+};
+
+test('the button merges repeated memories into one concise page and deletes what it replaced', async () => {
+  const h = setup({
+    answer: json({
+      pages: [
+        {
+          type: 'rule',
+          title: 'TTL sempre em ms com _MS',
+          body: 'Todo TTL em milissegundos; a constante termina com _MS.',
+          replaces: ['_rules/ttl-em-ms.md', '_rules/ttl-ms.md', 'notas/x.md'],
+        },
+      ],
+      remove: ['conversas/c1/m1.md', 'nao/existe.md'],
+    }),
+  });
+  seedRepeated(h);
+  h.engine.runNow();
+  await h.engine.idle();
+  const prompt = h.sent[0].text;
+  assert.match(prompt, /Memórias atuais \(3,/);
+  assert.doesNotMatch(prompt, /escrita por mim/, 'what the person wrote is never sent');
+  assert.doesNotMatch(prompt, /Conversas novas/);
+  assert.deepEqual(
+    h.written.map((w) => [w.name, w.path]),
+    [
+      ['memory_write_page', '_rules/ttl-sempre-em-ms-com-ms.md'],
+      ['memory_delete_page', '_rules/ttl-em-ms.md'],
+      ['memory_delete_page', '_rules/ttl-ms.md'],
+      ['memory_delete_page', 'conversas/c1/m1.md'],
+    ],
+    'only memories of the batch are deleted: never the person note, never an unknown path'
+  );
+  assert.deepEqual(h.state.memories.map((m) => m.path).sort(), ['_rules/ttl-sempre-em-ms-com-ms.md', 'notas/x.md']);
+  const [run] = h.state.consolidation.runs;
+  assert.deepEqual([run.status, run.reviewed, run.pages, run.removed], ['ok', 3, 1, 3]);
+});
+
+test('an answer that would empty the memories without writing anything changes nothing', async () => {
+  const h = setup({
+    answer: json({ pages: [], remove: ['_rules/ttl-em-ms.md', '_rules/ttl-ms.md', 'conversas/c1/m1.md'] }),
+  });
+  seedRepeated(h);
+  h.engine.runNow();
+  await h.engine.idle();
+  assert.equal(h.state.consolidation.runs[0].status, 'error');
+  assert.match(h.state.consolidation.runs[0].error, /quase todas/);
+  assert.equal(h.written.length, 0);
+  assert.equal(h.state.memories.length, 4);
+});
+
+test('the schedule reviews a project again only when its memories changed since the last pass', async () => {
+  const h = setup({
+    answer: json({ pages: [], remove: [] }),
+    consolidation: { schedule: { kind: 'interval', hours: 1 } },
+  });
+  seedRepeated(h);
+  h.engine.recover();
+  h.at(T0 + HOUR);
+  h.engine.tick();
+  await h.engine.idle();
+  assert.equal(h.sent.length, 1, 'never reviewed: it goes');
+  h.at(T0 + 2 * HOUR);
+  h.engine.tick();
+  await h.engine.idle();
+  assert.equal(h.sent.length, 1, 'nothing changed since');
+  h.state.memories.push({
+    id: 'n',
+    path: 'gotchas/novo.md',
+    kind: 'insight',
+    title: 'Novo',
+    body: 'x',
+    projectId: 'p1',
+    createdAt: T0 + 2 * HOUR + 1,
+  });
+  h.at(T0 + 3 * HOUR);
+  h.engine.tick();
+  await h.engine.idle();
+  assert.equal(h.sent.length, 2, 'a new memory: reviewed again');
 });
 
 test('a failed run keeps the stretches for the next one, at most 3 times; a deleted chat is left out', async () => {

@@ -309,10 +309,18 @@ test('vesta-skills MCP: per-chat token, only usable skills, nothing for adaptati
     const tools = await rpc('tools/list', {});
     assert.deepEqual(
       tools.tools.map((t) => t.name),
-      ['vesta_skills_list', 'vesta_skill_load', 'vesta_skill_file']
+      ['vesta_skills_list', 'vesta_skill_load', 'vesta_skill_find', 'vesta_skill_file']
+    );
+    assert.ok(
+      tools.tools.every((t) => t.annotations?.readOnlyHint === true),
+      'all read only: they work in Só consulta (Claude Code plan mode)'
     );
     const load = await rpc('tools/call', { name: 'vesta_skill_load', arguments: { name: 'guia' } });
     assert.deepEqual(JSON.parse(load.content[0].text).files, ['a.md']);
+    const found = await rpc('tools/call', { name: 'vesta_skill_find', arguments: { name: 'GUIA' } });
+    assert.equal(JSON.parse(found.content[0].text)[0].origem, 'Biblioteca do VeSTA');
+    const none = await rpc('tools/call', { name: 'vesta_skill_find', arguments: { name: 'nada-disso' } });
+    assert.equal(JSON.parse(none.content[0].text).encontrado, false);
     const file = await rpc('tools/call', {
       name: 'vesta_skill_file',
       arguments: { name: 'guia', path: '../skill.json' },
@@ -327,6 +335,62 @@ test('vesta-skills MCP: per-chat token, only usable skills, nothing for adaptati
   assert.ok(mcpTools('claude', [server]).args.includes('mcp__vesta-skills'));
   assert.ok(mcpTools('codex', [server]).args.some((a) => a.includes('mcp_servers.vesta-skills.bearer_token_env_var')));
   assert.match(mcpTools('opencode', [server]).env.OPENCODE_CONFIG_CONTENT, /vesta-skills/);
+});
+
+test('find: a skill by name in the library and in what each AI has, with its text and files', () => {
+  const dir = path.join(tmp(), 'commit-pro');
+  fs.mkdirSync(path.join(dir, 'refs'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'SKILL.md'), SKILL('commit-pro', 'Escreve mensagens de commit.'));
+  fs.writeFileSync(path.join(dir, 'refs', 'exemplos.md'), 'x');
+  const native = () => ({
+    claude: [
+      {
+        provider: 'claude',
+        name: 'commit-pro',
+        description: 'Escreve mensagens de commit.',
+        label: '~/.claude/skills',
+        dir,
+      },
+    ],
+    codex: [],
+    opencode: [],
+  });
+  const skills = createSkills(fakeCtx(), { root: tmp(), deps: { native } });
+  skills.lib.install({
+    name: 'commit',
+    text: SKILL('commit', 'Commits curtos.'),
+    files: [{ path: 'a.md', text: 'A' }],
+  });
+  const all = skills.find('commit');
+  assert.deepEqual(
+    all.map((x) => [x.ai, x.name]),
+    [
+      ['vesta', 'commit'],
+      ['claude', 'commit-pro'],
+    ],
+    'the same name first, then names that contain it'
+  );
+  assert.match(all[0].text, /Commits curtos/);
+  assert.deepEqual(all[0].files, ['a.md']);
+  assert.match(all[1].text, /Escreve mensagens de commit/);
+  assert.deepEqual(all[1].files, ['refs/exemplos.md']);
+  assert.equal(all[1].origem, 'Claude Code · ~/.claude/skills');
+  assert.deepEqual(
+    skills.find('commit', 'claude').map((x) => x.name),
+    ['commit-pro'],
+    'only where the person said'
+  );
+  assert.deepEqual(
+    skills.find('commit', 'Claude Code').map((x) => x.ai),
+    ['claude']
+  );
+  assert.deepEqual(
+    skills.find('mensagens').map((x) => x.name),
+    ['commit-pro'],
+    'by its description'
+  );
+  assert.deepEqual(skills.find('commit', 'gemini'), []);
+  assert.deepEqual(skills.find(''), []);
 });
 
 test('screen logic: grouping by origin, filters, catalog cost, the "/" menu and the chip', async () => {

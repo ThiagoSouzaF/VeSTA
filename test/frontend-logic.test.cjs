@@ -181,6 +181,24 @@ test('markdown blocks join into exactly what marked.parse renders, and unchanged
   assert.equal(calls - first, 1, 'only the block that changed is rendered again');
 });
 
+test('markdown: ```svg becomes the picture, ```mermaid a diagram placeholder that still shows its code', async () => {
+  const { markdownBlocks } = await lib('markdown');
+  const [svg] = markdownBlocks(
+    '```svg\n<svg viewBox="0 0 10 10"><rect width="5" height="5"/></svg>\n```',
+    (h) => h,
+    new Map(),
+    (h) => h
+  );
+  assert.match(svg, /^<figure class="md-figure md-svg"><svg viewBox="0 0 10 10">/);
+  const [plain] = markdownBlocks('```svg\nnão é svg\n```', (h) => h, new Map());
+  assert.match(plain, /^<pre><code class="language-svg">/, 'without an <svg> it stays code');
+  const src = 'flowchart TD\n  A["Lê <x> & \\"y\\""] --> B';
+  const [fig] = markdownBlocks('```mermaid\n' + src + '\n```', (h) => h, new Map());
+  assert.match(fig, /^<figure class="md-figure md-mermaid" data-mermaid="/);
+  assert.equal(decodeURIComponent(fig.match(/data-mermaid="([^"]*)"/)[1]), src, 'the source travels intact');
+  assert.match(fig, /<pre><code>flowchart TD\n {2}A\[&quot;Lê &lt;x&gt; &amp; /, 'escaped while it is code');
+});
+
 // ---- Navigation history ------------------------------------------------------------------------------------------
 test('nav: back and forward walk the places; a new visit drops the forward ones; repeats are ignored', async () => {
   const n = await lib('nav');

@@ -119,19 +119,26 @@ const step = async (name, fn) => {
     const state = () => page.evaluate(async () => (await window.vesta.call('bootstrap')).state);
     const shot = (name) => page.screenshot({ path: path.join(evidence, name + '.png') });
 
-    await step('Skills is on the rail with /ui-revamp, which comes with VeSTA; removed, it stays out', async () => {
+    await step('Skills is on the rail with the skills that come with VeSTA; removed, they stay out', async () => {
       await page.locator('.rail-item').filter({ hasText: 'Skills' }).click();
       await page.getByRole('heading', { name: 'Todas as IAs sabem.' }).waitFor();
-      await page.locator('.skill-tile[data-skill="ui-revamp"]').waitFor();
       assert.ok(await page.getByText('Vem com o VeSTA').first().isVisible());
       const seeded = await state();
-      const given = readBundled().find((b) => b.name === 'ui-revamp').version;
-      assert.equal(seeded.bundledSkills['ui-revamp'], given);
-      await page.locator('.skill-tile[data-skill="ui-revamp"]').click();
-      await page.getByRole('button', { name: 'Remover' }).click();
-      await page.getByRole('button', { name: 'Confirmar remoção' }).click();
+      const bundled = readBundled();
+      assert.deepEqual(bundled.map((x) => x.name).sort(), ['explain-skill', 'ui-revamp']);
+      for (const { name, version } of bundled) {
+        assert.equal(seeded.bundledSkills[name], version, name);
+        const tile = page.locator('.skill-tile[data-skill="' + name + '"]');
+        await tile.waitFor();
+        await tile.click();
+        await page.getByRole('button', { name: 'Remover' }).click();
+        await page.getByRole('button', { name: 'Confirmar remoção' }).click();
+        await tile.waitFor({ state: 'detached' });
+      }
       await page.getByText('Nenhuma skill no VeSTA ainda').waitFor();
-      assert.equal((await state()).bundledSkills['ui-revamp'], given, 'remembered, so it is not given again');
+      const after = await state();
+      for (const { name, version } of bundled)
+        assert.equal(after.bundledSkills[name], version, name + ' is remembered, so it is not given again');
     });
 
     await step('paste → an AI adapts → side-by-side review → save', async () => {

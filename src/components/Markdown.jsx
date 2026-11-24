@@ -1,9 +1,15 @@
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { markdownBlocks } from '../lib/markdown';
+import { drawDiagrams } from '../lib/mermaid';
 import { api } from '../lib/api';
 // A block whose HTML did not change is not touched in the DOM: streaming only re-renders the last block.
+// A ```mermaid block becomes its diagram after it is painted (lib/mermaid.js).
 const Block = memo(function Block({ html }) {
-  return <div className="md-block" dangerouslySetInnerHTML={{ __html: html }} />;
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current && html.includes('md-mermaid')) drawDiagrams(ref.current);
+  }, [html]);
+  return <div ref={ref} className="md-block" dangerouslySetInnerHTML={{ __html: html }} />;
 });
 export const Markdown = memo(function Markdown({ text }) {
   const blocks = useMemo(() => markdownBlocks(text), [text]);
