@@ -39,6 +39,8 @@ const defaults = () => ({
   // Consolidation of the shared memory by an AI the person picks (memory/consolidator.cjs): the AI, the schedule,
   // the last runs, and the closed conversation stretches waiting for it.
   consolidation: null,
+  // Refino automático (refine/auto.cjs): the AI, the schedule and the last reviews of skills and agents.
+  refineAuto: null,
   memoryToConsolidate: [],
   usage: emptyUsage(),
   remote: defaultRemote(),

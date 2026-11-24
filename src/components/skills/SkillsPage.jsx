@@ -8,6 +8,7 @@ import { SkillLibrary } from './SkillLibrary';
 import { NativeSkills } from './NativeSkills';
 import { AddSkill } from './AddSkill';
 import { TabInk } from '../TabInk';
+import { RefineAuto } from '../refine/RefineAuto';
 
 export function SkillsPage({ data, call, setData, notify, integrations, onTry, onOpenRefine }) {
   const skills = data.skills || { list: [], drafts: [] };
@@ -58,6 +59,7 @@ export function SkillsPage({ data, call, setData, notify, integrations, onTry, o
         </span>
         <span>Texto completo: só quando a skill é usada</span>
       </div>
+      <RefineAuto data={data} integrations={integrations} call={call} setData={setData} />
       <div className="skills-tabs tab-ink-host" role="tablist" aria-label="Skills">
         {TABS.map(([id, label, n]) => (
           <button key={id} role="tab" aria-selected={tab === id} data-tab={id} onClick={() => setTab(id)}>

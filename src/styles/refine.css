@@ -232,3 +232,77 @@
   color: var(--text);
   font-size: 12.5px;
 }
+.skill-tag.accent {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--text);
+}
+.refine-signals {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.refine-signals:not([data-signals='0']) {
+  color: var(--text);
+}
+
+.refine-trial {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.refine-trial.running {
+  color: var(--muted);
+}
+.refine-trial.error {
+  color: var(--danger);
+}
+.refine-trial ol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+.refine-trial li small {
+  display: block;
+  color: var(--muted);
+}
+.refine-trial-ask {
+  margin-right: 8px;
+}
+.refine-trial-win {
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.refine-trial-win.proposta {
+  border-color: var(--green);
+  color: var(--green);
+}
+.refine-trial-win.atual {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.refine-trial-triggers {
+  margin: 0;
+}
+.refine-trial-misses {
+  color: var(--muted);
+}
+
+.refine-auto {
+  margin: 14px 0 18px;
+}
+.refine-auto .consolidation-head > .secondary-button {
+  padding-inline: 9px;
+}

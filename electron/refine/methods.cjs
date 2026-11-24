@@ -12,6 +12,10 @@ function refineMethods(ctx) {
     refineDiscard: withState((a) => R().discard(a)),
     refineRestore: withState((a) => R().restore(a)),
     refineVersion: (a) => R().version(a || {}),
+    refineTest: withState((a) => ctx.refineTrials.start(a)),
+    refineAutoConfigure: withState((a) => ctx.refineAuto.configure(a)),
+    refineAutoRun: withState(() => ctx.refineAuto.runNow()),
+    refineCandidates: () => ctx.refineAuto.candidates(),
   };
 }
 module.exports = { refineMethods };

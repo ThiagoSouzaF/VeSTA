@@ -20,32 +20,27 @@ const clip = (t, n) => {
   return v.length > n ? v.slice(0, n - 1).trimEnd() + '…' : v;
 };
 const day = (t) => new Date(t).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-// Chats the person never sees (or this very refinement) say nothing about how the skill did.
-const hidden = (c) => !c || c.skillDraft || c.memoryConsolidation || c.refine;
-
-// One use of a skill -> { at, title, ask, reply, error, next }: the request, the answer and what the person said next
-// (a correction is the strongest signal there is).
+// One use of a skill -> { at, title, ask, reply, error, next, corrected }: the request, the answer and what the person
+// said next (a correction is the strongest signal there is).
 function useOf(chat, at) {
-  const msgs = chat.messages || [];
-  let i = -1;
-  for (let k = 0; k < msgs.length; k++) if (msgs[k].role === 'user' && (msgs[k].createdAt || 0) <= at + 1000) i = k;
-  if (i < 0) return null;
-  const reply = msgs.slice(i + 1).find((m) => m.role === 'assistant');
-  const next = msgs.slice(i + 1).find((m) => m.role === 'user');
+  const t = R.turnAt(chat, at);
+  if (!t) return null;
+  const { reply, next } = t;
   return {
     at,
     title: clip(chat.title, 80),
-    ask: clip(msgs[i].text, CLIP_ASK),
+    ask: clip(t.ask.text, CLIP_ASK),
     reply: clip(reply?.text, CLIP_REPLY),
     error: reply?.error ? clip(reply.error, 200) : reply?.status === 'stopped' ? 'interrompida' : '',
     next: next ? clip(next.text, CLIP_NEXT) : '',
+    corrected: R.isCorrection(next?.text),
   };
 }
 function skillEvidence(chats, recent) {
   const out = [];
   for (const r of recent || []) {
     const c = (chats || []).find((x) => x.id === r.chatId);
-    if (hidden(c)) continue;
+    if (R.hiddenChat(c)) continue;
     const u = useOf(c, r.at);
     if (u) out.push(u);
   }
@@ -90,8 +85,16 @@ const METHOD = [
   '- **Enxugue.** Tire o que não ajuda. Texto menor custa menos e é seguido melhor.',
   '- **Explique o porquê.** Em vez de SEMPRE, NUNCA e maiúsculas, diga a razão; a IA que segue entende e acerta os casos que você não previu.',
   '- **Não mude o que funciona.** Mexa só no que a evidência ou a pessoa apontam.',
-  '- Termine cada proposta com 2 ou 3 pedidos de teste realistas que a pessoa pode usar para conferir a nova versão.',
+  '- **Teste.** Numa skill, mande em `testes` 2 ou 3 pedidos realistas, cada um com o que se espera da resposta: o VeSTA roda a versão em uso e a nova com eles e um juiz compara às cegas. Cite-os também na conversa.',
 ];
+// The automatic review: nobody is watching, so no questions and no change without a clear reason.
+const AUTO = [
+  '## Revisão automática',
+  'Esta é uma revisão agendada: a pessoa não está acompanhando e não vai responder. Não faça perguntas.',
+  '- Proponha (pela `vesta_refine_propose`) só se a evidência mostrar um problema real: uma correção da pessoa, um erro, uma falha que se repete, lições esperando que já deveriam estar na tarefa.',
+  '- Prefira uma mudança pequena e certeira a reescrever tudo. A pessoa vai revisar depois.',
+  '- Se não houver motivo claro, não proponha e responda só "Sem mudança: <o motivo, numa frase>".',
+].join('\n');
 const RULES = [
   '## Regras deste chat',
   '- Você **não executa** a skill nem a tarefa do agent: só lê, conversa e propõe. Não edite arquivos e não rode comandos.',
@@ -152,7 +155,7 @@ function evidenceSection(kind, ev) {
             '\n- Resposta: ' +
             (u.reply || '—') +
             (u.error ? '\n- Problema: ' + u.error : '') +
-            (u.next ? '\n- Depois a pessoa disse: ' + u.next : '')
+            (u.next ? '\n- Depois a pessoa disse' + (u.corrected ? ' (correção)' : '') + ': ' + u.next : '')
         )
         .join('\n')
     );
@@ -210,6 +213,23 @@ function buildBrief(target, { evidence, memories = [], proposal = null, goal = '
     .join('\n\n');
 }
 
+// Test requests a proposal brings ({ pedido, esperado }), at most 3.
+const MAX_TESTS = 3;
+function cleanTests(list) {
+  return (Array.isArray(list) ? list : [])
+    .map((t) => ({
+      pedido: String(t?.pedido || '')
+        .trim()
+        .slice(0, 1500),
+      esperado: String(t?.esperado || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 400),
+    }))
+    .filter((t) => t.pedido)
+    .slice(0, MAX_TESTS);
+}
+
 const userError = (message) => Object.assign(new Error(message), { userSafe: true });
 // What vesta_refine_propose received, checked -> { text } (skill) | { prompt, lessons | null } (agent), plus changes.
 function checkProposal(kind, args, { name } = {}) {
@@ -224,7 +244,7 @@ function checkProposal(kind, args, { name } = {}) {
       throw userError('Falta a "description" no frontmatter: ela diz o que a skill faz e quando usar.');
     if (!body.trim()) throw userError('O corpo da skill está vazio.');
     if (data.name !== name) text = F.withFrontmatter(text, { name });
-    return { text, changes };
+    return { text, changes, tests: cleanTests(args.testes) };
   }
   const prompt = String(args.pedido || '').trim();
   if (!prompt) throw userError('Mande em "pedido" a tarefa completa do agent.');
@@ -246,4 +266,14 @@ function checkProposal(kind, args, { name } = {}) {
   return { prompt, lessons, changes };
 }
 
-module.exports = { skillEvidence, agentEvidence, relatedMemories, buildBrief, checkProposal, useOf };
+module.exports = {
+  skillEvidence,
+  agentEvidence,
+  relatedMemories,
+  buildBrief,
+  checkProposal,
+  cleanTests,
+  useOf,
+  AUTO,
+  MAX_TESTS,
+};

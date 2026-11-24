@@ -24,7 +24,8 @@ function sanitizeChat(chat, { maxMessages = MAX_MESSAGES } = {}) {
   };
 }
 // Adaptation chats of Skills and memory consolidations are the app's own work, not conversations: never on the phone.
-const phoneChats = (state) => (state.chats || []).filter((c) => !c.skillDraft && !c.memoryConsolidation);
+const phoneChats = (state) =>
+  (state.chats || []).filter((c) => !c.skillDraft && !c.memoryConsolidation && !c.refineRun);
 // Fields every state event carries (small); chats travel apart because they are the heavy part.
 function sanitizeLite(state) {
   const settings = {};

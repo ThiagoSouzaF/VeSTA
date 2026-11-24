@@ -78,7 +78,11 @@ export function SkillLibrary({
               >
                 <span className="skill-tile-top">
                   <span className="skill-name">/{s.name}</span>
-                  {!s.enabled ? (
+                  {s.proposal ? (
+                    <span className="skill-tag accent" title="Proposta de refino esperando o seu sim">
+                      proposta
+                    </span>
+                  ) : !s.enabled ? (
                     <span className="skill-tag">desligada</span>
                   ) : costLevel(s) === 3 ? (
                     <span className="skill-tag warn">custo alto</span>

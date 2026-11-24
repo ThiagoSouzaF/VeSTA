@@ -168,6 +168,7 @@ function createLibrary(root) {
         uses: old?.uses || 0,
         lastUsedAt: old?.lastUsedAt || 0,
         recent: old?.recent || [],
+        reviewedAt: old?.reviewedAt || 0,
         versions,
         proposal: null,
       };
@@ -221,7 +222,7 @@ function createLibrary(root) {
       const file = path.join(dirOf(name), 'proposal.md');
       return meta.proposal && fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
     },
-    setProposal(name, { text, changes, chatId, provider }) {
+    setProposal(name, { text, changes, chatId, provider, from = 'chat', tests = [] }) {
       const meta = { ...must(name) };
       fs.writeFileSync(path.join(dirOf(name), 'proposal.md'), text);
       meta.proposal = {
@@ -229,9 +230,22 @@ function createLibrary(root) {
         changes: R.cleanChanges(changes),
         chatId: chatId || null,
         provider: provider || null,
+        from,
+        tests,
         tokens: F.tokens(text),
       };
       return saveMeta(meta);
+    },
+    // A waiting proposal gets more data (the result of its test).
+    patchProposal(name, patch) {
+      const meta = { ...must(name) };
+      if (!meta.proposal) return meta;
+      meta.proposal = { ...meta.proposal, ...patch };
+      return saveMeta(meta);
+    },
+    // VeSTA's own marks on a skill (reviewedAt: when the signals were last looked at).
+    mark(name, { reviewedAt }) {
+      return saveMeta({ ...must(name), reviewedAt: Number(reviewedAt) || 0 });
     },
     clearProposal(name) {
       const meta = { ...must(name), proposal: null };

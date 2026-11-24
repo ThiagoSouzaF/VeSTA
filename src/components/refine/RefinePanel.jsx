@@ -1,12 +1,11 @@
 // "Refinar" in the skill and agent drawers: the proposal waiting for a yes, or a chat with an AI that reads the text,
 // the recent uses (or runs), the lessons and the memory, talks with the person and proposes a new version. Below,
-// the versions kept before each change, each one can come back.
+// the versions kept before each change, each one can come back. On top, what happened since the last review (the
+// signals the automatic review also reads).
 import { useState } from 'react';
 import { Sparkles, MessageSquare, History, RotateCcw, Eye } from 'lucide-react';
-import { PROVIDERS } from '../../lib/constants';
-import { ProviderIcon } from '../ProviderIcon';
-import { modelLabel } from '../../lib/format';
-import { refineChatOf } from '../../lib/refine';
+import { AiPicker } from '../ScheduleFields';
+import { agentSignals, refineChatOf, signalsLine, skillSignals } from '../../lib/refine';
 import { ProposalView } from './ProposalView';
 
 const ORDER = ['claude', 'codex', 'opencode', 'drael'];
@@ -84,7 +83,8 @@ export function RefinePanel({ kind, target, data, integrations, call, setData, n
   const first = [preferred, ...ORDER].find((id) => integrations?.[id]?.installed) || preferred;
   const [provider, setProvider] = useState(first);
   const [model, setModel] = useState(kind === 'agent' && first === target.provider ? target.model || '' : '');
-  const models = integrations?.[provider]?.models || [];
+  const sig = kind === 'skill' ? skillSignals(target, data.chats) : agentSignals(target, data.chats);
+  const since = signalsLine(kind, sig);
   const [goal, setGoal] = useState('');
   const [busy, setBusy] = useState(false);
   const key = kind === 'skill' ? { kind, name: target.name } : { kind, id: target.id };
@@ -105,6 +105,11 @@ export function RefinePanel({ kind, target, data, integrations, call, setData, n
         <Sparkles size={14} />
         REFINAR
       </h3>
+      <p className="refine-signals" data-signals={sig.corrections + sig.errors}>
+        {since
+          ? (sig.since ? 'Desde a última revisão: ' : 'Até agora: ') + since + '.'
+          : 'Nada novo desde a última revisão.'}
+      </p>
       {target.proposal ? (
         <ProposalView kind={kind} target={target} call={call} setData={setData} notify={notify} />
       ) : (
@@ -114,44 +119,21 @@ export function RefinePanel({ kind, target, data, integrations, call, setData, n
         </p>
       )}
       {!chat && (
-        <div className="consolidation-ais refine-ais" role="radiogroup" aria-label="IA que refina">
-          {ORDER.map((id) => {
-            const installed = !!integrations?.[id]?.installed;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={provider === id}
-                data-ai={id}
-                disabled={!installed}
-                title={installed ? undefined : 'Não instalada (tela Conexões)'}
-                onClick={() => {
-                  setProvider(id);
-                  setModel('');
-                }}
-              >
-                <ProviderIcon id={id} small />
-                <span>{PROVIDERS[id].name}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {!chat && models.length > 0 && (
-        <select
-          className="refine-model"
-          aria-label="Modelo do refino"
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-        >
-          <option value="">Modelo padrão da IA</option>
-          {models.map((m) => (
-            <option key={m} value={m}>
-              {modelLabel(m)}
-            </option>
-          ))}
-        </select>
+        <AiPicker
+          label="IA que refina"
+          className="refine-ais"
+          modelClassName="refine-model"
+          provider={provider}
+          model={model}
+          integrations={integrations}
+          keepCurrent={false}
+          onChange={(c) => {
+            if (c.provider) {
+              setProvider(c.provider);
+              setModel('');
+            } else setModel(c.model);
+          }}
+        />
       )}
       <div className="refine-start">
         <input

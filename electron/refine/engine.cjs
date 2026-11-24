@@ -81,7 +81,7 @@ function createRefiner(ctx, deps = {}) {
   async function start({ provider, model = '', goal = '', ...input }) {
     const k = key(input);
     goal = String(goal || '').trim();
-    const open = store.state.chats.find((c) => same(c.refine, k));
+    const open = store.state.chats.find((c) => same(c.refine, k) && !c.refineRun);
     if (open) {
       if (goal) await send(ctx, { chatId: open.id, text: goal });
       return { chatId: open.id };
@@ -119,6 +119,12 @@ function createRefiner(ctx, deps = {}) {
   }
 
   // ---- What the AI calls (vesta-skills, refinement chats only) ---------------------------------------------------
+  // Who proposed: the person's refinement chat, or the automatic review (its hidden chat goes when it ends).
+  const origin = (chat) => ({
+    chatId: chat.refineRun ? null : chat.id,
+    provider: chat.provider,
+    from: chat.refineRun ? 'auto' : 'chat',
+  });
   const context = (chat) => ({ alvo: label(key(chat.refine)), contexto: brief(key(chat.refine)) });
   function propose(chat, args) {
     const k = key(chat.refine);
@@ -132,7 +138,7 @@ function createRefiner(ctx, deps = {}) {
       const risks = health.filter((h) => h.level === 'risk');
       if (risks.length)
         throw Object.assign(new Error('Proposta recusada: ' + risks.map((h) => h.text).join('; ')), { userSafe: true });
-      lib().setProposal(k.name, { ...p, chatId: chat.id, provider: chat.provider });
+      lib().setProposal(k.name, { ...p, ...origin(chat) });
       ctx.sync?.();
       return {
         guardada: true,
@@ -142,7 +148,7 @@ function createRefiner(ctx, deps = {}) {
     }
     const a = agentOf(k.id);
     const p = B.checkProposal('agent', args);
-    a.proposal = { ...p, at: now(), chatId: chat.id, provider: chat.provider };
+    a.proposal = { ...p, at: now(), ...origin(chat) };
     commit();
     return { guardada: true, proximo: 'A pessoa vê as diferenças e aplica no Agent Mode ou na barra deste chat.' };
   }
@@ -164,6 +170,7 @@ function createRefiner(ctx, deps = {}) {
       const changes = skillOf(k.name).proposal?.changes || [];
       lib().update(k.name, { text, note: 'Antes do refino: ' + (changes[0] || 'proposta da IA') });
       lib().clearProposal(k.name);
+      reviewed(k);
       ctx.sync?.();
       return;
     }
@@ -173,8 +180,13 @@ function createRefiner(ctx, deps = {}) {
     ctx.agents.keepVersion(a, 'Antes do refino: ' + (p.changes[0] || 'proposta da IA'));
     a.prompt = A.normalizeAgent({ ...a, prompt: p.prompt }).prompt;
     if (p.lessons) setKept(a, p.lessons);
-    Object.assign(a, { proposal: null, updatedAt: now() });
+    Object.assign(a, { proposal: null, updatedAt: now(), reviewedAt: now() });
     commit();
+  }
+  // The signals count again from now (shared/refine.cjs): what came before was already looked at.
+  function reviewed(k) {
+    if (k.kind === 'skill') lib().mark(k.name, { reviewedAt: now() });
+    else agentOf(k.id).reviewedAt = now();
   }
   function setKept(a, texts) {
     const rest = (a.lessons || []).filter((l) => l.status !== 'kept' && !texts.some((t) => A.sameLesson(t, l.text)));
@@ -192,6 +204,7 @@ function createRefiner(ctx, deps = {}) {
     const k = key(input);
     if (k.kind === 'skill') lib().clearProposal(k.name);
     else agentOf(k.id).proposal = null;
+    reviewed(k);
     commit();
   }
   function restore({ n, ...input }) {
@@ -213,7 +226,7 @@ function createRefiner(ctx, deps = {}) {
   }
   const version = ({ name, n }) => ({ text: lib().readVersion(skillOf(name).name, n) });
 
-  return { start, brief, context, propose, proposal, apply, discard, restore, version };
+  return { start, brief, context, propose, proposal, apply, discard, restore, version, reviewed, key };
 }
 
 module.exports = { createRefiner };

@@ -19,6 +19,7 @@ import {
   toReview,
   untilLabel,
 } from '../../lib/agents';
+import { RefineAuto } from '../refine/RefineAuto';
 
 // Relative times ("em 25 min") stay true while the screen is open.
 function useNow(ms = 30000) {
@@ -142,6 +143,8 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
           </div>
 
           <AgentTimeline agents={agents} now={now} selected={current?.id} onSelect={setOpen} />
+
+          <RefineAuto data={data} integrations={integrations} call={call} setData={setData} />
 
           <div className="agents-bar">
             <div className="agents-tabs tab-ink-host" role="tablist" aria-label="Filtrar agents">

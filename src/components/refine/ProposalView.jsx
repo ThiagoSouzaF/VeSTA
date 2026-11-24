@@ -1,9 +1,10 @@
 // A proposal from a refinement chat, waiting for the person: what changed (the AI's words), how much, the line diff
 // against the text in use, and Aplicar / Descartar. Used in the skill and agent drawers and in the refinement chat.
 import { useEffect, useMemo, useState } from 'react';
-import { Check, X, GitCompare } from 'lucide-react';
+import { Check, X, GitCompare, FlaskConical } from 'lucide-react';
 import { PROVIDERS } from '../../lib/constants';
 import { lineDiff, diffStats, diffHunks } from '../../lib/refine';
+import { TrialResult } from './TrialResult';
 
 const when = (t) => (t ? new Date(t).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '');
 
@@ -54,10 +55,11 @@ export function ProposalView({ kind, target, call, setData, notify, compact = fa
     }
   };
   const label = kind === 'skill' ? '/' + target.name : target.name;
+  const testing = meta.test?.status === 'running';
   return (
     <div className={'refine-proposal' + (compact ? ' compact' : '')} data-proposal={kind}>
       <div className="refine-proposal-head">
-        <b>Proposta de refino</b>
+        <b>{meta.from === 'auto' ? 'Proposta da revisão automática' : 'Proposta de refino'}</b>
         <span>
           {PROVIDERS[meta.provider]?.name || 'IA'} · {when(meta.at)}
           {stats && (
@@ -82,11 +84,31 @@ export function ProposalView({ kind, target, call, setData, notify, compact = fa
         </p>
       )}
       {open && before != null && after != null && <DiffView before={before} after={after} />}
+      {kind === 'skill' && meta.test && <TrialResult test={meta.test} />}
       <div className="refine-proposal-actions">
         <button className="secondary-button" aria-pressed={open} onClick={() => setOpen(!open)}>
           <GitCompare size={14} />
           {open ? 'Esconder diferenças' : 'Ver diferenças'}
         </button>
+        {kind === 'skill' && (
+          <button
+            className="secondary-button"
+            disabled={busy || testing}
+            title="Roda pedidos de teste com a versão em uso e com a proposta; um juiz compara às cegas"
+            onClick={async () => {
+              setBusy(true);
+              try {
+                setData((await call('refineTest', { name: target.name })).state);
+              } catch {
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <FlaskConical size={14} />
+            {testing ? 'Testando…' : meta.test ? 'Testar de novo' : 'Testar'}
+          </button>
+        )}
         <button
           className="secondary-button"
           disabled={busy}

@@ -110,7 +110,7 @@ test('brief: the request, the answer and what the person said next; memories tha
   );
   for (const part of [
     /mensagens em português/,
-    /Depois a pessoa disse: Não, a mensagem/,
+    /Depois a pessoa disse \(correção\): Não, a mensagem/,
     /Commits em pt-BR/,
     /Generalize/,
     /vesta_refine_propose/,

@@ -1,5 +1,8 @@
 // E2E (real AI): refining a skill and an agent through the screens. A throwaway data dir holds the skill /commit-curto
 // (used once in a chat where the person then corrected it) and an agent with a kept lesson and a failed run.
+//   0. The signals (no AI) show the correction; Refino automático (Claude haiku, 1 per pass) reviews the skill, the most
+//      urgent, and leaves a proposal; Testar runs the requests with both versions, a blind judge compares them and the
+//      description is checked; Descartar drops it.
 //   1. Skills → /commit-curto → Refinar: Claude (haiku) with a goal opens the refinement chat; its bar shows the
 //      proposal (vesta_refine_propose), the diff, and Aplicar puts it in use; the old text is in Versões and comes back.
 //   2. Agents → the agent → Refinar: the proposal folds the lesson into the task; Aplicar changes the task.
@@ -185,6 +188,92 @@ function seed(dataDir) {
       }
       throw new Error('a IA não propôs');
     };
+
+    await step('the signals show the correction; Refino automático lists what calls for a review', async () => {
+      await page.locator('.rail-item').filter({ hasText: 'Skills' }).click();
+      const card = page.locator('.refine-auto');
+      await card.waitFor();
+      assert.match(await card.locator('.consolidation-text strong').innerText(), /2 com sinais de problema/);
+      assert.match(await card.innerText(), /commit-curto/);
+      await page.locator('.skill-tile[data-skill="commit-curto"]').click();
+      const drawer = page.locator('.skill-drawer[data-skill="commit-curto"]');
+      assert.match(await drawer.locator('.refine-signals').innerText(), /1 uso, 1 correção/);
+      await page.keyboard.press('Escape');
+    });
+
+    await step('Revisar agora: the AI reviews the most urgent one and leaves a proposal that waits', async () => {
+      const card = page.locator('.refine-auto');
+      await card.getByRole('button', { name: 'Configurar o refino automático' }).click();
+      await card.locator('[data-ai="claude"]').click();
+      await card.getByLabel('Modelo').selectOption(MODEL);
+      await card.getByLabel('Quantas por vez').selectOption('1');
+      await page.screenshot({ path: path.join(shots, 'refine-auto-card.png') });
+      await card.getByRole('button', { name: 'Revisar agora' }).click();
+      let run;
+      for (let i = 0; i < 300; i++) {
+        await wait(1000);
+        run = (await state()).refineAuto.runs[0];
+        if (run && run.status !== 'running') break;
+      }
+      assert.equal(run.status, 'ok', run.error);
+      assert.equal(run.reviewed, 1);
+      const st = await state();
+      assert.equal(st.chats.filter((c) => c.refineRun).length, 0, 'the hidden chat goes');
+      const meta = st.skills.list.find((x) => x.name === 'commit-curto');
+      assert.ok(meta.proposal, 'the review proposed: ' + JSON.stringify(run.items));
+      assert.equal(meta.proposal.from, 'auto');
+      assert.ok(meta.reviewedAt > 0);
+      assert.ok(!st.agents[0].proposal, 'one per pass: the agent waits for the next');
+      assert.match(await card.innerText(), /1 revisada, 1 proposta/);
+      assert.match(await page.locator('.skill-tile[data-skill="commit-curto"]').innerText(), /proposta/);
+    });
+
+    await step(
+      'Testar: both versions answer, a blind judge compares, the description is checked; Descartar',
+      async () => {
+        await page.locator('.skill-tile[data-skill="commit-curto"]').click();
+        const drawer = page.locator('.skill-drawer[data-skill="commit-curto"]');
+        const prop = drawer.locator('.refine-proposal');
+        await prop.waitFor();
+        assert.match(await prop.innerText(), /Proposta da revisão automática/);
+        await prop.getByRole('button', { name: 'Testar' }).click();
+        await prop.locator('[data-trial="running"]').waitFor();
+        let test;
+        for (let i = 0; i < 600; i++) {
+          await wait(1000);
+          test = (await state()).skills.list.find((x) => x.name === 'commit-curto').proposal.test;
+          if (test.status !== 'running') break;
+        }
+        assert.equal(test.status, 'done', test.error);
+        const n = test.wins.proposta + test.wins.atual + test.wins.empate;
+        console.log(
+          '  juiz:',
+          JSON.stringify(test.wins),
+          '· descrição:',
+          JSON.stringify(
+            test.triggers && {
+              atual: test.triggers.atual,
+              proposta: test.triggers.proposta,
+              total: test.triggers.total,
+            }
+          )
+        );
+        assert.ok(n >= 1 && n === test.cases.length);
+        assert.ok(
+          test.triggers && test.triggers.total >= 2,
+          'a skill the AI picks on its own has its description tested'
+        );
+        await prop.locator('[data-trial="done"]').waitFor();
+        assert.match(await prop.locator('[data-trial="done"]').innerText(), /saiu melhor|Empate/);
+        assert.match(await prop.locator('.refine-trial-triggers').innerText(), /Descrição: a IA escolheria a skill/);
+        await prop.locator('[data-trial="done"]').scrollIntoViewIfNeeded();
+        await page.screenshot({ path: path.join(shots, 'refine-trial.png') });
+        await prop.getByRole('button', { name: 'Descartar' }).click();
+        await prop.waitFor({ state: 'detached' });
+        assert.equal((await call('skillsRead', { name: 'commit-curto' })).text, SKILL, 'nothing changed');
+        await page.keyboard.press('Escape');
+      }
+    );
 
     let skillChat;
     await step('Skills → /commit-curto → Refinar com Claude opens the refinement chat with its bar', async () => {

@@ -101,4 +101,110 @@ const cleanChanges = (changes) =>
     .filter(Boolean)
     .slice(0, 12);
 
-module.exports = { MAX_VERSIONS, lineDiff, diffStats, diffHunks, pushVersion, cleanChanges, cleanNote };
+// ---- Signals (no AI): how a skill or an agent has been doing since it was last reviewed ---------------------------
+// What the person says right after an answer when it went wrong: a correction is the strongest signal there is.
+const CORRECTION =
+  /^\s*(n[ãa]o[\s,.!]|n[ãa]o$|errad|est[áa] errad|na verdade|refa[çc]a|de novo|corrij|faltou|esqueceu|pare\b|para com|n[ãa]o era (isso|assim)|era pra|deveria|wrong|no[,.! ]|that'?s not|actually|redo|try again)/i;
+const isCorrection = (text) => CORRECTION.test(String(text || ''));
+// Chats the person never sees (or the refinement ones) say nothing about how a skill did.
+const hiddenChat = (c) => !c || c.skillDraft || c.memoryConsolidation || c.refine || c.refineRun;
+
+// A use of a skill in a chat -> { reply, next } (the answer and what the person said next), or null.
+function turnAt(chat, at) {
+  const msgs = chat.messages || [];
+  let i = -1;
+  for (let k = 0; k < msgs.length; k++) if (msgs[k].role === 'user' && (msgs[k].createdAt || 0) <= at + 1000) i = k;
+  if (i < 0) return null;
+  return {
+    ask: msgs[i],
+    reply: msgs.slice(i + 1).find((m) => m.role === 'assistant') || null,
+    next: msgs.slice(i + 1).find((m) => m.role === 'user') || null,
+  };
+}
+// -> { since, uses, corrections, errors }: the uses after the last review (meta.reviewedAt).
+function skillSignals(meta, chats) {
+  const since = meta?.reviewedAt || 0;
+  const out = { since, uses: 0, corrections: 0, errors: 0 };
+  for (const r of meta?.recent || []) {
+    if (r.at <= since) continue;
+    const c = (chats || []).find((x) => x.id === r.chatId);
+    if (hiddenChat(c)) continue;
+    const t = turnAt(c, r.at);
+    if (!t) continue;
+    out.uses++;
+    if (t.reply?.error || t.reply?.status === 'error' || t.reply?.status === 'stopped') out.errors++;
+    else if (isCorrection(t.next?.text)) out.corrections++;
+  }
+  return out;
+}
+// -> { since, runs, errors, corrections, pending }: runs after the last review, the failed ones, the run chats where
+// the person corrected the agent, and lessons still waiting for a yes.
+function agentSignals(agent, chats) {
+  const since = agent?.reviewedAt || 0;
+  const runs = (agent?.runs || []).filter((r) => r.at > since && r.status !== 'running');
+  let corrections = 0;
+  for (const r of runs) {
+    const c = r.chatId && (chats || []).find((x) => x.id === r.chatId);
+    if (
+      c &&
+      (c.messages || [])
+        .filter((m) => m.role === 'user')
+        .slice(1)
+        .some((m) => isCorrection(m.text))
+    )
+      corrections++;
+  }
+  return {
+    since,
+    runs: runs.length,
+    errors: runs.filter((r) => r.status === 'error').length,
+    corrections,
+    pending: (agent?.lessons || []).filter((l) => l.status === 'pending' && l.at > since).length,
+  };
+}
+// How much a review is called for (0 = not now). A waiting proposal, a skill turned off or a removed agent never.
+const REVIEW_USES = 5;
+function reviewWeight(kind, target, sig) {
+  if (!target || target.proposal) return 0;
+  if (kind === 'skill') {
+    if (target.enabled === false) return 0;
+    const bad = sig.corrections + sig.errors;
+    return bad ? 10 * bad + sig.uses : sig.uses >= REVIEW_USES ? 1 : 0;
+  }
+  const bad = sig.errors + sig.corrections;
+  return bad ? 10 * bad + sig.pending : sig.pending >= 2 ? sig.pending : 0;
+}
+
+// What calls for a review now, the most urgent first -> [{ kind, name | id, label, weight, signals }].
+function candidates({ skills = [], agents = [], chats = [] }) {
+  const out = [];
+  for (const s of skills) {
+    const signals = skillSignals(s, chats);
+    const weight = reviewWeight('skill', s, signals);
+    if (weight) out.push({ kind: 'skill', name: s.name, label: '/' + s.name, weight, signals });
+  }
+  for (const a of agents) {
+    const signals = agentSignals(a, chats);
+    const weight = reviewWeight('agent', a, signals);
+    if (weight) out.push({ kind: 'agent', id: a.id, label: a.name, weight, signals });
+  }
+  return out.sort((x, y) => y.weight - x.weight);
+}
+
+module.exports = {
+  MAX_VERSIONS,
+  candidates,
+  REVIEW_USES,
+  lineDiff,
+  diffStats,
+  diffHunks,
+  pushVersion,
+  cleanChanges,
+  cleanNote,
+  isCorrection,
+  hiddenChat,
+  turnAt,
+  skillSignals,
+  agentSignals,
+  reviewWeight,
+};

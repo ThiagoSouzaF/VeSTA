@@ -10,6 +10,9 @@ const { createQuestMcp } = require('../quests/mcp.cjs');
 const { createAppMcp } = require('../mcp/app.cjs');
 const { createSkillsMcp } = require('../mcp/skills.cjs');
 const { createRefiner } = require('../refine/engine.cjs');
+const { createAsker } = require('../refine/ask.cjs');
+const { createAutoRefiner } = require('../refine/auto.cjs');
+const { createTrials } = require('../refine/trial.cjs');
 const { createSkills } = require('../skills/engine.cjs');
 const { seedBundled } = require('../skills/bundled.cjs');
 const { createAgentEngine } = require('../agents/engine.cjs');
@@ -79,6 +82,14 @@ async function openServices(ctx, { electron, bus, methods }) {
   bus.subscribe((event) => event.type === 'chat-done' && ctx.agents.onChatDone(event));
   // Refining a skill or an agent: a chat with the person, proposals that wait for a yes, versions that come back.
   ctx.refiner = createRefiner(ctx);
+  // The work refining does on its own, in hidden chats: the scheduled review and the tests of a proposal.
+  ctx.refineAsker = createAsker(ctx);
+  ctx.refineAsker.recover();
+  bus.subscribe((event) => event.type === 'chat-done' && ctx.refineAsker.onChatDone(event));
+  ctx.refineTrials = createTrials(ctx);
+  ctx.refineTrials.recover();
+  ctx.refineAuto = createAutoRefiner(ctx);
+  ctx.refineAuto.startClock();
   store.save();
   // Chat attachments: copies kept under userData; leftovers of unsent drafts and deleted chats are cleaned at start.
   ctx.nativeImage = nativeImage;
@@ -133,6 +144,7 @@ function closeServices(ctx) {
   ctx.appMcp?.close().catch(() => {});
   ctx.skillsMcp?.close().catch(() => {});
   ctx.agents?.stopClock();
+  ctx.refineAuto?.stopClock();
   ctx.consolidator?.stopClock();
   ctx.memory?.close().catch(() => {});
 }

@@ -14,8 +14,8 @@ export const {
   INTERVALS,
 } = shared;
 
-// What the agent learned and waits for the person's yes: pending lessons and a suggested task.
-export const toReview = (agent) => pendingLessons(agent).length + (agent.suggestion ? 1 : 0);
+// What waits for the person's yes on an agent: pending lessons, a suggested task and a refinement proposal.
+export const toReview = (agent) => pendingLessons(agent).length + (agent.suggestion ? 1 : 0) + (agent.proposal ? 1 : 0);
 
 const HOUR = 3600000;
 

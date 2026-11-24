@@ -64,6 +64,19 @@ const TOOLS = [
           items: { type: 'string' },
           description: 'O que mudou e por quê, uma linha por mudança.',
         },
+        testes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              pedido: { type: 'string', description: 'Um pedido realista que a skill deve atender.' },
+              esperado: { type: 'string', description: 'O que uma boa resposta faz.' },
+            },
+            required: ['pedido'],
+          },
+          description:
+            'Skill (opcional, até 3): pedidos de teste. O VeSTA roda a versão em uso e a proposta com eles e compara.',
+        },
       },
       ['mudancas']
     ),

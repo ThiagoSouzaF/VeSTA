@@ -27,7 +27,7 @@ export function AgentCard({ agent: a, chats, projects, now, selected, onOpen, on
         </span>
         {a.unseen > 0 && <span className="agent-new">novo</span>}
         {review > 0 && (
-          <span className="agent-review" title="Lições ou pedido esperando o seu sim">
+          <span className="agent-review" title="Lições, pedido ou proposta de refino esperando o seu sim">
             {review} para revisar
           </span>
         )}
