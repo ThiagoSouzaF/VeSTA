@@ -9,7 +9,7 @@ import { AttachmentChips } from './AttachmentChips';
 import { action } from '../lib/api';
 import { useRef, useState } from 'react';
 import ClickSpark from './bits/ClickSpark';
-import { slashMatches } from '../lib/skills';
+import { completeSlash, slashMatches } from '../lib/skills';
 import { SlashMenu } from './SlashMenu';
 export function Composer({
   running,
@@ -36,15 +36,23 @@ export function Composer({
   onFiles,
   onRemoveAttachment,
 }) {
-  // "/" + letters: VeSTA's skills that match (Esc hides the menu until the text changes).
+  // "/" + letters at the caret, anywhere in the message: VeSTA's skills that match (Esc hides the menu until the text
+  // changes). A message can call several skills.
   const spark = useRef(null); // the send button's ink sparks, also fired when Enter sends
   const [slashIndex, setSlashIndex] = useState(0);
   const [slashClosed, setSlashClosed] = useState(false);
-  const slash = !running && !slashClosed ? slashMatches(data.skills?.list, input) : null;
+  const [caret, setCaret] = useState(null);
+  const menu = !running && !slashClosed ? slashMatches(data.skills?.list, input, caret) : null;
+  const slash = menu?.items;
   const pickSlash = (name) => {
-    setDraft(draftKey, '/' + name + ' ');
+    const next = completeSlash(input, menu.token, name);
+    setDraft(draftKey, next.text);
+    setCaret(next.caret);
+    requestAnimationFrame(() => textarea.current?.setSelectionRange(next.caret, next.caret));
     textarea.current?.focus();
   };
+  // Only the "/letras" in the box: Enter on the menu sends that skill as it is; otherwise it completes the name.
+  const alone = menu && !input.slice(0, menu.token.start).trim() && !input.slice(menu.token.end).trim();
   return (
     <div className="composer-wrap">
       {slash && <SlashMenu items={slash} index={Math.min(slashIndex, slash.length - 1)} onPick={pickSlash} />}
@@ -59,14 +67,16 @@ export function Composer({
               : 'O que vamos criar com ' +
                 PROVIDERS[currentProvider].name +
                 '?' +
-                (data.skills?.list?.some((s) => s.enabled) ? ' Digite / para chamar uma skill.' : '')
+                (data.skills?.list?.some((s) => s.enabled) ? ' Use / para chamar skills.' : '')
           }
           value={input}
           onChange={(e) => {
             setDraft(draftKey, e.target.value);
+            setCaret(e.target.selectionStart);
             setSlashIndex(0);
             setSlashClosed(false);
           }}
+          onSelect={(e) => setCaret(e.target.selectionStart)}
           onPaste={(e) => {
             // Ctrl+V with files (a screenshot, a copied image or file) attaches them; plain text pastes as usual.
             const files = [...(e.clipboardData?.files || [])];
@@ -85,9 +95,11 @@ export function Composer({
                 e.preventDefault();
                 return pickSlash(slash[i].name);
               }
-              // Enter on the menu sends the highlighted skill as it is ("/nome").
+              // Enter on the menu: alone in the box, sends the highlighted skill as it is ("/nome"); in a longer
+              // message, completes the name like Tab.
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
+                if (!alone) return pickSlash(slash[i].name);
                 if (!running) {
                   send('/' + slash[i].name);
                   spark.current?.spark();

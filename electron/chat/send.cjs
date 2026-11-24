@@ -51,7 +51,8 @@ async function send(ctx, { chatId, text, attachments: ids, brief }) {
   const cwd = ctx.workdir(chat);
   // Staged files move into this chat's folder only now that the turn will really start.
   const atts = ids.length ? ctx.attachments.commit(chatId, ids) : [];
-  // "/nome" of a VeSTA skill: the AI receives the skill with the request; the chat shows what the person typed.
+  // "/nome" of VeSTA skills anywhere in the message: the AI receives the request and then each skill; the chat shows
+  // what the person typed.
   const slash = (brief?.text && brief) || ctx.skills?.expand(chat, text) || null;
   const asked = slash ? slash.text : text;
   const task = resume ? resume.task : { run: null, cancelled: false, assistant: null };
@@ -63,10 +64,10 @@ async function send(ctx, { chatId, text, attachments: ids, brief }) {
     text,
     createdAt: Date.now(),
     ...(atts.length ? { attachments: atts } : {}),
-    ...(slash?.skill ? { skill: slash.skill } : {}),
+    ...(slash?.skills?.length ? { skills: slash.skills } : {}),
   };
   const assistant = newAssistant(chat);
-  if (slash?.note) assistant.activities.push(slash.note);
+  for (const note of slash?.notes || (slash?.note ? [slash.note] : [])) assistant.activities.push(note);
   task.assistant = assistant;
   chat.messages.push(user, assistant);
   if (chat.title === 'Novo chat') chat.title = (text || atts[0]?.name || 'Anexos').replace(/\s+/g, ' ').slice(0, 55);

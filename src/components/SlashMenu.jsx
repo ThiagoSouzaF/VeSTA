@@ -1,5 +1,6 @@
 // The "/" menu above the composer: VeSTA's skills that match what follows the "/". The composer drives it from the
-// keyboard (↑ ↓ choose, Tab completes, Enter sends, Esc closes); a click completes the name.
+// keyboard (↑ ↓ choose, Tab completes, Enter sends or, in a longer message, completes, Esc closes); a click completes
+// the name.
 import { BookOpen } from 'lucide-react';
 import { costLevel, fmt } from '../lib/skills';
 
@@ -32,7 +33,8 @@ export function SlashMenu({ items, index, onPick }) {
         <div className="slash-none">Nenhuma skill com esse nome. O texto vai como mensagem normal.</div>
       )}
       <div className="slash-foot">
-        ↑ ↓ escolhe · Tab completa · Enter envia · Esc fecha · comandos da própria IA passam direto
+        ↑ ↓ escolhe · Tab completa · Enter envia ou completa · Esc fecha · várias por pedido · comandos da própria IA
+        passam direto
       </div>
     </div>
   );

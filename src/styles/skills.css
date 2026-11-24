@@ -1003,3 +1003,14 @@
 .skill-health-ok svg {
   color: var(--green);
 }
+
+/* More than one skill in a message: the chips side by side, above the text. */
+.skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.skill-chips .skill-chip {
+  margin-bottom: 0;
+}

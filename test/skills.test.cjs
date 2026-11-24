@@ -267,16 +267,31 @@ test('engine: catalog lists only "A IA decide" skills the AI can use and does no
   assert.doesNotMatch(hint, /nativa|so-barra|desligada/);
   assert.doesNotMatch(skills.catalogHint({ provider: 'drael' }), /sem-drael/);
   const e = skills.expand(claude, '/so-barra revise o login');
-  assert.equal(e.skill, 'so-barra');
+  assert.deepEqual(e.skills, ['so-barra']);
   assert.match(e.text, /<skill nome="so-barra">[\s\S]*Faça com cuidado\.[\s\S]*<\/skill>/);
   assert.match(e.text, /refs\/a\.md/);
-  assert.match(e.text, /Pedido: revise o login/);
-  assert.match(e.note.label, /Skill \/so-barra carregada/);
+  assert.match(e.text, /Pedido da pessoa:\n\/so-barra revise o login/);
+  assert.match(e.notes[0].label, /Skill \/so-barra carregada/);
   assert.equal(skills.lib.get('so-barra').uses, 1);
   assert.match(skills.expand(claude, '/auto').text, /aplique esta skill agora/);
   assert.equal(skills.expand(claude, '/desligada x'), null);
   assert.equal(skills.expand(claude, '/inexistente'), null);
-  assert.equal(skills.expand(claude, 'texto /auto'), null);
+  // Anywhere in the message, several at once: the request first, whole, then each skill, whole.
+  const many = skills.expand(
+    claude,
+    'Faça um protótipo da branch novo-layout com /auto e depois /so-barra. Use /auto de novo.'
+  );
+  assert.deepEqual(many.skills, ['auto', 'so-barra']);
+  assert.match(many.text, /^A pessoa chamou as skills \/auto, \/so-barra do VeSTA/);
+  assert.match(many.text, /vale o pedido/);
+  const at = (x) => many.text.indexOf(x);
+  assert.ok(at('Pedido da pessoa:\nFaça um protótipo da branch novo-layout') < at('<skill nome="auto">'));
+  assert.ok(at('<skill nome="auto">') < at('<skill nome="so-barra">'));
+  assert.equal(many.notes.length, 2);
+  assert.match(skills.expand(claude, '/auto /so-barra').text, /aplique estas skills agora/);
+  // Not mentions: part of a path or link, a skill that is off or missing.
+  assert.equal(skills.expand(claude, 'veja src/auto e https://x.com/auto'), null);
+  assert.deepEqual(skills.expand(claude, 'com /desligada e /auto').skills, ['auto']);
   // Only folders the native scan listed can be brought in.
   await assert.rejects(skills.scan({ kind: 'native', dir: 'C:\\Windows' }), /não encontrada/);
 });
@@ -439,18 +454,25 @@ test('screen logic: grouping by origin, filters, catalog cost, the "/" menu and 
   );
   // Only enabled "A IA decide" skills go in the catalog.
   assert.deepEqual(L.budget(list), { on: 2, catalog: L.catalogTokens(list[0]) });
+  const names = (text, caret) => L.slashMatches(list, text, caret)?.items.map((s) => s.name);
   assert.equal(L.slashMatches(list, 'oi'), null);
-  assert.equal(L.slashMatches(list, '/tdd agora'), null, 'closes once the request starts');
-  assert.deepEqual(
-    L.slashMatches(list, '/').map((s) => s.name),
-    ['tdd', 'minha']
-  );
-  assert.deepEqual(
-    L.slashMatches(list, '/in').map((s) => s.name),
-    ['minha']
-  );
-  assert.deepEqual(L.slashMatches(list, '/zzz'), []);
-  assert.equal(L.splitSlash('/tdd revise o login', 'tdd').rest, 'revise o login');
-  assert.equal(L.splitSlash('/tdd', 'tdd').rest, '');
+  assert.equal(L.slashMatches(list, '/tdd agora'), null, 'closes once the name is done');
+  assert.deepEqual(names('/'), ['tdd', 'minha']);
+  assert.deepEqual(names('/in'), ['minha']);
+  assert.deepEqual(names('/zzz'), []);
+  // In the middle of the message, at the caret; not inside a path.
+  assert.deepEqual(names('faça o protótipo com /t'), ['tdd']);
+  assert.deepEqual(names('com /t e mais', 6), ['tdd']);
+  assert.equal(L.slashMatches(list, 'com /t e mais', 3), null);
+  assert.equal(L.slashMatches(list, 'veja src/t'), null);
+  const menu = L.slashMatches(list, 'use /t e a branch x', 6);
+  assert.deepEqual(L.completeSlash('use /t e a branch x', menu.token, 'tdd'), {
+    text: 'use /tdd e a branch x',
+    caret: 9,
+  });
+  assert.equal(L.splitSlash('/tdd revise o login', ['tdd']), 'revise o login');
+  assert.equal(L.splitSlash('/tdd /minha revise com /tdd', ['tdd', 'minha']), 'revise com /tdd');
+  assert.equal(L.splitSlash('/tdd', ['tdd']), '');
+  assert.deepEqual(L.messageSkills({ skill: 'tdd' }), ['tdd'], 'older messages kept one');
   assert.equal(L.aiState({ compat: { drael: 'precisa editar' } }, 'drael').ok, false);
 });

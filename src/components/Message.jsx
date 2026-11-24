@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ProviderIcon } from './ProviderIcon';
 import { PROVIDERS } from '../lib/constants';
 import { Brain, AlertCircle, Pin, BellRing, BookOpen } from 'lucide-react';
-import { splitSlash } from '../lib/skills';
+import { messageSkills, splitSlash } from '../lib/skills';
 import { Permissions } from './Permissions';
 import { TaskSummary } from './TaskSummary';
 import { Subagents } from './Subagents';
@@ -26,6 +26,9 @@ export const Message = memo(function Message({
   setModal,
   onStopTask,
 }) {
+  const skills = messageSkills(m);
+  // The mentions that open the message become the chips; the ones in the middle stay in the text, where they were.
+  const shown = m.text && (skills.length ? splitSlash(m.text, skills) : m.text);
   return (
     <article className={'message ' + m.role} id={'msg-' + m.id} data-message-id={m.id}>
       <div className="message-avatar">
@@ -66,17 +69,16 @@ export const Message = memo(function Message({
         {m.role === 'assistant' && <TaskSummary chat={chat} m={m} live={live} onStopTask={onStopTask} />}
         <Subagents subagents={m.subagents} />
         <MessageAttachments chatId={chat.id} attachments={m.attachments} call={call} />
-        {m.skill && (
-          <span className="skill-chip" title="Skill do VeSTA enviada junto com a mensagem">
-            <BookOpen size={12} />/{m.skill}
+        {skills.length > 0 && (
+          <span className="skill-chips">
+            {skills.map((name) => (
+              <span key={name} className="skill-chip" title="Skill do VeSTA enviada inteira depois da mensagem">
+                <BookOpen size={12} />/{name}
+              </span>
+            ))}
           </span>
         )}
-        {m.text &&
-          (m.skill ? (
-            splitSlash(m.text, m.skill).rest && <Markdown text={splitSlash(m.text, m.skill).rest} />
-          ) : (
-            <Markdown text={m.text} />
-          ))}
+        {shown && <Markdown text={shown} />}
         {m.status === 'running' && !m.text && (
           <div className="thinking">
             <LatticeLoader

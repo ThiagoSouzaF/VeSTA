@@ -1,4 +1,5 @@
 // Skills screen logic (pure): grouping by origin, search and filters, what the skills cost and the "/" menu.
+import shared from '../../electron/shared/skills.cjs';
 
 // The four AIs in the order the badges show them.
 export const AIS = [
@@ -59,18 +60,32 @@ export function groupBySource(list) {
   );
 }
 
-// The "/" menu: open while the message is only "/" plus letters of a name; null when it should stay closed.
-export function slashMatches(list, text) {
-  const m = /^\/([a-z0-9-]*)$/i.exec(text || '');
-  if (!m) return null;
-  const q = m[1].toLowerCase();
+// The "/" menu: open while the caret ends a "/" plus letters of a name, at the start or after a space, anywhere in
+// the message. { token, items } (token: where the name goes), or null when it should stay closed.
+export function slashMatches(list, text, caret) {
+  const token = shared.slashAt(text, caret);
+  if (!token) return null;
+  const q = token.query;
   const on = (list || []).filter((s) => s.enabled);
-  return [...on.filter((s) => s.name.startsWith(q)), ...on.filter((s) => !s.name.startsWith(q) && s.name.includes(q))];
+  return {
+    token,
+    items: [
+      ...on.filter((s) => s.name.startsWith(q)),
+      ...on.filter((s) => !s.name.startsWith(q) && s.name.includes(q)),
+    ],
+  };
 }
+export const completeSlash = shared.completeSlash;
 
-// A message sent as "/nome resto": the chip shows the skill, the text shows the rest.
-export function splitSlash(text, skill) {
-  if (!skill) return { skill: null, rest: text };
-  const rest = String(text || '').replace(new RegExp('^/' + skill + '(\\s+|$)'), '');
-  return { skill, rest };
+// The skills a sent message carried (older messages kept one, in `skill`).
+export const messageSkills = (m) => m.skills || (m.skill ? [m.skill] : []);
+
+// The chips show the skills; the text drops the mentions that open it ("/a /b faça x" shows "faça x").
+export function splitSlash(text, skills) {
+  let rest = String(text || '');
+  for (;;) {
+    const m = /^\/([a-z0-9-]+)(\s+|$)/.exec(rest);
+    if (!m || !skills.includes(m[1])) return rest;
+    rest = rest.slice(m[0].length);
+  }
 }

@@ -4,8 +4,10 @@
 //   3. Na sua IA lists what Codex has (a fake CODEX_HOME), checks its health and brings it in as it came
 //   4. "/" in the composer: the menu filters, Tab completes, the message carries the skill (chip + activity) and the AI
 //      receives the skill text; a fresh session gets the catalog and the vesta-skills server
-//   5. screenshots of the library and the drawer in Tinta Mangá and Papel
-// Needs a fresh `npm run build`. Usage: node scripts/test-skills-e2e.cjs
+//   5. two skills in the middle of a request: the menu opens at the caret, Enter completes, both chips; the AI gets the
+//      request first and then both skills, whole
+//   6. screenshots of the library and the drawer in Tinta Mangá and Papel
+// Needs a fresh `npm run build`. Usage: node scripts/test-skills-e2e.cjs [shots-dir]
 const assert = require('node:assert/strict');
 const fs = require('node:fs'),
   path = require('node:path');
@@ -25,7 +27,7 @@ fs.writeFileSync(
   path.join(codexHome, 'skills', 'commits-curtos', 'SKILL.md'),
   '---\nname: commits-curtos\ndescription: Mensagens de commit curtas, no imperativo, em português.\n---\n\n# Commits\n\nUma linha, até 60 caracteres. Confira com `npx commitlint --edit`.\n'
 );
-const evidence = path.join(data, 'evidencias');
+const evidence = process.argv[2] || path.join(data, 'evidencias');
 fs.mkdirSync(evidence, { recursive: true });
 const now = Date.now();
 fs.writeFileSync(
@@ -227,18 +229,63 @@ const step = async (name, fn) => {
       await page.waitForFunction(() => !document.querySelector('.message.assistant .thinking'));
       const sent = (await turns()).at(-1);
       assert.match(sent.prompt, /<skill nome="revisar-pr">[\s\S]*abrir subagentes[\s\S]*<\/skill>/);
-      assert.match(sent.prompt, /Pedido: confira o login/);
+      assert.match(sent.prompt, /Pedido da pessoa:\n\/revisar-pr confira o login/);
       // Fresh session: the catalog lists the "A IA decide" skill (revisar-pr is "Só com /" now); Claude gets the server.
       assert.match(sent.prompt, /- commits-curtos: Mensagens de commit/);
       assert.doesNotMatch(sent.prompt, /- revisar-pr:/);
       assert.ok(sent.args.includes('mcp__vesta-skills'));
       const chat = (await state()).chats.find((c) => c.id === 'c1');
-      assert.equal(chat.messages[0].skill, 'revisar-pr');
+      assert.deepEqual(chat.messages[0].skills, ['revisar-pr']);
       assert.equal(chat.messages[0].text, '/revisar-pr confira o login');
       assert.ok(chat.messages[1].activities.some((a) => a.kind === 'skill' && /revisar-pr carregada/.test(a.label)));
       assert.equal((await state()).skills.list.find((s) => s.name === 'revisar-pr').uses, 1);
       await shot('5-chat-tinta');
     });
+
+    await step(
+      'two skills in the middle of the request: menu at the caret, Enter completes, the request goes first',
+      async () => {
+        const box = page.getByRole('textbox', { name: 'Mensagem' });
+        await box.fill('');
+        await box.pressSequentially('Faça um protótipo da branch novo-layout com /rev');
+        await page.locator('.slash-menu [data-slash="revisar-pr"]').waitFor();
+        await box.press('Enter');
+        assert.equal(
+          await box.inputValue(),
+          'Faça um protótipo da branch novo-layout com /revisar-pr ',
+          'completes, does not send'
+        );
+        await box.pressSequentially('e escreva o commit com /comm');
+        await page.locator('.slash-menu [data-slash="commits-curtos"]').waitFor();
+        await shot('5b-barra-no-meio');
+        await box.press('Tab');
+        await box.pressSequentially('no fim.');
+        await page.waitForSelector('.slash-menu', { state: 'detached' });
+        const before = (await turns()).length;
+        await box.press('Enter');
+        const msg = page.locator('.message.user').last();
+        await msg.locator('.skill-chip').nth(1).waitFor();
+        assert.deepEqual(await msg.locator('.skill-chip').allInnerTexts(), ['/revisar-pr', '/commits-curtos']);
+        await page.waitForFunction(() => !document.querySelector('.message.assistant .thinking'));
+        const sent = (await turns())[before].prompt;
+        assert.match(sent, /A pessoa chamou as skills \/revisar-pr, \/commits-curtos do VeSTA/);
+        const at = (x) => sent.indexOf(x);
+        assert.ok(at('Pedido da pessoa:') >= 0 && at('Pedido da pessoa:') < at('<skill nome="revisar-pr">'));
+        assert.ok(at('<skill nome="revisar-pr">') < at('<skill nome="commits-curtos">'));
+        assert.match(sent, /branch novo-layout com \/revisar-pr e escreva o commit com \/commits-curtos no fim\./);
+        const st = await state();
+        const m = st.chats.find((c) => c.id === 'c1').messages.at(-2);
+        assert.deepEqual(m.skills, ['revisar-pr', 'commits-curtos']);
+        assert.equal(
+          st.chats
+            .find((c) => c.id === 'c1')
+            .messages.at(-1)
+            .activities.filter((a) => a.kind === 'skill').length,
+          2
+        );
+        await shot('5c-duas-skills');
+      }
+    );
 
     await step('Papel: library and drawer', async () => {
       await page.evaluate(() => window.vesta.call('saveSettings', { theme: 'paper' }));

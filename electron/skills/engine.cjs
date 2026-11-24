@@ -16,11 +16,11 @@ const G = require('./github.cjs');
 const { buildAdaptPrompt, parseAdaptReply } = require('./adapt.cjs');
 const H = require('./health.cjs');
 const { findSkill } = require('./find.cjs');
+const { mentions } = require('../shared/skills.cjs');
 
 const NATIVE_TTL = 60000;
 const MAX_PARALLEL = 3;
 const CATALOG_DESC = 180;
-const SLASH = /^\/([a-z0-9][a-z0-9-]{0,63})(?=\s|$)\s*([\s\S]*)$/;
 
 // deps (tests): { send, net, native(), pick() }
 function createSkills(ctx, { root, deps = {} } = {}) {
@@ -324,34 +324,56 @@ function createSkills(ctx, { root, deps = {} } = {}) {
     lib.used(meta.name);
     return { name: meta.name, body: F.parseSkill(lib.read(meta.name).text).body };
   }
-  // "/nome resto" -> { skill, text (the prompt), note } for an enabled VeSTA skill; null otherwise (the text goes as is).
+  // "/nome" of enabled VeSTA skills anywhere in the message (up to 5) -> { skills, text (the prompt), notes }; null when
+  // there is none (the text goes as is). The person's request comes first, whole; each skill follows, whole.
   function expand(chat, text) {
-    const m = SLASH.exec(String(text || ''));
-    const meta = m && lib.get(m[1]);
-    if (!meta || !meta.enabled) return null;
-    const { text: body, files } = lib.read(meta.name);
-    const request = m[2].trim();
-    const compat = meta.compat?.[chat.provider];
-    lib.used(meta.name, chat.id);
-    changed();
-    return {
-      skill: meta.name,
-      text: [
-        'A pessoa chamou a skill /' + meta.name + ' do VeSTA. Siga as instruções dela para atender ao pedido.',
+    const src = String(text || '');
+    const names = mentions(src, (n) => !!lib.get(n)?.enabled);
+    if (!names.length) return null;
+    const metas = names.map((n) => lib.get(n));
+    const list = names.map((n) => '/' + n).join(', ');
+    const one = names.length === 1;
+    // Only the mentions, nothing else: the skills run as they are.
+    const request = src.replace(/(^|\s)\/[a-z0-9-]+/g, ' ').trim()
+      ? src.trim()
+      : one
+        ? 'aplique esta skill agora.'
+        : 'aplique estas skills agora.';
+    const blocks = metas.map((meta) => {
+      const { text: body, files } = lib.read(meta.name);
+      lib.used(meta.name, chat.id);
+      return [
         '<skill nome="' + meta.name + '">\n' + F.parseSkill(body).body + '\n</skill>',
         files.length
-          ? 'Arquivos de apoio da skill (leia com vesta_skill_file, se precisar): ' +
+          ? 'Arquivos de apoio de /' +
+            meta.name +
+            ' (leia com vesta_skill_file, se precisar): ' +
             files.map((f) => f.path).join(', ')
           : '',
-        'Pedido: ' + (request || 'aplique esta skill agora.'),
       ]
         .filter(Boolean)
-        .join('\n\n'),
-      note: {
-        kind: 'skill',
-        label: 'Skill /' + meta.name + ' carregada',
-        detail: '~' + meta.tokens + ' tokens' + (compat && compat !== 'ok' ? '. Atenção: ' + compat : ''),
-      },
+        .join('\n');
+    });
+    changed();
+    return {
+      skills: names,
+      text: [
+        (one ? 'A pessoa chamou a skill ' + list + ' do VeSTA' : 'A pessoa chamou as skills ' + list + ' do VeSTA') +
+          ' no pedido abaixo. Siga as instruções completas ' +
+          (one ? 'da skill' : 'de cada uma, juntas') +
+          ' e atenda também a tudo o que o pedido diz. Quando o pedido for mais específico que a skill (uma branch, ' +
+          'um arquivo, um formato, um limite), vale o pedido.',
+        'Pedido da pessoa:\n' + request,
+        ...blocks,
+      ].join('\n\n'),
+      notes: metas.map((meta) => {
+        const compat = meta.compat?.[chat.provider];
+        return {
+          kind: 'skill',
+          label: 'Skill /' + meta.name + ' carregada',
+          detail: '~' + meta.tokens + ' tokens' + (compat && compat !== 'ok' ? '. Atenção: ' + compat : ''),
+        };
+      }),
     };
   }
 
@@ -402,4 +424,4 @@ const clip = (s, n) => {
   return t.length > n ? t.slice(0, n - 1) + '…' : t;
 };
 
-module.exports = { createSkills, SLASH };
+module.exports = { createSkills };
