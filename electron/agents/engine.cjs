@@ -8,6 +8,7 @@ const { randomUUID } = require('node:crypto');
 const { UserError } = require('../app/errors.cjs');
 const { redact } = require('../memory/redact.cjs');
 const A = require('../shared/agents.cjs');
+const R = require('../shared/refine.cjs');
 
 const TICK_MS = 30000;
 
@@ -28,6 +29,14 @@ function createAgentEngine(ctx, deps = {}) {
     store.save();
     ctx.sync?.();
   };
+  // What the agent was before a change of its task or lessons, kept so it can come back (Refinar → Versões).
+  const keepVersion = (a, note) => {
+    a.versions = R.pushVersion(
+      a.versions,
+      { note, prompt: a.prompt, lessons: A.keptLessons(a).map((l) => l.text) },
+      now()
+    ).list;
+  };
   const schedule = (a) => {
     a.nextRunAt = a.enabled ? A.nextRun(a.schedule, now()) : null;
   };
@@ -44,6 +53,7 @@ function createAgentEngine(ctx, deps = {}) {
   function update({ id, ...input }) {
     const prev = find(id);
     const a = A.normalizeAgent({ ...prev, ...input }, prev);
+    if (a.prompt !== prev.prompt) keepVersion(a, 'Editado à mão');
     a.updatedAt = now();
     schedule(a);
     agents()[agents().indexOf(prev)] = a;
@@ -91,8 +101,10 @@ function createAgentEngine(ctx, deps = {}) {
   function suggestion({ id, accept }) {
     const a = find(id);
     if (!a.suggestion) return;
-    if (accept)
+    if (accept) {
+      keepVersion(a, 'Antes do pedido sugerido');
       Object.assign(a, { prompt: A.normalizeAgent({ ...a, prompt: a.suggestion.text }).prompt, updatedAt: now() });
+    }
     a.suggestion = null;
     commit();
   }
@@ -255,6 +267,7 @@ function createAgentEngine(ctx, deps = {}) {
   }
 
   return {
+    keepVersion,
     create,
     update,
     toggle,

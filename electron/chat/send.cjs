@@ -31,7 +31,9 @@ const MAX_SESSION_MESSAGES = 30;
 // A Claude process can outlive its turn ("following": background commands still running). The `session` object below
 // belongs to that process, not to one message: every turn it runs (the one asked here, the ones the CLI starts by
 // itself when a task finishes, the ones the user types while it follows) ends in `conclude`.
-async function send(ctx, { chatId, text, attachments: ids }) {
+// brief (main process only, never from the screen): { text, note } the AI receives in place of `text`, which is what
+// the chat shows (a refinement chat's first message carries its whole context this way).
+async function send(ctx, { chatId, text, attachments: ids, brief }) {
   const { store, jobs, memory, permissions, app, bounded, emit, sync, state } = ctx;
   const chat = store.chat(chatId);
   text = bounded(text, 50000).trim();
@@ -50,7 +52,7 @@ async function send(ctx, { chatId, text, attachments: ids }) {
   // Staged files move into this chat's folder only now that the turn will really start.
   const atts = ids.length ? ctx.attachments.commit(chatId, ids) : [];
   // "/nome" of a VeSTA skill: the AI receives the skill with the request; the chat shows what the person typed.
-  const slash = ctx.skills?.expand(chat, text) || null;
+  const slash = (brief?.text && brief) || ctx.skills?.expand(chat, text) || null;
   const asked = slash ? slash.text : text;
   const task = resume ? resume.task : { run: null, cancelled: false, assistant: null };
   task.cancelled = false;
@@ -61,10 +63,10 @@ async function send(ctx, { chatId, text, attachments: ids }) {
     text,
     createdAt: Date.now(),
     ...(atts.length ? { attachments: atts } : {}),
-    ...(slash ? { skill: slash.skill } : {}),
+    ...(slash?.skill ? { skill: slash.skill } : {}),
   };
   const assistant = newAssistant(chat);
-  if (slash) assistant.activities.push(slash.note);
+  if (slash?.note) assistant.activities.push(slash.note);
   task.assistant = assistant;
   chat.messages.push(user, assistant);
   if (chat.title === 'Novo chat') chat.title = (text || atts[0]?.name || 'Anexos').replace(/\s+/g, ' ').slice(0, 55);

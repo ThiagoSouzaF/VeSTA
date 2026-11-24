@@ -309,7 +309,7 @@ function createSkills(ctx, { root, deps = {} } = {}) {
   const hasAny = () => lib.list().some((s) => s.enabled);
   // The lines that tell the AI what it may load (only "A IA decide" skills; "Só com /" ones cost nothing here).
   function catalogHint(chat) {
-    if (chat.skills === false) return ''; // an agent the person set to work without skills
+    if (chat.skills === false || chat.refine) return ''; // an agent set to work without skills; a refinement chat
     const auto = usable(chat).filter((s) => s.mode === 'auto');
     if (!auto.length) return '';
     return (
@@ -332,7 +332,7 @@ function createSkills(ctx, { root, deps = {} } = {}) {
     const { text: body, files } = lib.read(meta.name);
     const request = m[2].trim();
     const compat = meta.compat?.[chat.provider];
-    lib.used(meta.name);
+    lib.used(meta.name, chat.id);
     changed();
     return {
       skill: meta.name,
@@ -391,7 +391,7 @@ function createSkills(ctx, { root, deps = {} } = {}) {
     // A skill by name in the library or in an AI's own folders (vesta_skill_find, /explain-skill).
     find: (query, ai) => findSkill({ query, ai, lib, native }),
     readFile: (name, rel) => lib.readFile(name, rel),
-    used: (name) => (lib.used(name), changed()),
+    used: (name, chatId) => (lib.used(name, chatId), changed()),
     root: path.resolve(root),
   };
 }

@@ -4,10 +4,23 @@ import { useEffect, useState } from 'react';
 import { X, Eye, Pencil, RefreshCw, Trash2, MessageSquarePlus } from 'lucide-react';
 import { AIS, aiState, catalogTokens, fmt } from '../../lib/skills';
 import { CostBars, ModeSeg, Switch } from './SkillBits';
+import { RefinePanel } from '../refine/RefinePanel';
 
 const fmtDate = (t) => (t ? new Date(t).toLocaleDateString('pt-BR') : '');
 
-export function SkillDrawer({ skill: s, state, call, setData, notify, onClose, onTry, onUpdate }) {
+export function SkillDrawer({
+  skill: s,
+  state,
+  data,
+  integrations,
+  call,
+  setData,
+  notify,
+  onClose,
+  onTry,
+  onUpdate,
+  onOpenRefine,
+}) {
   const [view, setView] = useState(null); // null | 'text' | 'original' | 'edit'
   const [doc, setDoc] = useState(null);
   const [draft, setDraft] = useState('');
@@ -130,6 +143,19 @@ export function SkillDrawer({ skill: s, state, call, setData, notify, onClose, o
             Testar num chat
           </button>
         </div>
+        <RefinePanel
+          kind="skill"
+          target={s}
+          data={data}
+          integrations={integrations}
+          call={call}
+          setData={(st) => {
+            setDoc(null);
+            setData(st);
+          }}
+          notify={notify}
+          onOpenRefine={onOpenRefine}
+        />
         <div className="skill-actions">
           <button className="secondary-button" aria-pressed={view === 'text'} onClick={() => open('text')}>
             <Eye size={14} />

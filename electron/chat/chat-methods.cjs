@@ -82,7 +82,8 @@ function chatMethods(ctx) {
       sync();
       return state();
     },
-    send: (args) => send(ctx, args),
+    // A brief only comes from the main process (refine/engine.cjs), never from the screen.
+    send: ({ brief, ...args } = {}) => send(ctx, args),
     usage: () => usage.summary(ctx.store.state.usage),
     // Reads what the CLIs can report without a chat turn (today: the Codex plan windows), then returns the summary.
     refreshUsage: async ({ force } = {}) => {

@@ -9,6 +9,7 @@ import { ProviderIcon } from '../ProviderIcon';
 import { Switch } from '../skills/SkillBits';
 import { AgentForm } from './AgentForm';
 import { AgentLearning } from './AgentLearning';
+import { RefinePanel } from '../refine/RefinePanel';
 import {
   STATUS,
   TRIGGER,
@@ -34,6 +35,7 @@ export function AgentDrawer({
   onClose,
   onCreated,
   onOpenChat,
+  onOpenRefine,
 }) {
   const isNew = !a;
   const [editing, setEditing] = useState(isNew);
@@ -194,6 +196,17 @@ export function AgentDrawer({
             </div>
 
             <AgentLearning agent={a} now={now} busy={busy} act={act} />
+
+            <RefinePanel
+              kind="agent"
+              target={a}
+              data={data}
+              integrations={integrations}
+              call={call}
+              setData={setData}
+              notify={notify}
+              onOpenRefine={onOpenRefine}
+            />
 
             <section className="agent-diary" aria-label="Diário">
               <h3>

@@ -6,7 +6,19 @@ import { AiBadges } from './SkillBits';
 import { SkillDrawer } from './SkillDrawer';
 import { usePresence, EXIT } from '../../hooks/usePresence';
 
-export function SkillLibrary({ skills, call, setData, notify, selected, setSelected, onAdd, onTry }) {
+export function SkillLibrary({
+  data,
+  integrations,
+  onOpenRefine,
+  skills,
+  call,
+  setData,
+  notify,
+  selected,
+  setSelected,
+  onAdd,
+  onTry,
+}) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const groups = useMemo(
@@ -97,6 +109,9 @@ export function SkillLibrary({ skills, call, setData, notify, selected, setSelec
           key={drawn.name}
           state={drawerState}
           skill={drawn}
+          data={data}
+          integrations={integrations}
+          onOpenRefine={onOpenRefine}
           call={call}
           setData={setData}
           notify={notify}

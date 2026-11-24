@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Paperclip } from 'lucide-react';
 import { hasFiles } from '../lib/attachments';
 import { QuestChatBar } from './quests/QuestChatBar';
+import { RefineChatBar } from './refine/RefineChatBar';
 import { FollowBar } from './FollowBar';
 import { TaskDock } from './TaskDock';
 export function ChatPage({
@@ -89,6 +90,7 @@ export function ChatPage({
                 onOpenChat={onOpenQuestChat}
               />
             )}
+            {chat.refine && <RefineChatBar chat={chat} data={data} call={call} setData={setData} notify={notify} />}
             <MessageList
               chat={chat}
               call={call}

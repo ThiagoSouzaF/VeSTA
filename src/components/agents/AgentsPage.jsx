@@ -30,7 +30,7 @@ function useNow(ms = 30000) {
   return now;
 }
 
-export function AgentsPage({ data, integrations, call, setData, notify, onOpenChat }) {
+export function AgentsPage({ data, integrations, call, setData, notify, onOpenChat, onOpenRefine }) {
   const agents = data.agents || [];
   const now = useNow();
   const [filter, setFilter] = useState('all');
@@ -215,6 +215,7 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
           onClose={() => setOpen(null)}
           onCreated={(id) => setOpen(id)}
           onOpenChat={onOpenChat}
+          onOpenRefine={onOpenRefine}
         />
       )}
     </div>

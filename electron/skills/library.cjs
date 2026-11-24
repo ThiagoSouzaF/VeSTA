@@ -2,16 +2,21 @@
 //   <name>/SKILL.md          the version every AI receives (adapted, or the original kept as is)
 //   <name>/files/**          supporting files (references, examples, scripts: kept, never run by VeSTA)
 //   <name>/original/**       what was imported, untouched (SKILL.md and its files), for "ver original"
-//   <name>/skill.json        VeSTA's data: origin, on/off, when it is used, which AIs it works in, use count
+//   <name>/skill.json        VeSTA's data: origin, on/off, when it is used, which AIs it works in, use count, the
+//                            chats that used it last (recent), the versions kept and a waiting proposal
+//   <name>/versions/<n>.md   an earlier SKILL.md (saved before every change of the text, so it can come back)
+//   <name>/proposal.md       a new SKILL.md an AI proposed while refining the skill; in use only on the person's yes
 // Names are unique: they are what follows the "/" in the chat.
 const fs = require('node:fs'),
   path = require('node:path');
 const { UserError } = require('../app/errors.cjs');
 const { writeAtomic } = require('../util/sys.cjs');
 const F = require('./format.cjs');
+const R = require('../shared/refine.cjs');
 
 const PROVIDERS = ['claude', 'codex', 'opencode', 'drael'];
 const MODES = ['auto', 'slash'];
+const MAX_RECENT = 10;
 
 // A relative path inside a skill, or null when it would leave the folder.
 function safeRel(rel) {
@@ -68,6 +73,15 @@ function createLibrary(root) {
     cache = null;
     return meta;
   };
+  // Saves `text` (the SKILL.md about to be replaced) as the newest version in <dir>/versions -> the new version list.
+  function keepVersion(dir, versions, text, note) {
+    const { list, entry, dropped } = R.pushVersion(versions, { note, tokens: F.tokens(text) });
+    fs.mkdirSync(path.join(dir, 'versions'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'versions', entry.n + '.md'), text);
+    for (const n of dropped) fs.rmSync(path.join(dir, 'versions', n + '.md'), { force: true });
+    return list;
+  }
+  const versionFile = (name, n) => path.join(dirOf(name), 'versions', Math.trunc(Number(n)) + '.md');
   function writeFiles(dir, files) {
     for (const f of files || []) {
       const rel = safeRel(f.path);
@@ -122,6 +136,15 @@ function createLibrary(root) {
         fs.writeFileSync(path.join(tmp, 'original', 'SKILL.md'), skill.original.text);
         writeFiles(path.join(tmp, 'original'), skill.original.files);
       }
+      // An update keeps the versions and saves the text it replaces; a waiting proposal was made for that old text.
+      let versions = [];
+      if (old) {
+        const oldDir = path.join(dir, 'versions');
+        if (fs.existsSync(oldDir)) fs.cpSync(oldDir, path.join(tmp, 'versions'), { recursive: true });
+        versions = old.versions || [];
+        const before = fs.readFileSync(path.join(dir, 'SKILL.md'), 'utf8');
+        if (before !== skill.text) versions = keepVersion(tmp, versions, before, skill.note || 'Antes de atualizar');
+      }
       const { data } = F.parseSkill(skill.text);
       const now = Date.now();
       const meta = {
@@ -144,6 +167,9 @@ function createLibrary(root) {
         updatedAt: now,
         uses: old?.uses || 0,
         lastUsedAt: old?.lastUsedAt || 0,
+        recent: old?.recent || [],
+        versions,
+        proposal: null,
       };
       fs.writeFileSync(path.join(tmp, 'skill.json'), JSON.stringify(meta, null, 2));
       // Swapped in one step: a crash halfway leaves the old skill or the new one, never a mix.
@@ -162,17 +188,55 @@ function createLibrary(root) {
       if (patch.text !== undefined) {
         const text = String(patch.text);
         if (!text.trim()) throw new UserError('A skill não pode ficar vazia');
-        fs.writeFileSync(path.join(dirOf(name), 'SKILL.md'), text);
+        const file = path.join(dirOf(name), 'SKILL.md');
+        const before = fs.readFileSync(file, 'utf8');
+        if (before !== text)
+          meta.versions = keepVersion(dirOf(name), meta.versions, before, patch.note || 'Editada à mão');
+        fs.writeFileSync(file, text);
         meta.description = String(F.parseSkill(text).data.description || meta.description).slice(0, 1024);
         meta.tokens = F.tokens(text);
       }
       meta.updatedAt = Date.now();
       return saveMeta(meta);
     },
-    used(name) {
+    // A use, and the chat it happened in (the evidence a refinement reads).
+    used(name, chatId = null) {
       const meta = get(name);
       if (!meta) return;
-      saveMeta({ ...meta, uses: (meta.uses || 0) + 1, lastUsedAt: Date.now() });
+      const at = Date.now();
+      const recent = chatId
+        ? [{ chatId, at }, ...(meta.recent || []).filter((r) => r.chatId !== chatId)].slice(0, MAX_RECENT)
+        : meta.recent || [];
+      saveMeta({ ...meta, uses: (meta.uses || 0) + 1, lastUsedAt: at, recent });
+    },
+    readVersion(name, n) {
+      must(name);
+      const file = versionFile(name, n);
+      if (!fs.existsSync(file)) throw new UserError('Versão não encontrada');
+      return fs.readFileSync(file, 'utf8');
+    },
+    // The SKILL.md an AI proposed (waits for the person) -> meta; text null when there is none.
+    readProposal(name) {
+      const meta = must(name);
+      const file = path.join(dirOf(name), 'proposal.md');
+      return meta.proposal && fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+    },
+    setProposal(name, { text, changes, chatId, provider }) {
+      const meta = { ...must(name) };
+      fs.writeFileSync(path.join(dirOf(name), 'proposal.md'), text);
+      meta.proposal = {
+        at: Date.now(),
+        changes: R.cleanChanges(changes),
+        chatId: chatId || null,
+        provider: provider || null,
+        tokens: F.tokens(text),
+      };
+      return saveMeta(meta);
+    },
+    clearProposal(name) {
+      const meta = { ...must(name), proposal: null };
+      fs.rmSync(path.join(dirOf(name), 'proposal.md'), { force: true });
+      return saveMeta(meta);
     },
     remove(name) {
       must(name);

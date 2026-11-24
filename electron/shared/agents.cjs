@@ -2,16 +2,19 @@
 // the skills of VeSTA. Pure functions, no I/O: used by the engine (main process), the tests and the screen.
 //
 // Agent { id, name, prompt, provider, model, projectId, mode, memory, skills, skillNames[], schedule, enabled, catchUp,
-//         runs[], lessons[], suggestion, nextRunAt, unseen, createdAt, updatedAt }
+//         runs[], lessons[], suggestion, proposal, versions[], nextRunAt, unseen, createdAt, updatedAt }
 //   skills      the "A IA decide" catalog of the library; skillNames are the agent's own skills, sent whole every run
 //   mode      'read' (Consulta) | 'ask' (Pedir permissão: each command waits for the person) | 'edit' (Acesso completo)
 //   schedule  { kind: 'manual' | 'daily' | 'weekdays' | 'weekly' | 'interval', time: 'HH:MM', days: [0-6], hours }
 //   catchUp   a scheduled time missed while VeSTA was closed runs once when it opens
 //   unseen    runs that ended since the person last opened Agent Mode (the rail badge)
-// Lesson { id, text, status: 'pending' | 'kept' | 'dropped', from: 'run' | 'chat' | 'person', at, runId }: what the
+// Lesson { id, text, status: 'pending' | 'kept' | 'dropped', from: 'run' | 'chat' | 'person' | 'refine', at, runId }: what the
 //   agent learned; only kept ones (approved by the person, or written by them) reach the next runs. Dropped ones stay
 //   hidden so the agent does not propose them again.
 // suggestion { text, at, runId } | null: a better task the agent proposed; it replaces the prompt only on a yes.
+// proposal { prompt, lessons[] | null, changes[], at, chatId, provider } | null: what a refinement chat proposed (task
+//   and, if given, the new kept lessons); applied only on a yes. versions[]: what the agent was before each change of
+//   its task ({ n, at, note, prompt, lessons[] }, newest first; shared/refine.cjs).
 // Run { id, at, endedAt, trigger: 'schedule' | 'manual' | 'catch-up', status: 'running' | 'ok' | 'error', chatId,
 //       summary, error }
 // Message meant for the person (this file also runs in the renderer, so it cannot require errors.cjs).

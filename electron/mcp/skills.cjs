@@ -1,13 +1,17 @@
 // "vesta-skills": the MCP server that hands VeSTA's skills to every AI (Claude, Codex, OpenCode, Drael). The chat only
 // knows the short catalog; the full text of a skill is read when it is needed (vesta_skill_load), and its supporting
-// files one at a time (vesta_skill_file). vesta_skill_find reads any skill by name, also those an AI has on its own. One token per chat (host.cjs); offered only while some skill is on.
+// files one at a time (vesta_skill_file). vesta_skill_find reads any skill by name, also those an AI has on its own.
+// A refinement chat (chat.refine) also gets vesta_refine_context and vesta_refine_propose, and only it.
+// One token per chat (host.cjs); offered while some skill is on, and always to a refinement chat.
 const { createMcpHost } = require('./host.cjs');
 
 const NAME = 'vesta-skills';
 const obj = (properties = {}, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
 const nameProp = { type: 'string', description: 'Nome da skill (o que vem depois da "/").' };
 // Every tool only reads: marked so, they also work in Só consulta (Claude Code blocks other MCP tools in plan mode).
+// vesta_refine_propose writes no file and changes nothing in use: it keeps a draft that waits for the person's yes.
 const READ = { readOnlyHint: true };
+const REFINE = ['vesta_refine_context', 'vesta_refine_propose'];
 const TOOLS = [
   ['vesta_skills_list', 'Lista as skills ligadas no VeSTA para esta IA: nome, descrição e quando usar.', obj(), READ],
   [
@@ -37,15 +41,45 @@ const TOOLS = [
     ]),
     READ,
   ],
+  [
+    'vesta_refine_context',
+    'Refino: devolve o texto em uso da skill ou do agent que este chat refina, as versões, a proposta que espera e a evidência de uso atualizada.',
+    obj(),
+    READ,
+  ],
+  [
+    'vesta_refine_propose',
+    'Refino: guarda a sua proposta para a skill ou o agent deste chat. Só leitura: não altera arquivos nem nada em uso, então funciona no modo de consulta (plano). Nada muda até a pessoa aplicar; cada chamada substitui a proposta anterior. Skill: "texto" com o SKILL.md completo (com frontmatter). Agent: "pedido" com a tarefa completa e, se quiser, "licoes" com a lista nova de lições aprovadas.',
+    obj(
+      {
+        texto: { type: 'string', description: 'Skill: o SKILL.md completo, com o frontmatter (name e description).' },
+        pedido: { type: 'string', description: 'Agent: a tarefa completa, como vai em cada execução.' },
+        licoes: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Agent (opcional): a lista nova de lições aprovadas; substitui a atual.',
+        },
+        mudancas: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'O que mudou e por quê, uma linha por mudança.',
+        },
+      },
+      ['mudancas']
+    ),
+    READ,
+  ],
 ];
 
-function createSkillsMcp(ctx, { skills }) {
+function createSkillsMcp(ctx, { skills, refiner = () => ctx.refiner }) {
   const get = typeof skills === 'function' ? skills : () => skills;
   const authorize = (chatId) => {
     const chat = ctx.store.state.chats.find((c) => c.id === chatId);
+    if (chat?.refine && refiner()) return chat;
     if (!chat || chat.skillDraft || chat.skills === false || !get()?.hasAny()) return null;
     return chat;
   };
+  const visible = (chat) => (chat?.refine ? null : TOOLS.map((t) => t[0]).filter((n) => !REFINE.includes(n)));
   const allowed = (chat, name) => {
     const s = get()
       .usable(chat)
@@ -65,7 +99,7 @@ function createSkillsMcp(ctx, { skills }) {
     vesta_skill_load: (chat, a) => {
       const s = allowed(chat, a.name);
       const r = get().read(s.name);
-      get().used(s.name);
+      get().used(s.name, chat.id);
       return { name: s.name, text: r.text, files: r.files.map((f) => f.path) };
     },
     vesta_skill_find: (chat, a) => {
@@ -78,8 +112,16 @@ function createSkillsMcp(ctx, { skills }) {
       const s = allowed(chat, a.name);
       return { name: s.name, path: a.path, text: get().readFile(s.name, a.path) };
     },
+    vesta_refine_context: (chat) => refiner().context(chat),
+    vesta_refine_propose: (chat, a) => refiner().propose(chat, a),
   };
-  return createMcpHost({ name: NAME, tools: TOOLS, authorize, call: (chat, name, args) => handlers[name](chat, args) });
+  return createMcpHost({
+    name: NAME,
+    tools: TOOLS,
+    authorize,
+    visible,
+    call: (chat, name, args) => handlers[name](chat, args),
+  });
 }
 
 module.exports = { createSkillsMcp, NAME, TOOLS };

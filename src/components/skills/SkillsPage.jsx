@@ -9,7 +9,7 @@ import { NativeSkills } from './NativeSkills';
 import { AddSkill } from './AddSkill';
 import { TabInk } from '../TabInk';
 
-export function SkillsPage({ data, call, setData, notify, integrations, onTry }) {
+export function SkillsPage({ data, call, setData, notify, integrations, onTry, onOpenRefine }) {
   const skills = data.skills || { list: [], drafts: [] };
   // An import still waiting for review opens the Adicionar tab first.
   const [tab, setTab] = useState(() => (skills.drafts.length ? 'add' : 'lib'));
@@ -70,6 +70,9 @@ export function SkillsPage({ data, call, setData, notify, integrations, onTry })
       </div>
       {tab === 'lib' && (
         <SkillLibrary
+          data={data}
+          integrations={integrations}
+          onOpenRefine={onOpenRefine}
           skills={skills}
           call={call}
           setData={setData}

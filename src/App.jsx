@@ -291,6 +291,12 @@ export function App() {
     },
     [notify]
   );
+  // A refinement chat just opened (or gone on): the state that has it, then the chat.
+  const openRefine = useCallback((state, chatId) => {
+    replaceData(state);
+    const c = state.chats.find((x) => x.id === chatId);
+    if (c) goChat(c);
+  }, []);
   // The quest's own chat (created on demand for quests from before it existed).
   const openQuestChat = useCallback(async (questId) => {
     try {
@@ -421,6 +427,7 @@ export function App() {
       notify,
       integrations,
       // "Testar num chat": a new conversation with "/nome " already in the composer.
+      onOpenRefine: openRefine,
       onTry: (name) => {
         setActive(null);
         setDraft('new', '/' + name + ' ');
@@ -428,7 +435,15 @@ export function App() {
         requestAnimationFrame(() => textarea.current?.focus());
       },
     },
-    agents: { data, integrations, call, setData: replaceData, notify, onOpenChat: openChatById },
+    agents: {
+      data,
+      integrations,
+      call,
+      setData: replaceData,
+      notify,
+      onOpenChat: openChatById,
+      onOpenRefine: openRefine,
+    },
     usage: { call, usage: data.usage },
     connections: { setBusy, setIntegrations, call, notify, busy, integrations, memoryStatus, setMemoryStatus },
     about: { version: data.appVersion, onBack: () => setPage('settings') },

@@ -9,6 +9,7 @@ const { createQuestEngine } = require('../quests/engine.cjs');
 const { createQuestMcp } = require('../quests/mcp.cjs');
 const { createAppMcp } = require('../mcp/app.cjs');
 const { createSkillsMcp } = require('../mcp/skills.cjs');
+const { createRefiner } = require('../refine/engine.cjs');
 const { createSkills } = require('../skills/engine.cjs');
 const { seedBundled } = require('../skills/bundled.cjs');
 const { createAgentEngine } = require('../agents/engine.cjs');
@@ -76,6 +77,8 @@ async function openServices(ctx, { electron, bus, methods }) {
   ctx.agents = createAgentEngine(ctx);
   ctx.agents.startClock();
   bus.subscribe((event) => event.type === 'chat-done' && ctx.agents.onChatDone(event));
+  // Refining a skill or an agent: a chat with the person, proposals that wait for a yes, versions that come back.
+  ctx.refiner = createRefiner(ctx);
   store.save();
   // Chat attachments: copies kept under userData; leftovers of unsent drafts and deleted chats are cleaned at start.
   ctx.nativeImage = nativeImage;
