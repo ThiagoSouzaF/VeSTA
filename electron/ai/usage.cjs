@@ -1,6 +1,7 @@
 // Usage tracking: rate-limit windows per provider + per-day, per-provider token/cost totals.
 //   usage.rateLimit[provider] = {windows:[{id,label,utilization 0..1,resetsAt ms|null,durationMins|null}], updatedAt, planType?, credits?}
 //   usage.daily[day][provider] = {inputTokens, outputTokens, cacheTokens, costUsd, turns}
+//   usage.v = 2 once the Codex and Drael days were corrected (migrate; the store keeps the saved `v` when it loads).
 const emptyUsage = () => ({ rateLimit: {}, daily: {} });
 const dayKey = (t = Date.now()) => {
   const d = new Date(t),
@@ -63,8 +64,18 @@ function codexRateLimits(result) {
   return main;
 }
 // Accepts the old shape (fiveHour/sevenDay at the top level of usage.rateLimit) and rewrites it per provider.
+// v2 (0.31): Codex and Drael reported the cache inside the input and VeSTA added it again; the days kept before that
+// lose the cache from the input (the reasoning Codex counted twice in the output cannot be told apart anymore).
 function migrate(usage) {
   if (!usage.daily || typeof usage.daily !== 'object') usage.daily = {};
+  if ((usage.v || 1) < 2) {
+    for (const providers of Object.values(usage.daily))
+      for (const id of ['codex', 'drael']) {
+        const t = providers?.[id];
+        if (t) t.inputTokens = Math.max(0, (t.inputTokens || 0) - (t.cacheTokens || 0));
+      }
+    usage.v = 2;
+  }
   const rl = usage.rateLimit && typeof usage.rateLimit === 'object' ? usage.rateLimit : {};
   if ('fiveHour' in rl || 'sevenDay' in rl || 'updatedAt' in rl) {
     const windows = claudeWindows(rl);
@@ -97,7 +108,20 @@ function recordRateLimit(usage, ev, now = Date.now()) {
   };
   return true;
 }
-function recordCost(usage, ev, now = Date.now()) {
+// The tokens of one answer (a message, a chat): the cost events of its turn added up. Every provider reports the same
+// shape (parser/): inputTokens is the fresh input, cacheTokens what was read from or written to the prompt cache (also
+// input, charged differently), outputTokens everything the AI wrote (thinking included).
+const TOKEN_KEYS = ['inputTokens', 'outputTokens', 'cacheTokens', 'costUsd'];
+function addTokens(t, ev) {
+  const out = { ...(t || { inputTokens: 0, outputTokens: 0, cacheTokens: 0, costUsd: 0 }) };
+  for (const k of TOKEN_KEYS) out[k] = (out[k] || 0) + (Number(ev?.[k]) || 0);
+  return out;
+}
+// Everything the AI read and wrote.
+const totalTokens = (t) => (t ? (t.inputTokens || 0) + (t.cacheTokens || 0) + (t.outputTokens || 0) : 0);
+// `turn: false` adds to the day without counting one more answer (a second cost event of the same answer: an OpenCode
+// step, a Claude turn after a background task).
+function recordCost(usage, ev, now = Date.now(), { turn = true } = {}) {
   migrate(usage);
   const day = usage.daily[dayKey(now)] || (usage.daily[dayKey(now)] = {});
   const p =
@@ -106,7 +130,7 @@ function recordCost(usage, ev, now = Date.now()) {
   p.outputTokens += ev.outputTokens || 0;
   p.cacheTokens += ev.cacheTokens || 0;
   p.costUsd += ev.costUsd || 0;
-  p.turns += 1;
+  if (turn) p.turns += 1;
   // keep ~120 days
   const keys = Object.keys(usage.daily).sort();
   while (keys.length > 120) delete usage.daily[keys.shift()];
@@ -151,5 +175,7 @@ module.exports = {
   codexRateLimits,
   recordRateLimit,
   recordCost,
+  addTokens,
+  totalTokens,
   summary,
 };

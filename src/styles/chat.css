@@ -130,3 +130,63 @@
 .message.user .markdown {
   color: var(--text);
 }
+/* Tokens of the conversation, in the heading: the total; opened, the parts. */
+.chat-tokens {
+  position: relative;
+}
+.chat-tokens summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  font-family: var(--font-mono, Consolas, monospace);
+  cursor: pointer;
+  list-style: none;
+}
+.chat-tokens summary::-webkit-details-marker {
+  display: none;
+}
+.chat-tokens summary:hover,
+.chat-tokens[open] summary {
+  color: var(--text);
+  border-color: var(--border);
+}
+.chat-tokens-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 300px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel, var(--bg));
+  color: var(--text);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+}
+.chat-tokens-panel dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.chat-tokens-panel dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.chat-tokens-panel dt {
+  color: var(--muted);
+}
+.chat-tokens-panel dd {
+  margin: 0;
+  font-family: var(--font-mono, Consolas, monospace);
+  font-weight: 700;
+}
+.chat-tokens-panel p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: calc(11px * var(--font-scale));
+  line-height: 1.45;
+}

@@ -383,6 +383,27 @@ async function seededPhase() {
         return el.scrollHeight - el.scrollTop - el.clientHeight <= 4;
       });
     });
+    await step('tokens: the answer shows its own, the heading the chat total with the parts', async () => {
+      // Seeded: only the last answer has a count (4 fresh + 56,727 from the cache + 91 out).
+      const last = page.locator('.message.assistant').last();
+      assert.equal(await last.locator('.message-tokens').innerText(), '56.8k tokens');
+      assert.match(await last.locator('.message-tokens').getAttribute('title'), /do cache 56\.7k/);
+      const badge = page.locator('.chat-tokens');
+      assert.match(await badge.locator('summary').innerText(), /56\.8k tokens/);
+      await badge.locator('summary').click();
+      const panel = badge.locator('.chat-tokens-panel');
+      await panel.waitFor();
+      const text = await panel.innerText();
+      assert.match(text, /Entrada nova\s+4/);
+      assert.match(text, /Do cache\s+56\.7k/);
+      assert.match(text, /Preço na API\s+\$0\.122/);
+      assert.match(text, /1 resposta contada \(\d+ de antes da contagem/);
+      if (process.argv[2]) await page.screenshot({ path: path.join(process.argv[2], 'chat-tokens.png') });
+      await badge.locator('summary').click();
+      await openChat('Conversa curta');
+      assert.equal(await page.locator('.chat-tokens').count(), 0, 'no count yet: nothing to show');
+      await openChat('Conversa longa');
+    });
     await step('Ctrl+= / Ctrl+- / Ctrl+0 change --font-scale and the rendered text size', async () => {
       assert.equal(await scale(), '1');
       const base = await bodyPx();
@@ -452,11 +473,14 @@ async function seededPhase() {
       assert.match(codexText, /7%/);
       assert.match(codexText, /Plano plus/i);
       assert.match(codexText, /reseta em/);
-      assert.match(codexText, /3[.,]0k entrada/, 'tokens de hoje');
+      assert.match(codexText, /3[.,]0k entrada nova/, 'tokens de hoje');
+      assert.match(codexText, /4[.,]0k tokens/, 'the total: fresh input + cache + output');
+      assert.match(codexText, /2 respostas/);
       assert.match(codexText, /sem custo/);
       const claude = sec('claude');
       assert.equal(await claude.locator('.usage-bar-card.hot').count(), 1, '91% is hot');
-      assert.match(await claude.innerText(), /\$0\.750/);
+      assert.match(await claude.innerText(), /\$0\.750 na API/);
+      if (process.argv[2]) await page.screenshot({ path: path.join(process.argv[2], 'uso.png') });
       assert.match(await claude.innerText(), /\$2\.00/, '7 dias soma 0.75 + 1.25');
       assert.equal(await sec('drael').locator('.usage-bar-card').count(), 0);
       assert.match(await sec('drael').innerText(), /não informa janelas/);

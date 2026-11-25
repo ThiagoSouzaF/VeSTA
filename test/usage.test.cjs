@@ -131,6 +131,18 @@ test('claude result, opencode step_finish and codex turn.completed emit cost', (
     },
   ]).find((e) => e.type === 'cost');
   assert.deepEqual([c.provider, c.inputTokens, c.outputTokens, c.cacheTokens, c.costUsd], ['claude', 10, 5, 120, 0.12]);
+  // A turn after a background task in the same process: total_cost_usd carries the earlier turns, only the growth counts.
+  const twice = run('claude', [
+    { type: 'result', result: 'um', usage: { input_tokens: 2, output_tokens: 3 }, total_cost_usd: 0.0053 },
+    { type: 'result', result: 'dois', usage: { input_tokens: 2, output_tokens: 82 }, total_cost_usd: 0.0079 },
+  ]).filter((e) => e.type === 'cost');
+  assert.deepEqual(
+    twice.map((e) => [e.outputTokens, Math.round(e.costUsd * 1e4)]),
+    [
+      [3, 53],
+      [82, 26],
+    ]
+  );
   const o = run('opencode', [
     {
       type: 'step_finish',
@@ -156,7 +168,9 @@ test('claude result, opencode step_finish and codex turn.completed emit cost', (
     },
     { method: 'turn/completed', params: { threadId: 't1', turn: { status: 'completed' } } },
   ]).find((e) => e.type === 'cost');
-  assert.deepEqual([x.inputTokens, x.outputTokens, x.cacheTokens], [50, 10, 10]);
+  // Codex counts the cache inside the input and the reasoning inside the output (as a real turn showed:
+  // totalTokens = inputTokens + outputTokens): fresh input 40, cache 10, output 8.
+  assert.deepEqual([x.inputTokens, x.outputTokens, x.cacheTokens], [40, 8, 10]);
 });
 test('upsert helpers merge by id and stamp times', () => {
   const list = [];
@@ -193,11 +207,61 @@ test('usage accumulates per day/provider and store merges old state', () => {
   assert.equal(win('seven_day').utilization, 0.1);
   assert.equal(u.rateLimit.claude.updatedAt, t);
   assert.equal(usage.summary(u, t).today.claude.turns, 2);
+  // A second cost event of the same answer adds tokens, not one more answer.
+  usage.recordCost(u, { provider: 'claude', inputTokens: 1, outputTokens: 0, cacheTokens: 0, costUsd: 0 }, t, {
+    turn: false,
+  });
+  assert.equal(u.daily['2026-10-15'].claude.turns, 2);
+  assert.equal(u.daily['2026-10-15'].claude.inputTokens, 3);
+  // An answer's own count, and the total (fresh input + cache + output).
+  const one = usage.addTokens(
+    usage.addTokens(null, { inputTokens: 1, outputTokens: 2, cacheTokens: 3, costUsd: 0.5 }),
+    {
+      inputTokens: 4,
+      outputTokens: 0,
+      cacheTokens: 0,
+      costUsd: 0.25,
+    }
+  );
+  assert.deepEqual(one, { inputTokens: 5, outputTokens: 2, cacheTokens: 3, costUsd: 0.75 });
+  assert.equal(usage.totalTokens(one), 10);
+  // v2: the Codex and Drael days kept before had the cache inside the input; Claude's did not.
+  const old = {
+    rateLimit: {},
+    daily: {
+      '2026-10-14': {
+        codex: { inputTokens: 34000, outputTokens: 86, cacheTokens: 16800, costUsd: 0, turns: 1 },
+        drael: { inputTokens: 10, outputTokens: 1, cacheTokens: 4, costUsd: 0, turns: 1 },
+        claude: { inputTokens: 4, outputTokens: 91, cacheTokens: 56727, costUsd: 0.12, turns: 1 },
+      },
+    },
+  };
+  usage.migrate(old);
+  assert.deepEqual(
+    ['codex', 'drael', 'claude'].map((id) => old.daily['2026-10-14'][id].inputTokens),
+    [17200, 6, 4]
+  );
+  assert.equal(old.v, 2);
+  usage.migrate(old);
+  assert.equal(old.daily['2026-10-14'].codex.inputTokens, 17200, 'once');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-usage-'));
   fs.writeFileSync(path.join(dir, 'vesta.json'), JSON.stringify({ version: 1, chats: [] }));
   const s = new Store(dir);
   assert.deepEqual(s.state.usage.daily, {});
   assert.deepEqual(s.state.usage.rateLimit, {});
+  // A saved store from before v2 is corrected once when it loads; one already corrected stays as it is.
+  const codexDay = (v) => ({
+    version: 1,
+    chats: [],
+    usage: { ...(v ? { v } : {}), daily: { '2026-10-14': { codex: { inputTokens: 30, cacheTokens: 10, turns: 1 } } } },
+  });
+  for (const [v, input] of [
+    [undefined, 20],
+    [2, 30],
+  ]) {
+    fs.writeFileSync(path.join(dir, 'vesta.json'), JSON.stringify(codexDay(v)));
+    assert.equal(new Store(dir).state.usage.daily['2026-10-14'].codex.inputTokens, input);
+  }
 });
 test('claude subagent inner events become live steps, never main text', () => {
   const out = run('claude', [
@@ -357,4 +421,24 @@ test('edit mode gives full access in every provider', () => {
     sandbox: 'danger-full-access',
   });
   assert.match(command({ provider: 'claude', mode: 'read' }, 'exe').args.join(' '), /--permission-mode plan/);
+});
+test('a chat adds up the tokens of its answers; older answers without a count stay out', async () => {
+  const T = await import('../src/lib/tokens.js');
+  const chat = {
+    messages: [
+      { role: 'user', text: 'oi' },
+      { role: 'assistant', usage: { inputTokens: 4, outputTokens: 91, cacheTokens: 56727, costUsd: 0.12 } },
+      { role: 'user', text: 'de novo' },
+      { role: 'assistant', usage: { inputTokens: 17200, outputTokens: 86, cacheTokens: 16800, costUsd: 0 } },
+      { role: 'assistant' },
+    ],
+  };
+  const t = T.chatTokens(chat);
+  assert.deepEqual([t.counted, t.answers, t.inputTokens, t.cacheTokens, t.outputTokens], [2, 3, 17204, 73527, 177]);
+  assert.equal(T.tokensLabel(t), '90.9k tokens');
+  assert.deepEqual(
+    T.tokenParts(t).map(([k]) => k),
+    ['Entrada nova', 'Do cache', 'Saída (com o raciocínio)', 'Preço na API']
+  );
+  assert.equal(T.chatTokens({ messages: [{ role: 'assistant' }] }).counted, 0);
 });

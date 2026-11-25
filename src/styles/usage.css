@@ -61,7 +61,7 @@
 }
 .usage-row {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr 1fr 0.8fr;
+  grid-template-columns: 1.1fr 1fr 1fr 1fr 0.9fr 0.9fr 1fr;
   gap: 10px;
   align-items: center;
   padding: 9px 12px;
@@ -133,4 +133,15 @@
 }
 .usage-totals .usage-row .muted {
   font-weight: 400;
+}
+/* The total leads the row; the parts follow. */
+.usage-row strong[data-total] {
+  text-align: left;
+}
+.usage-note {
+  margin-top: 18px;
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
 }

@@ -108,7 +108,13 @@ const step = async (name, fn) => {
           globalThis.__turns.push({ provider, prompt: ctx.prompt, args: spec.args });
           setTimeout(() => {
             ctx.parse.accept({ type: 'assistant', message: { content: [{ type: 'text', text }] } });
-            ctx.parse.accept({ type: 'result', result: text, num_turns: 1 });
+            ctx.parse.accept({
+              type: 'result',
+              result: text,
+              num_turns: 1,
+              usage: { input_tokens: 5, output_tokens: 7, cache_read_input_tokens: 100 },
+              total_cost_usd: 0.01,
+            });
             done.resolve({ code: 0, stderr: '' });
           }, 150);
           const done = {};
@@ -283,6 +289,14 @@ const step = async (name, fn) => {
             .activities.filter((a) => a.kind === 'skill').length,
           2
         );
+        // The answer keeps its tokens; the day counts it once.
+        const answer = st.chats.find((c) => c.id === 'c1').messages.at(-1);
+        assert.deepEqual(answer.usage, { inputTokens: 5, outputTokens: 7, cacheTokens: 100, costUsd: 0.01 });
+        assert.equal(
+          await page.locator('.message.assistant').last().locator('.message-tokens').innerText(),
+          '112 tokens'
+        );
+        assert.match(await page.locator('.chat-tokens summary').innerText(), /tokens/);
         await shot('5c-duas-skills');
       }
     );

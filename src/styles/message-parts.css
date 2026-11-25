@@ -133,3 +133,11 @@
 .floating-terminal:hover {
   color: var(--accent);
 }
+/* Tokens of one answer, at the end of its tools; the tooltip has the parts. */
+.message-tools .message-tokens {
+  margin-left: auto;
+  font-family: var(--font-mono, Consolas, monospace);
+  font-size: calc(11px * var(--font-scale));
+  color: var(--muted);
+  cursor: help;
+}

@@ -1,6 +1,6 @@
 // Drael's stream (text / tool / result / end) -> parser events.
 const { clip } = require('../../../util/text.cjs');
-const { toolKind } = require('../tool-display.cjs');
+const { toolKind, num } = require('../tool-display.cjs');
 
 function draelHandler(core) {
   const { emit, append, startSub, subagent, activity, activityUpdate, cost } = core;
@@ -29,10 +29,12 @@ function draelHandler(core) {
       else activityUpdate(id, { status, kind: toolKind(event.name), result: clip(event.text, 600) });
     }
     if (event.type === 'end') {
+      // Drael's input already counts the cache it read and wrote; `cached` is the part read from it.
+      const cached = num(event.usage?.cached);
       cost({
-        inputTokens: event.usage?.input,
+        inputTokens: Math.max(0, num(event.usage?.input) - cached),
         outputTokens: event.usage?.output,
-        cacheTokens: event.usage?.cached,
+        cacheTokens: cached,
       });
       if (event.refused || event.stopped === 'max_turns')
         emit({

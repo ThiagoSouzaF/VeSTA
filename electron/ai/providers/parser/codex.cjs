@@ -154,10 +154,13 @@ function codexHandler(core) {
       }
     }
     if (m === 'thread/tokenUsage/updated' && tid === core.mainThread) {
+      // Codex counts the cache inside inputTokens and the reasoning inside outputTokens (totalTokens = input + output):
+      // VeSTA keeps the fresh input and the cache apart, and the output as it is.
       const l = p.tokenUsage?.last || {};
-      usage.inputTokens += num(l.inputTokens);
-      usage.outputTokens += num(l.outputTokens) + num(l.reasoningOutputTokens);
-      usage.cacheTokens += num(l.cachedInputTokens);
+      const cached = num(l.cachedInputTokens) + num(l.cacheWriteInputTokens);
+      usage.inputTokens += Math.max(0, num(l.inputTokens) - cached);
+      usage.outputTokens += num(l.outputTokens);
+      usage.cacheTokens += cached;
     }
     if (m === 'turn/completed' && tid === core.mainThread) {
       if (usage.inputTokens || usage.outputTokens) cost(usage);

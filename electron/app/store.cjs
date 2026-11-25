@@ -83,7 +83,7 @@ class Store {
           ...this.state,
           ...saved,
           settings: { ...this.state.settings, ...saved.settings },
-          usage: migrate({ ...this.state.usage, ...saved.usage, daily: { ...saved.usage?.daily } }),
+          usage: migrate({ ...this.state.usage, ...saved.usage, daily: { ...saved.usage?.daily }, v: saved.usage?.v }),
           quests: normalizeQuests(saved.quests),
           remote: normalizeRemote(saved.remote),
           backup: { ...this.state.backup, ...saved.backup },

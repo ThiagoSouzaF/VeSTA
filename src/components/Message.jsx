@@ -3,6 +3,7 @@ import { ProviderIcon } from './ProviderIcon';
 import { PROVIDERS } from '../lib/constants';
 import { Brain, AlertCircle, Pin, BellRing, BookOpen } from 'lucide-react';
 import { messageSkills, splitSlash } from '../lib/skills';
+import { tokensLabel, tokensTitle } from '../lib/tokens';
 import { Permissions } from './Permissions';
 import { TaskSummary } from './TaskSummary';
 import { Subagents } from './Subagents';
@@ -118,6 +119,11 @@ export const Message = memo(function Message({
               <Pin size={12} />
               Guardar como nota
             </button>
+            {m.usage && (
+              <span className="message-tokens" title={tokensTitle(m.usage)}>
+                {tokensLabel(m.usage)}
+              </span>
+            )}
           </div>
         )}
       </div>

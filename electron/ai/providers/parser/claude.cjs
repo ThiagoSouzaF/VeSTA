@@ -10,6 +10,8 @@ function claudeHandler(core) {
   const toolIds = new Set(),
     bgTools = new Set(),
     taskTool = new Map();
+  // Cost the process already reported (total_cost_usd adds up over its turns).
+  let costSoFar = 0;
   const trackBackground = (event) => {
     if (event.subtype === 'background_tasks_changed') {
       bgList.clear();
@@ -211,14 +213,18 @@ function claudeHandler(core) {
     // to report; any other result adds the final text, usage and error.
     if (event.type === 'result' && !(event.num_turns === 0 && !event.result && !event.is_error)) {
       if (!core.text && event.result) append(event.result);
+      // `usage` is this turn's; total_cost_usd adds up over the whole process (a turn after a background task carries
+      // the earlier ones too), so only what grew since the last result counts.
       const u = event.usage;
+      const total = num(event.total_cost_usd);
       if (u || event.total_cost_usd != null)
         cost({
           inputTokens: u?.input_tokens,
           outputTokens: u?.output_tokens,
           cacheTokens: num(u?.cache_read_input_tokens) + num(u?.cache_creation_input_tokens),
-          costUsd: event.total_cost_usd,
+          costUsd: Math.max(0, total - costSoFar),
         });
+      costSoFar = Math.max(costSoFar, total);
       if (event.is_error)
         emit({
           type: 'provider-error',

@@ -146,7 +146,11 @@ async function send(ctx, { chatId, text, attachments: ids, brief }) {
       store.saveSoon();
       sync();
     }
-    if (event.type === 'cost') usage.recordCost(store.state.usage, event);
+    // The answer keeps its own tokens (shown under it and added up for the chat); the day counts one answer.
+    if (event.type === 'cost') {
+      usage.recordCost(store.state.usage, event, Date.now(), { turn: !a.usage });
+      a.usage = usage.addTokens(a.usage, event);
+    }
     if (event.type === 'provider-error') session.providerError = event.message;
     if (event.type === 'memory-write') noteProfileWrite(event);
     if (event.type === 'tasks') {

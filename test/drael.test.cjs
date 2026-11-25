@@ -32,6 +32,9 @@ test('Drael streams once and reports tool failures, usage and turn exhaustion', 
   p.accept({ type: 'end', stopped: 'max_turns', usage: { input: 12, output: 3, cached: 4 } });
   assert.equal(p.text, 'Hello');
   assert.ok(events.some((e) => e.kind === 'memory' && e.status === 'error'));
-  assert.ok(events.some((e) => e.type === 'cost' && e.inputTokens === 12));
+  // Drael's input already counts the cache: the fresh input is what is left.
+  assert.ok(
+    events.some((e) => e.type === 'cost' && e.inputTokens === 8 && e.cacheTokens === 4 && e.outputTokens === 3)
+  );
   assert.ok(events.some((e) => e.type === 'provider-error'));
 });

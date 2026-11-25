@@ -34,6 +34,10 @@ function seedStore(dataDir, { turns = 40 } = {}) {
       status: 'done',
       provider: 'claude',
       model: '',
+      // The last answer has its own count (older answers, from before the count existed, have none).
+      ...(i === turns - 1
+        ? { usage: { inputTokens: 4, outputTokens: 91, cacheTokens: 56727, costUsd: 0.1218942 } }
+        : {}),
     });
   }
   const chat = (id, title, msgs) => ({
@@ -64,6 +68,7 @@ function seedStore(dataDir, { turns = 40 } = {}) {
       ],
       memories: [],
       usage: {
+        v: 2,
         rateLimit: {
           codex: {
             planType: 'plus',

@@ -5,6 +5,7 @@ import { IconButton } from './IconButton';
 import { Download, Trash2, Pencil } from 'lucide-react';
 import { action } from '../lib/api';
 import { Chapter } from './Chapter';
+import { ChatTokens } from './ChatTokens';
 export function ChatHeading({ chat, currentProject, setModal, call, running }) {
   return (
     <div className="chat-heading">
@@ -19,6 +20,7 @@ export function ChatHeading({ chat, currentProject, setModal, call, running }) {
           <span>{currentProject?.name || 'Espaço pessoal'}</span>
           <span>·</span>
           <span>{MODES[modeOf(chat.mode)].label}</span>
+          <ChatTokens chat={chat} />
         </div>
       </div>
       <div className="row">

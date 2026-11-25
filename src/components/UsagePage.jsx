@@ -7,6 +7,7 @@ import { ProviderIcon } from './ProviderIcon';
 import { windowPercent, USAGE_PROVIDERS } from '../lib/usageView';
 import { action } from '../lib/api';
 import { Chapter } from './Chapter';
+import { totalTokens } from '../lib/tokens';
 import { CountUp } from './bits/CountUp';
 
 function UsageBar({ window: w, now }) {
@@ -36,10 +37,18 @@ function Totals({ label, t, showCost }) {
   return (
     <div className="usage-row">
       <span>{label}</span>
-      <span>{fmtTokens(t.inputTokens)} entrada</span>
+      <strong data-total>{fmtTokens(totalTokens(t))} tokens</strong>
+      <span>{fmtTokens(t.inputTokens)} entrada nova</span>
+      <span>{fmtTokens(t.cacheTokens)} do cache</span>
       <span>{fmtTokens(t.outputTokens)} saída</span>
-      <span>{fmtTokens(t.cacheTokens)} cache</span>
-      {showCost ? <strong>{fmtCost(t.costUsd)}</strong> : <strong className="muted">sem custo</strong>}
+      <span>{t.turns === 1 ? '1 resposta' : t.turns + ' respostas'}</span>
+      {showCost ? (
+        <strong title="Preço de tabela da API, calculado pela própria IA; numa assinatura, não é o que você paga">
+          {fmtCost(t.costUsd)} na API
+        </strong>
+      ) : (
+        <strong className="muted">sem custo</strong>
+      )}
     </div>
   );
 }
@@ -145,6 +154,15 @@ export function UsagePage({ call, usage }) {
           error={errors[id]}
         />
       ))}
+      <p className="usage-note">
+        Contam todas as respostas, inclusive as que o VeSTA pede sozinho (agents, revisões do refino, consolidação da
+        memória, adaptação de skills). <strong>Entrada nova</strong> é o que a IA leu pela primeira vez;{' '}
+        <strong>do cache</strong> é o contexto que ela já tinha lido (o histórico, as instruções) e reaproveita: conta
+        como entrada, mas custa bem menos. <strong>Saída</strong> inclui o raciocínio. O valor <strong>na API</strong> é
+        o preço de tabela que a própria IA calcula; numa assinatura (Claude Pro/Max, ChatGPT), você não paga por
+        mensagem, e o que vale são as janelas acima. Cada conversa mostra os tokens dela no cabeçalho e em cada
+        resposta.
+      </p>
     </div>
   );
 }

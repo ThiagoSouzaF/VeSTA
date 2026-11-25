@@ -67,13 +67,13 @@ export function UsageScreen({ call }) {
               <dl className="totals">
                 <dt>Hoje</dt>
                 <dd>
-                  {fmtTokens(p.today.inputTokens + p.today.outputTokens)} tokens ·{' '}
-                  {p.hasCost ? fmtCost(p.today.costUsd) : 'sem custo'}
+                  {fmtTokens(p.today.inputTokens + p.today.cacheTokens + p.today.outputTokens)} tokens ·{' '}
+                  {p.hasCost ? fmtCost(p.today.costUsd) + ' na API' : 'sem custo'}
                 </dd>
                 <dt>7 dias</dt>
                 <dd>
-                  {fmtTokens(p.week.inputTokens + p.week.outputTokens)} tokens ·{' '}
-                  {p.hasCost ? fmtCost(p.week.costUsd) : 'sem custo'}
+                  {fmtTokens(p.week.inputTokens + p.week.cacheTokens + p.week.outputTokens)} tokens ·{' '}
+                  {p.hasCost ? fmtCost(p.week.costUsd) + ' na API' : 'sem custo'}
                 </dd>
               </dl>
             )}
