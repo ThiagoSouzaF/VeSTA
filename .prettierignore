@@ -3,3 +3,4 @@ dist
 release
 runtime
 package-lock.json
+electron/skills/bundled/*/files

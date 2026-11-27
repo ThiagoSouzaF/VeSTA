@@ -133,7 +133,7 @@ const step = async (name, fn) => {
       assert.ok(await page.getByText('Vem com o VeSTA').first().isVisible());
       const seeded = await state();
       const bundled = readBundled();
-      assert.deepEqual(bundled.map((x) => x.name).sort(), ['explain-skill', 'ui-revamp']);
+      assert.deepEqual(bundled.map((x) => x.name).sort(), ['explain-skill', 'ponytail', 'ui-revamp']);
       for (const { name, version } of bundled) {
         assert.equal(seeded.bundledSkills[name], version, name);
         const tile = page.locator('.skill-tile[data-skill="' + name + '"]');

@@ -100,3 +100,28 @@ test('explain-skill ships well formed: finds the skill anywhere, answers with a 
   assert.match(body, /Nunca a execute/, 'explains, never runs the skill');
   assert.ok(F.tokens(b.text) < 2500, 'stays short');
 });
+
+test('ponytail ships whole: the four original texts with their MIT notice and a run that ends in a report', () => {
+  const b = readBundled().find((x) => x.name === 'ponytail');
+  assert.ok(b, 'bundled');
+  const { data, body } = F.parseSkill(b.text);
+  assert.equal(data.name, 'ponytail');
+  assert.ok(data.description.length > 40 && data.description.length < 1024);
+  const file = (p) => b.files.find((f) => f.path === p)?.text || '';
+  for (const [p, name] of [
+    ['regras.md', 'ponytail'],
+    ['auditoria.md', 'ponytail-audit'],
+    ['revisao.md', 'ponytail-review'],
+    ['dividas.md', 'ponytail-debt'],
+  ]) {
+    assert.equal(F.parseSkill(file(p)).data.name, name, p + ' is the original');
+    assert.ok(body.includes('`' + p + '`'), 'the run reads ' + p);
+  }
+  assert.match(file('LICENSE.md'), /MIT License[\s\S]*Permission is hereby granted/);
+  assert.match(body, /vesta_skill_file/);
+  assert.match(body, /mudanças não commitadas, pare/, 'never mixes with unsaved work');
+  assert.match(body, /Nunca faça push, merge/);
+  for (const part of ['### Corrigido', '### Depende de você', '### Não feito', '### Não checado'])
+    assert.ok(body.includes(part), part);
+  assert.ok(F.tokens(b.text) < 2500, 'stays short; the method is in the files');
+});
