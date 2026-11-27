@@ -2,6 +2,7 @@
 // knows the short catalog; the full text of a skill is read when it is needed (vesta_skill_load), and its supporting
 // files one at a time (vesta_skill_file). vesta_skill_find reads any skill by name, also those an AI has on its own.
 // A refinement chat (chat.refine) also gets vesta_refine_context and vesta_refine_propose, and only it.
+// A team agent's chat (chat.teamId) also gets the vesta_team_* tools: the board, messages and tasks of its team.
 // One token per chat (host.cjs); offered while some skill is on, and always to a refinement chat.
 const { createMcpHost } = require('./host.cjs');
 
@@ -12,6 +13,8 @@ const nameProp = { type: 'string', description: 'Nome da skill (o que vem depois
 // vesta_refine_propose writes no file and changes nothing in use: it keeps a draft that waits for the person's yes.
 const READ = { readOnlyHint: true };
 const REFINE = ['vesta_refine_context', 'vesta_refine_propose'];
+const TEAM = ['vesta_team_board', 'vesta_team_send', 'vesta_team_task', 'vesta_team_move'];
+const who = { type: 'string', description: 'Nome de alguém da equipe, ou "voce" para a pessoa.' };
 const TOOLS = [
   ['vesta_skills_list', 'Lista as skills ligadas no VeSTA para esta IA: nome, descrição e quando usar.', obj(), READ],
   [
@@ -82,17 +85,73 @@ const TOOLS = [
     ),
     READ,
   ],
+  // The team tools only change the team's board and messages (no file, nothing outside VeSTA): marked as reading so they
+  // also work for agents in Só consulta.
+  [
+    'vesta_team_board',
+    'Equipe: mostra o objetivo, quem é quem, o quadro de tarefas, as últimas mensagens e o que espera a pessoa.',
+    obj(),
+    READ,
+  ],
+  [
+    'vesta_team_send',
+    'Equipe: manda uma mensagem para outro agent da equipe (ou para a pessoa, com para="voce"). Quem recebe acorda para ler. Só registra a mensagem no quadro da equipe: não altera arquivos.',
+    obj(
+      {
+        para: who,
+        texto: { type: 'string', description: 'A mensagem, curta e objetiva.' },
+        tipo: {
+          type: 'string',
+          enum: ['pergunta', 'resposta', 'revisao', 'tarefa', 'sim'],
+          description: 'Opcional: o tipo da mensagem.',
+        },
+      },
+      ['para', 'texto']
+    ),
+    READ,
+  ],
+  [
+    'vesta_team_task',
+    'Equipe (só o líder): cria uma tarefa no quadro para um agent; ele acorda com ela. Só registra no quadro: não altera arquivos.',
+    obj(
+      {
+        para: who,
+        titulo: { type: 'string', description: 'O que fazer, em uma linha.' },
+        detalhe: { type: 'string', description: 'Opcional: critérios, arquivos, como saber que terminou.' },
+      },
+      ['para', 'titulo']
+    ),
+    READ,
+  ],
+  [
+    'vesta_team_move',
+    'Equipe: move uma tarefa no quadro (a_fazer, fazendo, revisao, feito), com uma nota. Para revisão, diga quem revisa em "para". Só registra no quadro: não altera arquivos.',
+    obj(
+      {
+        id: { type: 'string', description: 'O id da tarefa, como T3.' },
+        coluna: { type: 'string', enum: ['a_fazer', 'fazendo', 'revisao', 'feito'] },
+        nota: { type: 'string', description: 'Opcional: o que foi feito ou por que voltou.' },
+        para: { ...who, description: 'Opcional, com coluna revisao: quem revisa.' },
+      },
+      ['id', 'coluna']
+    ),
+    READ,
+  ],
 ];
 
-function createSkillsMcp(ctx, { skills, refiner = () => ctx.refiner }) {
+function createSkillsMcp(ctx, { skills, refiner = () => ctx.refiner, teams = () => ctx.teams }) {
   const get = typeof skills === 'function' ? skills : () => skills;
   const authorize = (chatId) => {
     const chat = ctx.store.state.chats.find((c) => c.id === chatId);
     if (chat?.refine && refiner()) return chat;
+    if (chat?.teamId && teams()) return chat;
     if (!chat || chat.skillDraft || chat.skills === false || !get()?.hasAny()) return null;
     return chat;
   };
-  const visible = (chat) => (chat?.refine ? null : TOOLS.map((t) => t[0]).filter((n) => !REFINE.includes(n)));
+  const visible = (chat) =>
+    TOOLS.map((t) => t[0]).filter((n) =>
+      REFINE.includes(n) ? !!chat?.refine : TEAM.includes(n) ? !!chat?.teamId : true
+    );
   const allowed = (chat, name) => {
     const s = get()
       .usable(chat)
@@ -127,6 +186,7 @@ function createSkillsMcp(ctx, { skills, refiner = () => ctx.refiner }) {
     },
     vesta_refine_context: (chat) => refiner().context(chat),
     vesta_refine_propose: (chat, a) => refiner().propose(chat, a),
+    ...Object.fromEntries(TEAM.map((n) => [n, (chat, a) => teams().tool(chat, n, a || {})])),
   };
   return createMcpHost({
     name: NAME,
@@ -137,4 +197,4 @@ function createSkillsMcp(ctx, { skills, refiner = () => ctx.refiner }) {
   });
 }
 
-module.exports = { createSkillsMcp, NAME, TOOLS };
+module.exports = { createSkillsMcp, NAME, TOOLS, TEAM };

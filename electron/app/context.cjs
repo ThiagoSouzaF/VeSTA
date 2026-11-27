@@ -83,6 +83,8 @@ function createContext({ app, dialog, shell, bus }) {
       return true;
     },
     workdir(chat) {
+      // A team agent works in its own git worktree (teams/engine.cjs), made and kept by VeSTA.
+      if (chat.workdir && fs.existsSync(chat.workdir)) return chat.workdir;
       const dir = chat.projectId ? ctx.project(chat.projectId)?.path : path.join(app.getPath('userData'), 'workspace');
       if (!dir) throw new UserError('O projeto deste chat não existe mais');
       if (!chat.projectId) fs.mkdirSync(dir, { recursive: true });

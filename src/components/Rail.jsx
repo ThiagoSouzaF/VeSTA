@@ -10,6 +10,7 @@ import {
   Swords,
   BookOpen,
   Bot,
+  Network,
 } from 'lucide-react';
 import { Mark } from './Brand';
 import { MascotAvatar, useMascot } from './Mascot';
@@ -19,6 +20,7 @@ const PAGES = [
   { id: 'activity', name: 'Atividade', icon: Activity },
   { id: 'quests', name: 'Quests', icon: Swords },
   { id: 'agents', name: 'Agents', icon: Bot },
+  { id: 'teams', name: 'Equipes', icon: Network },
   { id: 'memory', name: 'Memória', icon: Brain },
   { id: 'skills', name: 'Skills', icon: BookOpen },
   { id: 'usage', name: 'Uso', icon: BarChart3 },
@@ -63,6 +65,7 @@ export function Rail({
   taskCounts,
   questsRunning = 0,
   agentsBadge,
+  teamsBadge,
 }) {
   const mascot = useMascot();
   return (
@@ -110,11 +113,19 @@ export function Rail({
                   ? questsRunning
                   : n.id === 'agents'
                     ? agentsBadge?.count || 0
-                    : n.id === 'activity'
-                      ? taskCounts.total
-                      : 0
+                    : n.id === 'teams'
+                      ? teamsBadge?.count || 0
+                      : n.id === 'activity'
+                        ? taskCounts.total
+                        : 0
           }
-          live={n.id === 'agents' ? !!agentsBadge?.live : n.id !== 'memory' && n.id !== 'skills'}
+          live={
+            n.id === 'agents'
+              ? !!agentsBadge?.live
+              : n.id === 'teams'
+                ? !!teamsBadge?.live
+                : n.id !== 'memory' && n.id !== 'skills'
+          }
         />
       ))}
       <div className="sidebar-bottom">

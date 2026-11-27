@@ -16,6 +16,7 @@ const { createTrials } = require('../refine/trial.cjs');
 const { createSkills } = require('../skills/engine.cjs');
 const { seedBundled } = require('../skills/bundled.cjs');
 const { createAgentEngine } = require('../agents/engine.cjs');
+const { createTeamEngine } = require('../teams/engine.cjs');
 const { run } = require('../util/proc.cjs');
 const { createAttachmentStore } = require('../attachments/store.cjs');
 const { createRemote } = require('../remote/index.cjs');
@@ -80,6 +81,10 @@ async function openServices(ctx, { electron, bus, methods }) {
   ctx.agents = createAgentEngine(ctx);
   ctx.agents.startClock();
   bus.subscribe((event) => event.type === 'chat-done' && ctx.agents.onChatDone(event));
+  // Equipes: agents that talk through the team board, each in its own chat and (when it edits) its own git worktree.
+  ctx.teams = createTeamEngine(ctx, { root: path.join(dataDir, 'teams') });
+  ctx.teams.startClock();
+  bus.subscribe((event) => event.type === 'chat-done' && ctx.teams.onChatDone(event));
   // Refining a skill or an agent: a chat with the person, proposals that wait for a yes, versions that come back.
   ctx.refiner = createRefiner(ctx);
   // The work refining does on its own, in hidden chats: the scheduled review and the tests of a proposal.
@@ -144,6 +149,7 @@ function closeServices(ctx) {
   ctx.appMcp?.close().catch(() => {});
   ctx.skillsMcp?.close().catch(() => {});
   ctx.agents?.stopClock();
+  ctx.teams?.stopClock();
   ctx.refineAuto?.stopClock();
   ctx.consolidator?.stopClock();
   ctx.memory?.close().catch(() => {});

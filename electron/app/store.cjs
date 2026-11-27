@@ -36,6 +36,8 @@ const defaults = () => ({
   quests: [],
   // Agent Mode (see shared/agents.cjs): named jobs an AI does on its own, on a schedule or on request.
   agents: [],
+  // Equipes (see shared/teams.cjs): agents that work together on a project, with a board and messages.
+  teams: [],
   // Consolidation of the shared memory by an AI the person picks (memory/consolidator.cjs): the AI, the schedule,
   // the last runs, and the closed conversation stretches waiting for it.
   consolidation: null,

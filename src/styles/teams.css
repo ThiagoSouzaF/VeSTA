@@ -1,0 +1,944 @@
+/* Equipes: the list of teams, the form, and one team open — header, the desk (cards, wires, messages travelling on
+ * them) and the side panel (conversations and board). Built on the theme tokens; in the ink look (Tinta Mangá and
+ * Papel) the "ink" is the theme's own black or white, elsewhere the accent. States read by shape as well as colour. */
+.teams-page {
+  --team-ink: var(--ink, var(--accent));
+  --team-on-ink: var(--bg);
+  --team-line: color-mix(in srgb, var(--muted) 55%, transparent);
+  --team-mono: var(--font-mono, Consolas, 'Cascadia Mono', monospace);
+}
+:root[data-look='ink'] .teams-page {
+  --team-on-ink: var(--bg);
+}
+.teams-page.open {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- list ---- */
+.teams-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 26px;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+}
+.teams-empty h2 {
+  color: var(--text);
+  font-size: 18px;
+}
+.teams-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.team-tile {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    transform 0.2s;
+}
+.team-tile:hover {
+  border-color: var(--team-line);
+  transform: translateY(-1px);
+}
+.team-tile b {
+  font-size: 16px;
+}
+.team-tile small,
+.team-tile-status {
+  font: 11px var(--team-mono);
+  color: var(--faint);
+}
+.team-tile[data-status='running'] .team-tile-status {
+  color: var(--team-ink);
+}
+.team-tile-goal {
+  font-size: 12px;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.team-tile-members {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.team-note {
+  color: var(--faint);
+  font-size: 12px;
+  margin: 8px 0;
+}
+
+/* ---- buttons ---- */
+.team-btn {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  font: 600 12px var(--sans);
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
+}
+.team-btn:hover:not(:disabled) {
+  border-color: var(--team-line);
+  background: var(--hover);
+  transform: translateY(-1px);
+}
+.team-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.team-btn.ink {
+  background: var(--team-ink);
+  color: var(--team-on-ink);
+  border-color: var(--team-ink);
+}
+.team-btn.icon {
+  padding: 7px 8px;
+}
+
+/* ---- form ---- */
+.team-form {
+  display: grid;
+  gap: 16px;
+  max-width: 980px;
+}
+.team-form-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.team-templates {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.team-templates button {
+  font: 11px var(--team-mono);
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.team-templates button:hover {
+  color: var(--text);
+  border-color: var(--team-line);
+}
+.team-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.team-form-grid.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+.team-field {
+  display: grid;
+  gap: 6px;
+}
+.team-field > span {
+  font: 700 11px var(--team-mono);
+  letter-spacing: 0.12em;
+  color: var(--faint);
+}
+.team-field > span small {
+  font-weight: 400;
+  letter-spacing: 0;
+  margin-left: 8px;
+}
+.team-form :is(input, select, textarea) {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 7px 9px;
+  min-width: 0;
+}
+.team-form textarea {
+  resize: vertical;
+}
+.team-members {
+  display: grid;
+  gap: 6px;
+}
+.team-member-row {
+  display: grid;
+  grid-template-columns: 32px 130px 1fr 130px 150px 92px 32px;
+  gap: 6px;
+  align-items: center;
+}
+.team-lead,
+.team-drop,
+.team-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+}
+.team-lead.on {
+  background: var(--team-ink);
+  border-color: var(--team-ink);
+  color: var(--team-on-ink);
+}
+.team-drop:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.team-add {
+  justify-self: start;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.team-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+.team-form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ---- one team: header ---- */
+.team-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.team-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  padding: 14px 24px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.team-head-main {
+  min-width: 0;
+  flex: 1 1 360px;
+}
+.team-back {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  font: 11px var(--team-mono);
+  color: var(--faint);
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.team-back:hover {
+  color: var(--text);
+}
+.team-kicker {
+  font: 700 11px var(--team-mono);
+  letter-spacing: 0.16em;
+  color: var(--faint);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.team-kicker::before {
+  content: '';
+  width: 28px;
+  height: 1px;
+  background: var(--team-line);
+}
+.team-head h1 {
+  font-size: 26px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 6px 0 4px;
+}
+.team-goal {
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 720px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.team-goal b {
+  color: var(--text);
+  font-weight: 600;
+}
+.team-head-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.team-chip {
+  font: 11px var(--team-mono);
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.team-chip b {
+  color: var(--text);
+}
+.team-budget {
+  display: grid;
+  gap: 4px;
+  min-width: 190px;
+  font: 11px var(--team-mono);
+  color: var(--muted);
+}
+.team-budget-track {
+  height: 6px;
+  border: 1px solid var(--team-line);
+}
+.team-budget-fill {
+  height: 100%;
+  background: var(--team-ink);
+  transition: width 0.4s ease;
+}
+
+/* ---- body: the desk and the side panel ---- */
+.team-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.team-desk {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.team-say {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--faint);
+}
+.team-say :is(select, input) {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+}
+.team-say input {
+  flex: 1;
+  min-width: 0;
+}
+
+.team-stage {
+  position: relative;
+  flex: 1;
+  min-height: 420px;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--text) 7%, transparent) 1px, transparent 1.2px) 0 0 / 8px 8px,
+    var(--bg);
+  overflow: hidden;
+  user-select: none;
+}
+.team-stage-label {
+  position: absolute;
+  left: 16px;
+  top: 12px;
+  font: 700 10px var(--team-mono);
+  letter-spacing: 0.16em;
+  color: var(--faint);
+  z-index: 1;
+}
+.team-legend {
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
+  display: flex;
+  gap: 14px;
+  font: 11px var(--team-mono);
+  color: var(--faint);
+  z-index: 3;
+  flex-wrap: wrap;
+}
+.team-legend span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.team-legend svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+.team-wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* A quiet wire is a thin dash; a wire with a conversation runs in the message's direction, thicker. */
+.team-wire .base {
+  fill: none;
+  stroke: var(--team-line);
+  stroke-width: 1.4;
+  stroke-dasharray: 2 6;
+  transition:
+    stroke 0.3s,
+    stroke-width 0.3s,
+    opacity 0.3s;
+}
+.team-wire .glow {
+  fill: none;
+  stroke: var(--team-ink);
+  stroke-width: 8;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.team-wire.hot .base {
+  stroke: var(--team-ink);
+  stroke-width: 2.2;
+  stroke-dasharray: 12 7;
+  animation: team-flow 0.7s linear infinite;
+}
+.team-wire.hot.rev .base {
+  animation-direction: reverse;
+}
+.team-wire.hot .glow {
+  opacity: 0.08;
+}
+.team-wire.dim .base {
+  opacity: 0.25;
+}
+@keyframes team-flow {
+  to {
+    stroke-dashoffset: -19;
+  }
+}
+.wire-tag {
+  font: 10px var(--team-mono);
+  fill: var(--faint);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.team-wire.hot .wire-tag {
+  opacity: 1;
+  fill: var(--text);
+}
+.team-packet .core {
+  fill: var(--team-ink);
+  stroke: var(--bg);
+  stroke-width: 1.5;
+}
+.team-packet .halo {
+  fill: none;
+  stroke: var(--team-ink);
+  stroke-width: 1.2;
+  opacity: 0.45;
+}
+.team-packet .trail {
+  fill: var(--team-ink);
+}
+
+/* ---- cards ---- */
+.team-card {
+  position: absolute;
+  width: 214px;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  z-index: 2;
+  cursor: grab;
+  touch-action: none;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    opacity 0.2s;
+}
+.team-card:hover {
+  border-color: var(--team-line);
+}
+.team-card.dragging {
+  cursor: grabbing;
+  z-index: 5;
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--text) 25%, transparent);
+}
+.team-card.sel {
+  border-color: var(--team-ink);
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--text) 25%, transparent);
+}
+.team-card.dim {
+  opacity: 0.45;
+}
+.team-card.got {
+  animation: team-got 0.6s ease-out;
+}
+@keyframes team-got {
+  40% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--team-ink) 30%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+.team-card::before,
+.team-card::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 0 solid var(--team-ink);
+  pointer-events: none;
+}
+.team-card::before {
+  left: -1px;
+  top: -1px;
+  border-left-width: 2px;
+  border-top-width: 2px;
+}
+.team-card::after {
+  right: -1px;
+  bottom: -1px;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+}
+.team-card-head {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 9px 10px 7px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.team-card-head > div {
+  flex: 1;
+  min-width: 0;
+}
+.team-ai.you {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 1px solid var(--team-line);
+  background: #fff url('../../assets/mascot/state-idle.webp') center / cover;
+}
+.team-card-name {
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.1;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.team-card-name small {
+  font: 10px var(--team-mono);
+  color: var(--faint);
+  border: 1px solid var(--team-line);
+  padding: 0 4px;
+}
+.team-card-role {
+  font-size: 11px;
+  color: var(--faint);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.team-card-open {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+}
+.team-card-open:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+.team-card-body {
+  padding: 7px 10px 9px;
+  display: grid;
+  gap: 5px;
+}
+.team-state {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font: 11px var(--team-mono);
+  color: var(--muted);
+}
+.team-state .dot {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--team-line);
+  flex: none;
+}
+.team-mode {
+  margin-left: auto;
+  color: var(--faint);
+}
+.team-card[data-state='working'] .dot {
+  background: var(--team-ink);
+  border-color: var(--team-ink);
+  animation: team-blink 1.1s steps(2) infinite;
+}
+.team-card[data-state='waiting'] {
+  border-color: var(--team-ink);
+}
+.team-card[data-state='waiting'] .dot {
+  border-color: var(--team-ink);
+  animation: team-blink 0.6s steps(2) infinite;
+}
+@keyframes team-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+.team-task {
+  font-size: 12px;
+  line-height: 1.3;
+  min-height: 16px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.team-task:empty::before {
+  content: 'Sem tarefa agora';
+  color: var(--faint);
+}
+.team-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font: 11px var(--team-mono);
+  color: var(--faint);
+}
+.team-merge,
+.team-ask-row button {
+  flex: 1;
+  font: 600 12px var(--sans);
+  padding: 5px 0;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.team-merge,
+.team-ask-row button.ink {
+  background: var(--team-ink);
+  color: var(--team-on-ink);
+  border-color: var(--team-ink);
+}
+/* The person's card grows downwards with a question (anchored near its top, where the wire meets it). */
+.team-card.you {
+  width: 250px;
+  transform: translate(-50%, -28px);
+  z-index: 4;
+}
+.team-ask {
+  display: grid;
+  gap: 6px;
+}
+.team-ask p {
+  font-size: 12px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.team-ask-row {
+  display: flex;
+  gap: 6px;
+}
+.team-ask-row input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 5px 7px;
+}
+
+/* What arrived, over the card that got it. */
+.team-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translate(-50%, 6px);
+  width: max-content;
+  max-width: 260px;
+  padding: 6px 9px;
+  background: var(--team-ink);
+  color: var(--team-on-ink);
+  font: 11px/1.35 var(--team-mono);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.25s,
+    transform 0.25s;
+  z-index: 6;
+}
+.team-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--team-ink);
+}
+.team-bubble.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+/* The person sits at the top of the desk: what reaches it opens below the card. */
+.team-card.you .team-bubble {
+  bottom: auto;
+  top: calc(100% + 10px);
+  transform: translate(-50%, -6px);
+}
+.team-card.you .team-bubble.on {
+  transform: translate(-50%, 0);
+}
+.team-card.you .team-bubble::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--team-ink);
+}
+.team-bubble small {
+  display: block;
+  opacity: 0.7;
+  font-size: 10px;
+}
+
+/* ---- side panel ---- */
+.team-side {
+  width: 360px;
+  flex: none;
+  border-left: 1px solid var(--border);
+  background: var(--side);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.team-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+.team-tabs button {
+  flex: 1;
+  padding: 10px 12px;
+  font: 600 13px var(--sans);
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+.team-tabs button[aria-selected='true'] {
+  color: var(--text);
+  border-bottom-color: var(--team-ink);
+}
+.team-tabs .n {
+  font: 10px var(--team-mono);
+  padding: 0 5px;
+  border: 1px solid var(--team-line);
+}
+.team-pane {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+.team-filter {
+  font: 11px var(--team-mono);
+  color: var(--faint);
+  margin-bottom: 8px;
+}
+.team-filter button {
+  text-decoration: underline;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.team-empty,
+.team-col-empty {
+  font: 11px var(--team-mono);
+  color: var(--faint);
+  padding: 4px 0 8px;
+}
+.team-log {
+  display: grid;
+  gap: 2px;
+}
+.team-entry {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 8px;
+  padding: 7px 4px;
+  border-bottom: 1px solid var(--border-soft);
+  animation: team-enter 0.35s ease-out;
+}
+@keyframes team-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.team-entry time {
+  font: 10px var(--team-mono);
+  color: var(--faint);
+  padding-top: 2px;
+}
+.team-entry .route {
+  font: 11px var(--team-mono);
+  color: var(--muted);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.team-entry .route b {
+  color: var(--text);
+}
+.team-entry .kind {
+  font: 9px var(--team-mono);
+  padding: 0 4px;
+  border: 1px solid var(--team-line);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.team-entry .txt {
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 2px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.team-entry.sys .txt {
+  color: var(--faint);
+  font-style: italic;
+}
+.team-entry.dim {
+  opacity: 0.35;
+}
+.team-board {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.team-col h3 {
+  font: 700 10px var(--team-mono);
+  letter-spacing: 0.14em;
+  color: var(--faint);
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.team-task-card {
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  margin-bottom: 6px;
+  display: grid;
+  gap: 4px;
+  animation: team-moved 0.8s ease-out;
+}
+@keyframes team-moved {
+  from {
+    background: var(--hover);
+    border-color: var(--team-ink);
+  }
+}
+.team-task-card .t {
+  font-size: 12px;
+  line-height: 1.3;
+}
+.team-task-card .note {
+  font-size: 11px;
+  color: var(--muted);
+}
+.team-task-card .m {
+  display: flex;
+  justify-content: space-between;
+  font: 10px var(--team-mono);
+  color: var(--faint);
+}
+.team-task-card .who {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+
+@media (max-width: 1100px) {
+  .team-side {
+    width: 300px;
+  }
+  .team-member-row {
+    grid-template-columns: 32px 1fr 1fr 32px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .team-wire.hot .base,
+  .team-card .dot,
+  .team-card.got,
+  .team-task-card,
+  .team-entry {
+    animation: none !important;
+  }
+}

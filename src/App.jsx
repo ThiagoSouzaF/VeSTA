@@ -280,6 +280,14 @@ export function App() {
       ? { count: running, live: true }
       : { count: list.reduce((n, a) => n + (a.unseen || 0), 0), live: false };
   }, [data.agents]);
+  // Equipes on the rail: agents working now (live), else the questions waiting for the person.
+  const teamsBadge = useMemo(() => {
+    const list = data.teams || [];
+    const working = list.reduce((n, t) => n + t.members.filter((m) => m.busy).length, 0);
+    return working
+      ? { count: working, live: true }
+      : { count: list.reduce((n, t) => n + (t.asks || []).filter((a) => a.status === 'open').length, 0), live: false };
+  }, [data.teams]);
   // Stable callback for the quests screen: reads the chats through a ref so text deltas do not change its identity.
   const chatsRef = useRef(data.chats);
   chatsRef.current = data.chats;
@@ -444,6 +452,7 @@ export function App() {
       onOpenChat: openChatById,
       onOpenRefine: openRefine,
     },
+    teams: { data, integrations, call, setData: replaceData, notify, onOpenChat: openChatById },
     usage: { call, usage: data.usage },
     connections: { setBusy, setIntegrations, call, notify, busy, integrations, memoryStatus, setMemoryStatus },
     about: { version: data.appVersion, onBack: () => setPage('settings') },
@@ -464,6 +473,7 @@ export function App() {
             taskCounts={counts}
             questsRunning={questsRunning}
             agentsBadge={agentsBadge}
+            teamsBadge={teamsBadge}
           />
           {drawer && (
             <ConversationDrawer

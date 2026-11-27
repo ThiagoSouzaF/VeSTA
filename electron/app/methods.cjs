@@ -12,6 +12,7 @@ const { systemMethods } = require('./system-methods.cjs');
 const { skillMethods } = require('../skills/methods.cjs');
 const { agentMethods } = require('../agents/methods.cjs');
 const { refineMethods } = require('../refine/methods.cjs');
+const { teamMethods } = require('../teams/methods.cjs');
 function createMethods(ctx) {
   return {
     // The first call after the opening reuses the integrations probed while the splash was up.
@@ -36,6 +37,7 @@ function createMethods(ctx) {
     ...skillMethods(ctx),
     ...agentMethods(ctx),
     ...refineMethods(ctx),
+    ...teamMethods(ctx),
   };
 }
 module.exports = { createMethods, clampFontScale };

@@ -4,7 +4,7 @@ export const sharedCjs = () => ({
   name: 'vesta-shared-cjs',
   enforce: 'pre',
   transform(code, id) {
-    if (!/electron[\/]shared[\/](tasks|quests|agents|refine|skills)\.cjs$/.test(id.split('?')[0])) return null;
+    if (!/electron[\/]shared[\/](tasks|quests|agents|refine|skills|teams)\.cjs$/.test(id.split('?')[0])) return null;
     return {
       code:
         'const module = { exports: {} };\nconst exports = module.exports;\n' +

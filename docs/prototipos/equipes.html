@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="ink">
+<head>
+<meta charset="utf-8" />
+<title>VeSTA · protótipo de Equipes</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/400.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/600.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/700.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-mono/400.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-mono/700.css" />
+<style>
+/* Protótipo estático: só HTML/CSS/JS, nada do app. Uma equipe de agents numa mesa, ligados por fios; cada mensagem
+   entre dois agents corre pelo fio que os liga. Visual "Tinta Mangá", com o tema Papel para comparar. */
+:root {
+  --bg: #000; --side: #0a0a0c; --surface: #121214; --hover: #18181b;
+  --border: #27272a; --border-soft: #1c1c1f; --line: #52525b;
+  --text: #e4e4e7; --muted: #a1a1aa; --faint: #8b8b94;
+  --ink: #fff; --on-ink: #000; --shadow: #3f3f46;
+  --body: 'Space Grotesk', 'Segoe UI', sans-serif; --mono: 'Space Mono', Consolas, monospace;
+  --dots: radial-gradient(circle, rgb(255 255 255 / .06) 1px, transparent 1.2px) 0 0 / 8px 8px;
+  --chamfer-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  color-scheme: dark;
+}
+:root[data-theme='paper'] {
+  --bg: #f3f0e8; --side: #ebe7dc; --surface: #fbfaf6; --hover: #e4dfd2;
+  --border: #cfc9ba; --border-soft: #ddd8cb; --line: #8a8475;
+  --text: #17150f; --muted: #57524a; --faint: #6b665b;
+  --ink: #111; --on-ink: #fbfaf6; --shadow: #b9b2a1;
+  --dots: radial-gradient(circle, rgb(0 0 0 / .07) 1px, transparent 1.2px) 0 0 / 8px 8px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--body); display: flex; flex-direction: column; overflow: hidden; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: square; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---------- barra do protótipo (não faz parte do app) ---------- */
+.proto { display: flex; gap: 6px; align-items: center; padding: 8px 12px; border-bottom: 1px dashed var(--line); background: var(--side); flex-wrap: wrap; }
+.proto b { font: 700 11px var(--mono); letter-spacing: .12em; margin-right: 8px; background: var(--ink); color: var(--on-ink); padding: 2px 6px; }
+.proto button { font: 12px var(--mono); padding: 5px 10px; border: 1px solid var(--border); color: var(--muted); }
+.proto button:hover { color: var(--text); border-color: var(--line); }
+.proto button.on { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.proto .sep { width: 1px; height: 22px; background: var(--border); margin: 0 6px; }
+.proto .note { flex: 1 1 320px; color: var(--faint); font-size: 12px; margin-left: 8px; min-width: 240px; }
+
+/* ---------- moldura ---------- */
+.app { flex: 1; display: flex; min-height: 0; }
+.rail { width: 60px; flex: none; background: var(--side); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; }
+.avatar { width: 36px; height: 36px; border: 1px solid var(--line); background: #fff url('../../assets/mascot/state-working.webp') center / cover; clip-path: var(--chamfer-sm); margin-bottom: 10px; }
+.icon-btn { width: 34px; height: 34px; display: grid; place-items: center; color: var(--muted); border: 1px solid transparent; }
+.icon-btn.on { color: var(--on-ink); background: var(--ink); }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* ---------- cabeçalho da equipe ---------- */
+.team-head { display: flex; align-items: flex-end; gap: 20px; padding: 18px 24px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.kicker { font: 700 11px var(--mono); letter-spacing: .16em; color: var(--faint); display: flex; align-items: center; gap: 10px; }
+.kicker::before { content: ''; width: 28px; height: 1px; background: var(--line); }
+h1 { font: 700 30px/1.05 var(--body); letter-spacing: -.03em; margin: 8px 0 4px; }
+.goal { color: var(--muted); font-size: 13px; max-width: 640px; }
+.goal b { color: var(--text); font-weight: 600; }
+.head-right { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.chip { font: 11px var(--mono); padding: 3px 8px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+.chip b { color: var(--text); }
+.budget { display: grid; gap: 4px; min-width: 210px; font: 11px var(--mono); color: var(--muted); }
+.budget-track { height: 6px; border: 1px solid var(--line); }
+.budget-fill { height: 100%; background: var(--ink); width: 0; transition: width .4s ease; }
+.btn { display: inline-flex; gap: 7px; align-items: center; font: 600 12px var(--body); padding: 7px 12px; border: 1px solid var(--border); color: var(--text); }
+.btn:hover { border-color: var(--line); background: var(--hover); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn.ink { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+
+/* ---------- a mesa ---------- */
+.body { flex: 1; min-height: 0; display: flex; }
+.stage { position: relative; flex: 1; min-width: 0; background: var(--dots), var(--bg); overflow: hidden; user-select: none; }
+.stage-label { position: absolute; left: 16px; top: 12px; font: 700 10px var(--mono); letter-spacing: .16em; color: var(--faint); z-index: 1; }
+.legend { position: absolute; right: 16px; top: 10px; display: flex; gap: 14px; font: 11px var(--mono); color: var(--faint); z-index: 3; flex-wrap: wrap; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend svg { width: 14px; height: 14px; }
+svg.wires { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; overflow: visible; }
+
+/* Fio parado: tracejado fino. Fio com conversa: tinta corrida no sentido da mensagem, mais grosso. */
+.wire .base { fill: none; stroke: var(--line); stroke-width: 1.4; stroke-dasharray: 2 6; transition: stroke .3s, stroke-width .3s, opacity .3s; }
+.wire .glow { fill: none; stroke: var(--ink); stroke-width: 8; opacity: 0; transition: opacity .4s; }
+.wire .hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
+.wire.hot .base { stroke: var(--ink); stroke-width: 2.2; stroke-dasharray: 12 7; animation: flow .7s linear infinite; }
+.wire.hot.rev .base { animation-direction: reverse; }
+.wire.hot .glow { opacity: .07; }
+.wire.dim .base { opacity: .25; }
+.wire:hover .base { stroke: var(--text); }
+@keyframes flow { to { stroke-dashoffset: -19; } }
+.wire-tag { font: 10px var(--mono); fill: var(--faint); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; opacity: 0; transition: opacity .3s; }
+.wire.hot .wire-tag { opacity: 1; fill: var(--text); }
+
+/* O que corre pelo fio: a mensagem (forma pelo tipo) com um rastro de tinta. */
+.packet .core { fill: var(--ink); stroke: var(--bg); stroke-width: 1.5; }
+.packet .halo { fill: none; stroke: var(--ink); stroke-width: 1.2; opacity: .45; }
+.packet .trail { fill: var(--ink); }
+
+/* ---------- cards dos agents ---------- */
+.agent { position: absolute; width: 214px; transform: translate(-50%, -50%); background: var(--surface); border: 1px solid var(--border); z-index: 2; cursor: grab; transition: border-color .2s, box-shadow .2s; }
+.agent:hover { border-color: var(--line); }
+.agent.dragging { cursor: grabbing; z-index: 5; box-shadow: 4px 4px 0 var(--shadow); }
+.agent.sel { border-color: var(--ink); box-shadow: 3px 3px 0 var(--shadow); }
+.agent.dim { opacity: .45; }
+.agent.got { animation: got .6s ease-out; }
+@keyframes got { 0% { box-shadow: 0 0 0 0 var(--ink); } 40% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ink) 30%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
+.agent::before, .agent::after { content: ''; position: absolute; width: 8px; height: 8px; border: 0 solid var(--ink); }
+.agent::before { left: -1px; top: -1px; border-left-width: 2px; border-top-width: 2px; }
+.agent::after { right: -1px; bottom: -1px; border-right-width: 2px; border-bottom-width: 2px; }
+.a-head { display: flex; gap: 9px; align-items: center; padding: 9px 10px 7px; border-bottom: 1px solid var(--border-soft); }
+.ai { width: 26px; height: 26px; display: grid; place-items: center; font: 700 12px var(--mono); background: var(--ink); color: var(--on-ink); flex: none; clip-path: var(--chamfer-sm); }
+.ai.you { background: #fff url('../../assets/mascot/state-idle.webp') center / cover; color: transparent; border: 1px solid var(--line); }
+.a-name { font: 700 14px var(--body); line-height: 1.1; }
+.a-role { font-size: 11px; color: var(--faint); line-height: 1.2; }
+.a-body { padding: 7px 10px 9px; display: grid; gap: 5px; }
+.state { display: flex; gap: 7px; align-items: center; font: 11px var(--mono); color: var(--muted); }
+.dot { width: 8px; height: 8px; border: 1.5px solid var(--line); flex: none; }
+.agent[data-state='working'] .dot { background: var(--ink); border-color: var(--ink); animation: blink 1.1s steps(2) infinite; }
+.agent[data-state='talking'] .dot { background: var(--ink); border-color: var(--ink); border-radius: 50%; }
+.agent[data-state='waiting'] .dot { border-color: var(--ink); animation: blink .6s steps(2) infinite; }
+.agent[data-state='waiting'] { border-color: var(--ink); }
+.agent[data-state='stopped'] .dot { background: transparent; }
+@keyframes blink { 50% { opacity: .25; } }
+.task { font-size: 12px; color: var(--text); line-height: 1.3; min-height: 16px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.task:empty::before { content: 'Sem tarefa agora'; color: var(--faint); }
+.meta { display: flex; justify-content: space-between; font: 11px var(--mono); color: var(--faint); }
+.tok { display: flex; gap: 6px; align-items: center; }
+.tok i { display: block; width: 46px; height: 4px; border: 1px solid var(--line); position: relative; }
+.tok i::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--w, 0%); background: var(--muted); transition: width .4s; }
+.ask { display: none; gap: 6px; }
+.agent[data-state='waiting'] .ask { display: flex; }
+.ask button { flex: 1; font: 600 12px var(--body); padding: 5px 0; border: 1px solid var(--border); }
+.ask button:first-child { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+
+/* O balão do que chegou, sobre o card que recebeu. */
+.bubble { position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translate(-50%, 6px); width: max-content; max-width: 260px; padding: 6px 9px; background: var(--ink); color: var(--on-ink); font: 11px/1.35 var(--mono); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 6; }
+.bubble::after { content: ''; position: absolute; left: 50%; top: 100%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--ink); }
+.bubble.on { opacity: 1; transform: translate(-50%, 0); }
+.bubble small { display: block; opacity: .7; font-size: 10px; }
+
+/* ---------- painel ao lado ---------- */
+.side { width: 360px; flex: none; border-left: 1px solid var(--border); background: var(--side); display: flex; flex-direction: column; min-height: 0; }
+.tabs { display: flex; border-bottom: 1px solid var(--border); }
+.tabs button { flex: 1; padding: 10px 12px; font: 600 13px var(--body); color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; gap: 7px; justify-content: center; align-items: center; }
+.tabs button[aria-selected='true'] { color: var(--text); border-color: var(--ink); }
+.tabs .n { font: 10px var(--mono); padding: 0 5px; border: 1px solid var(--line); }
+.pane { display: none; flex: 1; min-height: 0; overflow: auto; padding: 12px; }
+.pane.on { display: block; }
+.filter { font: 11px var(--mono); color: var(--faint); margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+.filter button { text-decoration: underline; color: var(--muted); }
+.filter[hidden] { display: none; }
+
+.board { display: grid; gap: 10px; }
+.col h3 { font: 700 10px var(--mono); letter-spacing: .14em; color: var(--faint); display: flex; justify-content: space-between; margin-bottom: 6px; }
+.card { padding: 8px 9px; border: 1px solid var(--border); background: var(--surface); margin-bottom: 6px; display: grid; gap: 4px; transition: background .3s; }
+.card.moved { animation: moved .8s ease-out; }
+@keyframes moved { from { background: var(--hover); border-color: var(--ink); } }
+.card .t { font-size: 12px; line-height: 1.3; }
+.card .m { display: flex; justify-content: space-between; font: 10px var(--mono); color: var(--faint); }
+.card .who { display: inline-flex; gap: 5px; align-items: center; }
+.card .who b { font: 700 9px var(--mono); background: var(--ink); color: var(--on-ink); padding: 0 3px; }
+.col-empty { font: 11px var(--mono); color: var(--faint); padding: 4px 0 8px; }
+
+.log { display: grid; gap: 2px; }
+.entry { display: grid; grid-template-columns: 42px 1fr; gap: 8px; padding: 7px 4px; border-bottom: 1px solid var(--border-soft); animation: enter .35s ease-out; }
+@keyframes enter { from { opacity: 0; transform: translateY(-4px); } }
+.entry time { font: 10px var(--mono); color: var(--faint); padding-top: 2px; }
+.entry .route { font: 11px var(--mono); color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.entry .route b { color: var(--text); }
+.entry .kind { font: 9px var(--mono); padding: 0 4px; border: 1px solid var(--line); text-transform: uppercase; letter-spacing: .08em; }
+.entry .txt { font-size: 12px; line-height: 1.35; margin-top: 2px; }
+.entry.sys .txt { color: var(--faint); font-style: italic; }
+.entry.dim { opacity: .35; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wire.hot .base, .agent[data-state] .dot, .agent.got, .card.moved, .entry { animation: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="proto" role="toolbar" aria-label="Controles do protótipo">
+  <b>PROTÓTIPO</b>
+  <button id="play" class="on">Pausar a simulação</button>
+  <button data-speed="1" class="on">1×</button>
+  <button data-speed="2">2×</button>
+  <button data-speed="4">4×</button>
+  <span class="sep"></span>
+  <button id="poke">Mensagem aleatória</button>
+  <button id="relayout">Arrumar a mesa</button>
+  <button id="theme">Tema: Tinta</button>
+  <span class="note">Arraste os cards; os fios acompanham. Clique num fio para mandar um "ping" pelos dois lados, num agent para ver só as conversas dele. Quando o Líder pedir o seu sim, responda no card <b>Você</b>.</span>
+</div>
+
+<div class="app">
+  <nav class="rail" aria-label="Menu">
+    <span class="avatar" aria-hidden="true"></span>
+    <span class="icon-btn"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/></svg></span>
+    <span class="icon-btn"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>
+    <span class="icon-btn on" title="Agent Mode · Equipes"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="7" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 8l3 8M16 8l-3 8M8.5 7h7"/></svg></span>
+    <span class="icon-btn"><svg class="i" viewBox="0 0 24 24"><path d="M5 19V9M12 19V5M19 19v-7"/></svg></span>
+  </nav>
+
+  <div class="main">
+    <header class="team-head">
+      <div>
+        <div class="kicker">AGENT MODE · EQUIPE</div>
+        <h1>Equipe do novo layout</h1>
+        <p class="goal">Objetivo: <b>tela Equipes no VeSTA</b>, a partir da branch <b>novo-layout</b>. Cada agent trabalha na sua cópia do projeto (git worktree); juntar e publicar esperam o seu sim.</p>
+      </div>
+      <div class="head-right">
+        <span class="chip" id="counts"></span>
+        <div class="budget" aria-label="Teto de tokens de hoje">
+          <span id="budget-text"></span>
+          <div class="budget-track"><div class="budget-fill" id="budget-fill"></div></div>
+        </div>
+        <button class="btn" id="pause-team"><svg class="i" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>Pausar a equipe</button>
+        <button class="btn ink" id="stop-all"><svg class="i" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>Parar todos</button>
+      </div>
+    </header>
+
+    <div class="body">
+      <section class="stage" id="stage" aria-label="Mesa da equipe">
+        <span class="stage-label">// MESA · OS FIOS SÃO QUEM CONVERSA COM QUEM</span>
+        <svg class="wires" id="wires" aria-hidden="true"></svg>
+        <div class="legend" aria-label="Legenda">
+          <span><svg viewBox="0 0 14 14"><rect x="3" y="3" width="8" height="8" fill="currentColor"/></svg>tarefa</span>
+          <span><svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="4.5" fill="currentColor"/></svg>pergunta / resposta</span>
+          <span><svg viewBox="0 0 14 14"><path d="M7 1.5L12.5 7 7 12.5 1.5 7z" fill="currentColor"/></svg>revisão</span>
+          <span><svg viewBox="0 0 14 14"><path d="M7 1l1.8 4 4.2.4-3.2 2.8 1 4.2L7 10.2 3.2 12.4l1-4.2L1 5.4l4.2-.4z" fill="currentColor"/></svg>pede o seu sim</span>
+        </div>
+      </section>
+
+      <aside class="side" aria-label="Quadro e conversas">
+        <div class="tabs" role="tablist">
+          <button role="tab" aria-selected="true" data-tab="log">Conversas <span class="n" id="n-log">0</span></button>
+          <button role="tab" aria-selected="false" data-tab="board">Quadro <span class="n" id="n-board">0</span></button>
+        </div>
+        <div class="pane on" id="pane-log">
+          <div class="filter" id="filter" hidden>Só as conversas de <b id="filter-name"></b> · <button id="filter-clear">mostrar todas</button></div>
+          <div class="log" id="log" aria-live="polite"></div>
+        </div>
+        <div class="pane" id="pane-board"><div class="board" id="board"></div></div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------------------------------------------
+// Dados da equipe (fictícios). x/y em fração da mesa.
+const AI = { claude: 'C', codex: 'G', opencode: 'O', drael: 'D' };
+const AGENTS = [
+  { id: 'voce', name: 'Você', role: 'aprova e decide', ai: null, x: .5, y: .13 },
+  { id: 'lider', name: 'Líder', role: 'planeja e distribui · Claude Sonnet', ai: 'claude', x: .5, y: .42 },
+  { id: 'dev', name: 'Dev', role: 'implementa · Codex', ai: 'codex', x: .15, y: .7 },
+  { id: 'testes', name: 'Testes', role: 'escreve e roda testes · OpenCode', ai: 'opencode', x: .42, y: .78 },
+  { id: 'revisor', name: 'Revisor', role: 'revisa o código · Claude Haiku', ai: 'claude', x: .69, y: .72 },
+  { id: 'docs', name: 'Docs', role: 'atualiza o README · Drael', ai: 'drael', x: .86, y: .4 },
+];
+const WIRES = [
+  ['voce', 'lider'], ['lider', 'dev'], ['lider', 'testes'], ['lider', 'revisor'], ['lider', 'docs'],
+  ['dev', 'testes'], ['dev', 'revisor'], ['testes', 'revisor'], ['revisor', 'docs'],
+];
+const BUDGET = 2_000_000;
+const COLS = [['todo', 'A FAZER'], ['doing', 'FAZENDO'], ['review', 'REVISÃO'], ['done', 'FEITO']];
+const STATE_TEXT = { idle: 'Parado', working: 'Trabalhando', talking: 'Conversando', waiting: 'Esperando você', stopped: 'Parado por você' };
+const KIND = { task: 'tarefa', ask: 'pergunta', answer: 'resposta', review: 'revisão', human: 'seu sim', ping: 'ping' };
+
+const $ = (s, el = document) => el.querySelector(s);
+const stage = $('#stage'), svg = $('#wires');
+const NS = 'http://www.w3.org/2000/svg';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let speed = 1, running = true, teamPaused = false, focus = null;
+let clock = 9 * 60 + 2, tokensUsed = 312_000;
+const agents = new Map(), wires = new Map(), tasks = [];
+
+// ---------------------------------------------------------------------------------------------------------------
+// Mesa: cards e fios.
+function el(tag, attrs = {}, parent) {
+  const e = tag === 'svg' || ['path', 'g', 'rect', 'circle', 'text', 'polygon'].includes(tag)
+    ? document.createElementNS(NS, tag) : document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === 'text' ? (e.textContent = v) : e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function buildAgents() {
+  for (const a of AGENTS) {
+    const card = el('article', { class: 'agent', 'data-agent': a.id, 'data-state': a.id === 'voce' ? 'idle' : 'idle', tabindex: 0, 'aria-label': a.name + ', ' + a.role });
+    card.innerHTML =
+      '<div class="bubble"></div>' +
+      '<div class="a-head"><span class="ai' + (a.ai ? '' : ' you') + '">' + (AI[a.ai] || '') + '</span>' +
+      '<div><div class="a-name">' + a.name + '</div><div class="a-role">' + a.role + '</div></div></div>' +
+      '<div class="a-body"><div class="state"><span class="dot"></span><span class="st"></span></div>' +
+      '<div class="task"></div>' +
+      (a.ai ? '<div class="meta"><span class="tok"><i></i><span class="tk">0</span></span><span class="br"></span></div>'
+            : '<div class="ask"><button data-answer="yes">Pode juntar</button><button data-answer="no">Ainda não</button></div>') +
+      '</div>';
+    stage.appendChild(card);
+    agents.set(a.id, { ...a, card, tokens: 0, state: 'idle', task: '' });
+    setState(a.id, 'idle', a.id === 'voce' ? '' : '');
+    drag(card, a.id);
+    card.addEventListener('click', (e) => { if (!card.moved && !e.target.closest('.ask')) toggleFocus(a.id); });
+  }
+}
+function buildWires() {
+  for (const [a, b] of WIRES) {
+    const g = el('g', { class: 'wire', 'data-wire': a + '-' + b }, svg);
+    const glow = el('path', { class: 'glow' }, g);
+    const base = el('path', { class: 'base' }, g);
+    const hit = el('path', { class: 'hit' }, g);
+    const tag = el('text', { class: 'wire-tag', 'text-anchor': 'middle' }, g);
+    const w = { a, b, g, glow, base, hit, tag, hotUntil: 0, live: 0 };
+    hit.addEventListener('click', () => ping(a, b));
+    wires.set(a + '-' + b, w);
+  }
+}
+function place() {
+  const r = stage.getBoundingClientRect();
+  for (const a of agents.values()) {
+    a.card.style.left = a.x * r.width + 'px';
+    a.card.style.top = a.y * r.height + 'px';
+  }
+  drawWires();
+}
+function center(id) {
+  const a = agents.get(id), r = stage.getBoundingClientRect();
+  return [a.x * r.width, a.y * r.height];
+}
+// Curva entre os centros dos cards (eles cobrem as pontas): sai na vertical se a distância vertical for maior.
+function curve(a, b) {
+  const [x1, y1] = center(a), [x2, y2] = center(b);
+  const dx = x2 - x1, dy = y2 - y1;
+  if (Math.abs(dy) > Math.abs(dx) * .6) {
+    const k = dy * .5;
+    return `M${x1},${y1} C${x1},${y1 + k} ${x2},${y2 - k} ${x2},${y2}`;
+  }
+  const k = dx * .5;
+  return `M${x1},${y1} C${x1 + k},${y1} ${x2 - k},${y2} ${x2},${y2}`;
+}
+function drawWires() {
+  for (const w of wires.values()) {
+    const d = curve(w.a, w.b);
+    w.glow.setAttribute('d', d); w.base.setAttribute('d', d); w.hit.setAttribute('d', d);
+    const len = w.base.getTotalLength(), p = w.base.getPointAtLength(len / 2);
+    w.tag.setAttribute('x', p.x); w.tag.setAttribute('y', p.y - 8);
+  }
+}
+function wireOf(from, to) {
+  return wires.get(from + '-' + to) || wires.get(to + '-' + from);
+}
+function drag(card, id) {
+  let sx, sy, ox, oy;
+  card.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return;
+    const a = agents.get(id), r = stage.getBoundingClientRect();
+    sx = e.clientX; sy = e.clientY; ox = a.x * r.width; oy = a.y * r.height;
+    card.moved = false;
+    card.setPointerCapture(e.pointerId);
+    card.classList.add('dragging');
+    const move = (ev) => {
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (Math.abs(dx) + Math.abs(dy) > 4) card.moved = true;
+      a.x = Math.min(.95, Math.max(.05, (ox + dx) / r.width));
+      a.y = Math.min(.93, Math.max(.07, (oy + dy) / r.height));
+      card.style.left = a.x * r.width + 'px'; card.style.top = a.y * r.height + 'px';
+      drawWires();
+    };
+    const up = () => { card.classList.remove('dragging'); card.removeEventListener('pointermove', move); setTimeout(() => (card.moved = false), 0); };
+    card.addEventListener('pointermove', move);
+    card.addEventListener('pointerup', up, { once: true });
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Estado dos agents, quadro e conversas.
+function setState(id, state, task) {
+  const a = agents.get(id);
+  if (a.state === 'stopped' && state !== 'idle') return;
+  a.state = state;
+  if (task !== undefined) a.task = task;
+  a.card.dataset.state = state;
+  $('.st', a.card).textContent = STATE_TEXT[state];
+  $('.task', a.card).textContent = a.task;
+  counts();
+}
+function spend(id, n) {
+  const a = agents.get(id);
+  if (!a?.ai) return;
+  a.tokens += n; tokensUsed += n;
+  $('.tk', a.card).textContent = fmt(a.tokens);
+  $('.tok i', a.card).style.setProperty('--w', Math.min(100, a.tokens / 4000) + '%');
+  budget();
+}
+function setBranch(id, b) { const s = $('.br', agents.get(id).card); if (s) s.textContent = b; }
+const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n);
+function budget() {
+  $('#budget-text').textContent = 'Hoje: ' + fmt(tokensUsed) + ' de ' + fmt(BUDGET) + ' tokens';
+  $('#budget-fill').style.width = Math.min(100, (tokensUsed / BUDGET) * 100) + '%';
+}
+function counts() {
+  const list = [...agents.values()].filter((a) => a.ai);
+  const working = list.filter((a) => a.state === 'working' || a.state === 'talking').length;
+  const waiting = agents.get('voce')?.state === 'waiting';
+  $('#counts').innerHTML = '<b>' + working + '</b> trabalhando · <b>' + list.length + '</b> agents' + (waiting ? ' · <b>esperando você</b>' : '');
+}
+function hhmm() { return String(Math.floor(clock / 60)).padStart(2, '0') + ':' + String(clock % 60).padStart(2, '0'); }
+function log(from, to, text, kind) {
+  const e = el('div', { class: 'entry' + (kind === 'sys' ? ' sys' : ''), 'data-from': from || '', 'data-to': to || '' });
+  const route = kind === 'sys' ? '<span class="route"><b>' + (agents.get(from)?.name || 'VeSTA') + '</b></span>'
+    : '<span class="route"><b>' + agents.get(from).name + '</b> → <b>' + agents.get(to).name + '</b><span class="kind">' + KIND[kind] + '</span></span>';
+  e.innerHTML = '<time>' + hhmm() + '</time><div>' + route + '<div class="txt"></div></div>';
+  $('.txt', e).textContent = text;
+  $('#log').prepend(e);
+  $('#n-log').textContent = $('#log').children.length;
+  applyFocus();
+}
+function addTask(id, text, who, col = 'todo') { tasks.push({ id, text, who, col }); renderBoard(); }
+function move(id, col, who) {
+  const t = tasks.find((x) => x.id === id);
+  if (!t) return;
+  t.col = col; if (who) t.who = who; t.moved = true;
+  renderBoard();
+}
+function renderBoard() {
+  const b = $('#board');
+  b.innerHTML = '';
+  for (const [col, title] of COLS) {
+    const list = tasks.filter((t) => t.col === col);
+    const c = el('div', { class: 'col' }, b);
+    c.innerHTML = '<h3><span>' + title + '</span><span>' + list.length + '</span></h3>';
+    if (!list.length) el('div', { class: 'col-empty', text: '—' }, c);
+    for (const t of list) {
+      const a = agents.get(t.who);
+      const card = el('div', { class: 'card' + (t.moved ? ' moved' : '') }, c);
+      card.innerHTML = '<div class="t"></div><div class="m"><span>' + t.id + '</span><span class="who"><b>' + (AI[a?.ai] || '·') + '</b>' + (a?.name || '') + '</span></div>';
+      $('.t', card).textContent = t.text;
+      t.moved = false;
+    }
+  }
+  $('#n-board').textContent = tasks.filter((t) => t.col !== 'done').length;
+}
+function bubble(id, text, kind) {
+  const b = $('.bubble', agents.get(id).card);
+  b.innerHTML = '<small></small><span></span>';
+  b.firstChild.textContent = KIND[kind] || '';
+  b.lastChild.textContent = text.length > 90 ? text.slice(0, 88) + '…' : text;
+  b.classList.add('on');
+  clearTimeout(b.t);
+  b.t = setTimeout(() => b.classList.remove('on'), 2600 / speed + 600);
+}
+function toggleFocus(id) { focus = focus === id ? null : id; applyFocus(); }
+function applyFocus() {
+  $('#filter').hidden = !focus;
+  if (focus) $('#filter-name').textContent = agents.get(focus).name;
+  for (const a of agents.values()) {
+    a.card.classList.toggle('sel', a.id === focus);
+    a.card.classList.toggle('dim', !!focus && a.id !== focus && !wireOf(focus, a.id));
+  }
+  for (const w of wires.values()) w.g.classList.toggle('dim', !!focus && w.a !== focus && w.b !== focus);
+  for (const e of $('#log').children) e.classList.toggle('dim', !!focus && e.dataset.from !== focus && e.dataset.to !== focus);
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// O que corre pelo fio. A mensagem segue a curva (ela é lida a cada quadro, então arrastar um card no meio do
+// caminho leva a mensagem junto), com um rastro de tinta atrás; o fio fica "quente" enquanto a conversa dura.
+function shape(kind, g) {
+  if (kind === 'task') return el('rect', { class: 'core', x: -5.5, y: -5.5, width: 11, height: 11 }, g);
+  if (kind === 'review') return el('polygon', { class: 'core', points: '0,-7.5 7.5,0 0,7.5 -7.5,0' }, g);
+  if (kind === 'human') return el('polygon', { class: 'core', points: '0,-8 2.3,-3 7.6,-2.5 3.6,1.2 4.7,6.5 0,3.8 -4.7,6.5 -3.6,1.2 -7.6,-2.5 -2.3,-3' }, g);
+  if (kind === 'ping') return el('circle', { class: 'core', r: 3.5 }, g);
+  return el('circle', { class: 'core', r: 5.5 }, g);
+}
+const wait = (ms) => new Promise((r) => {
+  let left = ms;
+  let last = performance.now();
+  const tick = (t) => {
+    if (running) left -= (t - last) * speed;
+    last = t;
+    left <= 0 ? r() : requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+});
+function heat(w, from) {
+  w.live++;
+  w.g.classList.add('hot');
+  w.g.classList.toggle('rev', w.a !== from);
+}
+function cool(w) {
+  w.live = Math.max(0, w.live - 1);
+  const stamp = (w.cooling = Symbol());
+  wait(1800).then(() => {
+    if (w.cooling === stamp && !w.live) { w.g.classList.remove('hot', 'rev'); w.tag.textContent = ''; }
+  });
+}
+function send(from, to, text, kind = 'ask', { tokens = 0 } = {}) {
+  const w = wireOf(from, to);
+  if (!w || agents.get(from).state === 'stopped' || agents.get(to).state === 'stopped') return Promise.resolve();
+  heat(w, from);
+  w.tag.textContent = kind === 'ask' || kind === 'answer' ? 'conversando' : KIND[kind];
+  const reverse = w.a !== from;
+  // Hidden until the first frame puts it on the wire (otherwise it flashes in the corner of the board).
+  const g = el('g', { class: 'packet', visibility: 'hidden' }, svg);
+  const trail = [0, 1, 2, 3, 4, 5].map((i) => el('circle', { class: 'trail', r: 3.6 - i * .5, opacity: .55 - i * .09 }, g));
+  const halo = el('circle', { class: 'halo', r: 11 }, g);
+  const core = shape(kind, g);
+  const dur = 1500;
+  return new Promise((done) => {
+    let p = 0, last = performance.now();
+    const at = (d) => {
+      const len = w.base.getTotalLength();
+      const s = Math.min(len, Math.max(0, reverse ? len * (1 - d) : len * d));
+      return w.base.getPointAtLength(s);
+    };
+    const frame = (t) => {
+      if (running) p += ((t - last) * speed) / dur;
+      last = t;
+      const e = reduced ? 1 : Math.min(1, p);
+      const ease = e < .5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2;
+      const pt = at(ease);
+      core.setAttribute('transform', 'translate(' + pt.x + ',' + pt.y + ')');
+      halo.setAttribute('cx', pt.x); halo.setAttribute('cy', pt.y);
+      halo.setAttribute('r', 9 + Math.sin(t / 90) * 2.5);
+      trail.forEach((c, i) => {
+        const q = at(Math.max(0, ease - (i + 1) * .028));
+        c.setAttribute('cx', q.x); c.setAttribute('cy', q.y);
+      });
+      g.removeAttribute('visibility');
+      if (e < 1) return requestAnimationFrame(frame);
+      g.remove();
+      cool(w);
+      const card = agents.get(to).card;
+      card.classList.remove('got'); void card.offsetWidth; card.classList.add('got');
+      bubble(to, text, kind);
+      if (kind !== 'ping') log(from, to, text, kind);
+      spend(from, tokens);
+      done();
+    };
+    requestAnimationFrame(frame);
+  });
+}
+function ping(a, b) {
+  send(a, b, 'ping', 'ping').then(() => send(b, a, 'pong', 'ping'));
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// A história que a simulação conta (e repete). Envios no mesmo Promise.all correm ao mesmo tempo.
+let answer = null;
+function askHuman(text) {
+  setState('voce', 'waiting', text);
+  setState('lider', 'waiting', 'Esperando o seu sim para juntar equipe/t1');
+  return new Promise((r) => {
+    answer = r;
+    wait(9000).then(() => { if (answer === r) { answer = null; r('auto'); } });
+  });
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-answer]');
+  if (b && answer) { const r = answer; answer = null; r(b.dataset.answer); }
+});
+const step = (min) => { clock += min; };
+async function story() {
+  tasks.length = 0; renderBoard();
+  for (const id of agents.keys()) if (agents.get(id).state !== 'stopped') setState(id, 'idle', '');
+  await wait(600);
+  step(1);
+  await send('voce', 'lider', 'Objetivo: tela Equipes a partir da branch novo-layout. Teto de 2M tokens hoje.', 'task');
+  setState('lider', 'working', 'Quebrando o objetivo em tarefas');
+  log('lider', null, 'Planejou 4 tarefas e abriu uma worktree por agent.', 'sys');
+  await wait(1200);
+  addTask('T1', 'Mesa com os cards dos agents e os fios', 'dev');
+  addTask('T2', 'Testes do quadro e dos repasses', 'testes');
+  addTask('T3', 'Revisar T1 e T2', 'revisor');
+  addTask('T4', 'Seção Equipes no README', 'docs');
+  step(3);
+  await Promise.all([
+    send('lider', 'dev', 'T1: mesa com os cards e os fios. Worktree equipe/t1.', 'task', { tokens: 18_400 }),
+    send('lider', 'testes', 'T2: testes do quadro e dos repasses. Worktree equipe/t2.', 'task', { tokens: 9_100 }),
+    send('lider', 'docs', 'T4: quando T1 entrar, documente a mesa no README.', 'task', { tokens: 4_200 }),
+  ]);
+  setState('lider', 'idle', 'Acompanhando 3 tarefas');
+  move('T1', 'doing'); move('T2', 'doing');
+  setState('dev', 'working', 'T1 · montando a mesa'); setBranch('dev', 'equipe/t1');
+  setState('testes', 'working', 'T2 · escrevendo os testes'); setBranch('testes', 'equipe/t2');
+  setState('docs', 'idle', 'T4 · esperando T1'); setBranch('docs', 'equipe/t4');
+  await wait(1600);
+  spend('dev', 46_000); spend('testes', 21_000);
+  step(6);
+  setState('dev', 'talking'); setState('testes', 'talking');
+  await send('dev', 'testes', 'Que seletor vocês vão usar para achar os cards nos testes?', 'ask', { tokens: 2_100 });
+  await send('testes', 'dev', 'data-agent no card e data-wire no fio. Pode pôr os dois?', 'answer', { tokens: 1_800 });
+  await send('dev', 'testes', 'Feito. E o fio aceso ganha a classe hot.', 'answer', { tokens: 1_200 });
+  setState('testes', 'working', 'T2 · rodando os testes');
+  setState('dev', 'working', 'T1 · terminando');
+  await wait(1400);
+  spend('dev', 38_000);
+  step(9);
+  move('T1', 'review', 'revisor');
+  setState('dev', 'idle', 'T1 · esperando a revisão');
+  setState('revisor', 'working', 'T3 · revisando T1 (+182 −12)'); setBranch('revisor', 'lê equipe/t1');
+  await send('dev', 'revisor', 'T1 pronta para revisão: +182 −12 em 4 arquivos.', 'review', { tokens: 1_500 });
+  await wait(1600);
+  spend('revisor', 27_000);
+  step(4);
+  await send('revisor', 'dev', 'Devolvida: o fio não acompanha quando o card é arrastado.', 'review', { tokens: 3_400 });
+  move('T1', 'doing', 'dev');
+  setState('revisor', 'idle', 'T3 · esperando a correção');
+  setState('dev', 'working', 'T1 · corrigindo o fio');
+  await Promise.all([
+    wait(1400),
+    send('testes', 'lider', 'T2: 12 testes passam; 1 espera a correção do fio.', 'answer', { tokens: 2_600 }),
+  ]);
+  move('T2', 'review', 'revisor');
+  setState('testes', 'idle', 'T2 · na revisão');
+  step(7);
+  spend('dev', 22_000);
+  await send('dev', 'revisor', 'Corrigido: os fios são redesenhados a cada movimento.', 'review', { tokens: 1_400 });
+  setState('revisor', 'working', 'T3 · revisando de novo');
+  await wait(1200);
+  await Promise.all([
+    send('revisor', 'lider', 'T1 e T2 aprovadas.', 'review', { tokens: 2_900 }),
+    send('revisor', 'testes', 'Pode rodar a suíte inteira contra equipe/t1.', 'task', { tokens: 1_100 }),
+  ]);
+  move('T1', 'done'); move('T2', 'done'); move('T3', 'done', 'revisor');
+  setState('revisor', 'idle', ''); setState('dev', 'idle', '');
+  step(2);
+  await send('lider', 'voce', 'T1 e T2 aprovadas. Posso juntar equipe/t1 e equipe/t2 na novo-layout?', 'human', { tokens: 1_900 });
+  const yes = await askHuman('O Líder quer juntar equipe/t1 e equipe/t2 na novo-layout');
+  setState('voce', 'idle', '');
+  step(3);
+  if (yes === 'no') {
+    await send('voce', 'lider', 'Ainda não. Quero ver a tela antes.', 'answer');
+    setState('lider', 'idle', 'Esperando você ver a tela');
+    log('lider', null, 'Deixou as branches separadas, como você pediu.', 'sys');
+  } else {
+    await send('voce', 'lider', yes === 'auto' ? 'Pode juntar (respondido sozinho no protótipo).' : 'Pode juntar.', 'answer');
+    setState('lider', 'working', 'Juntando equipe/t1 e equipe/t2');
+    log('lider', null, 'Juntou equipe/t1 e equipe/t2 na novo-layout. Nada foi publicado.', 'sys');
+    move('T4', 'doing');
+    setState('docs', 'working', 'T4 · documentando a mesa');
+    await send('lider', 'docs', 'T1 entrou. Pode documentar a mesa e os fios.', 'task', { tokens: 2_000 });
+    setState('lider', 'idle', '');
+    await wait(1400);
+    spend('docs', 14_000);
+    step(5);
+    await send('docs', 'revisor', 'README: seção Equipes, com a mesa, o quadro e os limites.', 'review', { tokens: 1_000 });
+    await send('revisor', 'docs', 'Ok. Só troque "fio" por "fio da conversa" no título.', 'review', { tokens: 1_600 });
+    move('T4', 'done');
+    setState('docs', 'idle', '');
+  }
+  log('lider', null, 'Equipe parada: nada a fazer até o próximo objetivo. A simulação recomeça.', 'sys');
+  await wait(5000);
+}
+async function loop() { for (;;) await story(); }
+
+// Uma mensagem qualquer entre dois agents ligados.
+const SMALL = ['Você já subiu a sua worktree?', 'Achei um teste instável no quadro.', 'Pode olhar este diff?', 'Terminei a minha parte.', 'Qual é o nome do componente?'];
+$('#poke').onclick = () => {
+  const list = [...wires.values()].filter((w) => w.a !== 'voce' && w.b !== 'voce');
+  const w = list[Math.floor(Math.random() * list.length)];
+  const [a, b] = Math.random() < .5 ? [w.a, w.b] : [w.b, w.a];
+  const text = SMALL[Math.floor(Math.random() * SMALL.length)];
+  send(a, b, text, 'ask', { tokens: 900 }).then(() => send(b, a, 'Já vejo.', 'answer', { tokens: 600 }));
+};
+
+// ---------------------------------------------------------------------------------------------------------------
+// Controles.
+$('#play').onclick = (e) => {
+  running = !running;
+  e.target.classList.toggle('on', running);
+  e.target.textContent = running ? 'Pausar a simulação' : 'Continuar a simulação';
+};
+document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => {
+  speed = Number(b.dataset.speed);
+  document.querySelectorAll('[data-speed]').forEach((x) => x.classList.toggle('on', x === b));
+}));
+$('#theme').onclick = (e) => {
+  const paper = document.documentElement.dataset.theme !== 'paper';
+  document.documentElement.dataset.theme = paper ? 'paper' : 'ink';
+  e.target.textContent = 'Tema: ' + (paper ? 'Papel' : 'Tinta');
+};
+$('#relayout').onclick = () => {
+  for (const a of AGENTS) Object.assign(agents.get(a.id), { x: a.x, y: a.y });
+  place();
+};
+$('#pause-team').onclick = (e) => {
+  teamPaused = !teamPaused;
+  running = !teamPaused;
+  $('#play').classList.toggle('on', running);
+  $('#play').textContent = running ? 'Pausar a simulação' : 'Continuar a simulação';
+  e.currentTarget.lastChild.textContent = teamPaused ? 'Continuar a equipe' : 'Pausar a equipe';
+  log('voce', null, teamPaused ? 'Você pausou a equipe: cada agent termina o passo e espera.' : 'Você retomou a equipe.', 'sys');
+};
+$('#stop-all').onclick = (e) => {
+  const stopped = agents.get('lider').state !== 'stopped';
+  for (const a of agents.values()) if (a.ai) {
+    if (stopped) setState(a.id, 'stopped', 'Parado por você');
+    else { a.state = 'idle'; setState(a.id, 'idle', ''); }
+  }
+  e.currentTarget.lastChild.textContent = stopped ? 'Ligar todos' : 'Parar todos';
+  log('voce', null, stopped ? 'Você parou todos os agents. Os fios ficam mudos.' : 'Você ligou a equipe de novo.', 'sys');
+};
+$('#filter-clear').onclick = () => { focus = null; applyFocus(); };
+document.querySelectorAll('[data-tab]').forEach((t) => (t.onclick = () => {
+  document.querySelectorAll('[data-tab]').forEach((x) => x.setAttribute('aria-selected', x === t));
+  document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('on', p.id === 'pane-' + t.dataset.tab));
+}));
+addEventListener('resize', place);
+
+buildWires();
+buildAgents();
+place();
+budget();
+renderBoard();
+loop();
+</script>
+</body>
+</html>

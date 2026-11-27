@@ -105,7 +105,7 @@ function createAppMcp(ctx, { methods }) {
     if (!chat || ctx.store.state.settings.chatSettings === false) return null;
     if (chat.questId && chat.questRole !== 'lead') return null;
     if (chat.skillDraft || chat.memoryConsolidation || chat.refineRun) return null;
-    if (chat.agentId) return null; // an agent working alone never changes the app's preferences
+    if (chat.agentId || chat.teamId) return null; // an agent working alone never changes the app's preferences
     return chat;
   };
   const notice = (chat, text) => ctx.emit({ type: 'notice', message: '“' + (chat.title || 'Conversa') + '” ' + text });

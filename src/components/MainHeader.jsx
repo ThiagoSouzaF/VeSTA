@@ -48,13 +48,15 @@ export function MainHeader({
                       ? 'Skills'
                       : page === 'agents'
                         ? 'Agent Mode'
-                        : page === 'usage'
-                          ? 'Uso'
-                          : page === 'connections'
-                            ? 'Conexões'
-                            : page === 'about'
-                              ? 'Sobre a VeSTA'
-                              : 'Preferências'}
+                        : page === 'teams'
+                          ? 'Equipes'
+                          : page === 'usage'
+                            ? 'Uso'
+                            : page === 'connections'
+                              ? 'Conexões'
+                              : page === 'about'
+                                ? 'Sobre a VeSTA'
+                                : 'Preferências'}
         </strong>
       </div>
       <div className="header-actions">

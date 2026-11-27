@@ -13,6 +13,7 @@ export function filterChats(chats, quests, { projectId, search }, agents = []) {
       !c.skillDraft &&
       !c.memoryConsolidation &&
       !c.refineRun &&
+      !c.teamId &&
       !(c.agentId && agentIds.has(c.agentId)) &&
       (!projectId || c.projectId === projectId) &&
       c.title.toLowerCase().includes(needle)
