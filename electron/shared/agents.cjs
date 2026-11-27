@@ -8,7 +8,7 @@
 //   schedule  { kind: 'manual' | 'daily' | 'weekdays' | 'weekly' | 'interval', time: 'HH:MM', days: [0-6], hours }
 //   catchUp   a scheduled time missed while VeSTA was closed runs once when it opens
 //   unseen    runs that ended since the person last opened Agent Mode (the rail badge)
-// Lesson { id, text, status: 'pending' | 'kept' | 'dropped', from: 'run' | 'chat' | 'person' | 'refine', at, runId }: what the
+// Lesson { id, text, status: 'pending' | 'kept' | 'dropped', from: 'run' | 'chat' | 'person' | 'refine' | 'place', at, runId }: what the
 //   agent learned; only kept ones (approved by the person, or written by them) reach the next runs. Dropped ones stay
 //   hidden so the agent does not propose them again.
 // suggestion { text, at, runId } | null: a better task the agent proposed; it replaces the prompt only on a yes.
@@ -16,7 +16,8 @@
 //   and, if given, the new kept lessons); applied only on a yes. versions[]: what the agent was before each change of
 //   its task ({ n, at, note, prompt, lessons[] }, newest first; shared/refine.cjs).
 // Run { id, at, endedAt, trigger: 'schedule' | 'manual' | 'catch-up', status: 'running' | 'ok' | 'error', chatId,
-//       summary, error }
+//       summary, error, place?, usage? }: place = where it ran with VeSTA closed (chatId null, places/engine.cjs)
+// places { pc: { slug, hash, at, task, running, outdated } }: where the agent is installed to run with VeSTA closed
 // Message meant for the person (this file also runs in the renderer, so it cannot require errors.cjs).
 const userError = (message) => Object.assign(new Error(message), { name: 'UserError', userSafe: true });
 // The same four AIs as quests.cjs (a shared file cannot require another; a test keeps both lists equal).
@@ -112,9 +113,14 @@ function normalizeAgent(input = {}, prev = null) {
 
 const isRunning = (a) => (a.runs || []).some((r) => r.status === 'running');
 const lastRun = (a) => (a.runs || [])[0] || null;
-// Enabled agents whose time has come; one already running waits for its next time.
+// Installed in a place (places/engine.cjs: { pc: { slug, hash, at, running, outdated } }): the place runs it.
+const installedSomewhere = (a) => !!a.places && Object.keys(a.places).length > 0;
+// Enabled agents whose time has come; one already running waits for its next time; one installed in a place runs
+// there, never twice.
 const dueAgents = (agents, now) =>
-  (agents || []).filter((a) => a.enabled && a.nextRunAt && a.nextRunAt <= now && !isRunning(a));
+  (agents || []).filter(
+    (a) => a.enabled && a.nextRunAt && a.nextRunAt <= now && !isRunning(a) && !installedSomewhere(a)
+  );
 
 // The agent's last words as a one-line result: its "Resumo:" line when it wrote one, else the start of the answer.
 function summaryOf(text) {
@@ -161,7 +167,8 @@ function recentErrors(agent) {
 
 // The message a run sends: who the agent is, the rules of working alone, what it learned, its recent failures, its
 // last result, its own skills, then the task. skills: [{ name, body }] (read by the engine from the library).
-function buildPrompt(agent, { now = Date.now(), projectName = '', skills = [] } = {}) {
+// standalone: the run happens in an agents folder with VeSTA closed (runner/vesta-agent.cjs), without memory nor library.
+function buildPrompt(agent, { now = Date.now(), projectName = '', skills = [], standalone = false } = {}) {
   const last = (agent.runs || []).find((r) => r.status === 'ok' && r.summary);
   const when = new Date(now).toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' });
   const day = (t) => new Date(t).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
@@ -170,10 +177,14 @@ function buildPrompt(agent, { now = Date.now(), projectName = '', skills = [] } 
   return [
     'Você é o agent "' + agent.name + '" do VeSTA, rodando sozinho (' + when + '): ninguém está acompanhando agora.',
     '## Como trabalhar\n' +
-      '- Use a memória ' +
-      (projectName ? 'do projeto ' + projectName : 'do VeSTA') +
-      (agent.skills ? ' e as skills disponíveis' : '') +
-      ' quando ajudarem.\n' +
+      (standalone
+        ? '- Você roda pelo agendador deste computador, com o VeSTA fechado: sem a memória do VeSTA. Trabalhe com a pasta' +
+          (projectName ? ' do projeto ' + projectName : '') +
+          ' e com as skills abaixo.\n'
+        : '- Use a memória ' +
+          (projectName ? 'do projeto ' + projectName : 'do VeSTA') +
+          (agent.skills ? ' e as skills disponíveis' : '') +
+          ' quando ajudarem.\n') +
       '- Não publique nada fora deste computador (push, PR, comentários, mensagens, e-mails): prepare e descreva para a pessoa aprovar.\n' +
       '- Se travar ou precisar de uma decisão, pare e diga exatamente o que precisa.\n' +
       '- Termine com uma linha "Resumo: …" de uma frase: o que fez, o que achou ou o que precisa da pessoa.\n' +
@@ -208,6 +219,7 @@ module.exports = {
   describeSchedule,
   normalizeAgent,
   isRunning,
+  installedSomewhere,
   lastRun,
   dueAgents,
   summaryOf,

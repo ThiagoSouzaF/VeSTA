@@ -20,6 +20,8 @@ import {
   untilLabel,
 } from '../../lib/agents';
 import { RefineAuto } from '../refine/RefineAuto';
+import { PlacesView } from '../places/PlacesView';
+import { WHERE_FILTERS, filterWhere } from '../../lib/places';
 
 // Relative times ("em 25 min") stay true while the screen is open.
 function useNow(ms = 30000) {
@@ -36,6 +38,9 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
   const now = useNow();
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
+  // Agents (the overview) or Onde rodam (the places where they run with VeSTA closed).
+  const [view, setView] = useState('agents');
+  const [where, setWhere] = useState('all');
   // The drawer: an agent id, or { draft } for a new one.
   const [open, setOpen] = useState(null);
   const current = typeof open === 'string' ? agents.find((a) => a.id === open) || null : open;
@@ -55,7 +60,7 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
   const active = agents.filter((a) => a.enabled).length;
   const review = agents.reduce((n, a) => n + toReview(a), 0);
   const next = nextUp(agents);
-  const shown = filterAgents(agents, { filter, query });
+  const shown = filterWhere(filterAgents(agents, { filter, query }), where);
   const create = (template = {}) => setOpen({ draft: { ...blankAgent(integrations), ...template } });
   const act = async (method, args, message) => {
     try {
@@ -87,8 +92,30 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
           Novo agent
         </button>
       </div>
+      <div className="agents-views tab-ink-host" role="tablist" aria-label="Agents ou onde rodam">
+        {[
+          ['agents', 'Agents'],
+          ['places', 'Onde rodam'],
+        ].map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={view === id} data-view={id} onClick={() => setView(id)}>
+            {label}
+          </button>
+        ))}
+        <TabInk active="[aria-selected='true']" value={view} />
+      </div>
 
-      {agents.length === 0 ? (
+      {view === 'places' ? (
+        <PlacesView
+          data={data}
+          call={call}
+          setData={setData}
+          notify={notify}
+          onOpenAgent={(id) => {
+            setView('agents');
+            setOpen(id);
+          }}
+        />
+      ) : agents.length === 0 ? (
         <section className="agents-empty">
           <Sparkles size={22} />
           <h2>Nenhum agent ainda.</h2>
@@ -162,6 +189,15 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
               ))}
               <TabInk active="[aria-selected='true']" value={filter} />
             </div>
+            <div className="agents-where" role="group" aria-label="Onde rodam">
+              <span>ONDE</span>
+              {WHERE_FILTERS.map(([id, label]) => (
+                <button key={id} aria-pressed={where === id} data-where={id} onClick={() => setWhere(id)}>
+                  {label}
+                  <span className="skills-n">{id === 'all' ? agents.length : filterWhere(agents, id).length}</span>
+                </button>
+              ))}
+            </div>
             <label className="skills-search">
               <Search size={15} />
               <input
@@ -197,6 +233,7 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
           {!shown.length && (
             <p className="agent-empty-line">
               Nenhum agent {filter === 'on' ? 'ativo' : filter === 'off' ? 'inativo' : ''}
+              {where !== 'all' ? ' rodando em ' + WHERE_FILTERS.find((w) => w[0] === where)[1] : ''}
               {query ? ' com “' + query + '”' : ''}.
             </p>
           )}

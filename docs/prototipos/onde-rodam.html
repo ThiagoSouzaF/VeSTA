@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="ink">
+<head>
+<meta charset="utf-8" />
+<title>VeSTA · protótipo de Onde rodam</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/400.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/600.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/700.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-mono/400.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-mono/700.css" />
+<style>
+/* Protótipo estático: só HTML/CSS/JS, nada do app. Agents do VeSTA instalados para rodar sozinhos (no PC, com o VeSTA
+   fechado, ou numa VPS), cada lugar com a mesma pasta padrão e o agendador do próprio sistema; o VeSTA lista, instala,
+   atualiza e remove. Quatro vistas: Lugares, Mapa (os lugares lado a lado, com as equipes e os fios entre eles), e
+   como as telas Agents e Equipes mostram onde cada um roda. Dados fictícios. Tinta Mangá, com o tema Papel. */
+:root {
+  --bg: #000; --side: #0a0a0c; --surface: #121214; --hover: #18181b;
+  --border: #27272a; --border-soft: #1c1c1f; --line: #52525b;
+  --text: #e4e4e7; --muted: #a1a1aa; --faint: #8b8b94;
+  --ink: #fff; --on-ink: #000; --shadow: #3f3f46;
+  --bad: #ef4444; --on-bad: #fff; --warn: #fbbf24;
+  --body: 'Space Grotesk', 'Segoe UI', sans-serif; --mono: 'Space Mono', Consolas, monospace;
+  --dots: radial-gradient(circle, rgb(255 255 255 / .06) 1px, transparent 1.2px) 0 0 / 8px 8px;
+  --hatch: repeating-linear-gradient(135deg, rgb(255 255 255 / .04) 0 6px, transparent 6px 12px);
+  --chamfer-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  color-scheme: dark;
+}
+:root[data-theme='paper'] {
+  --bg: #f3f0e8; --side: #ebe7dc; --surface: #fbfaf6; --hover: #e4dfd2;
+  --border: #cfc9ba; --border-soft: #ddd8cb; --line: #8a8475;
+  --text: #17150f; --muted: #57524a; --faint: #6b665b;
+  --ink: #111; --on-ink: #fbfaf6; --shadow: #b9b2a1;
+  --bad: #c81e1e; --on-bad: #fff; --warn: #8a4b00;
+  --dots: radial-gradient(circle, rgb(0 0 0 / .07) 1px, transparent 1.2px) 0 0 / 8px 8px;
+  --hatch: repeating-linear-gradient(135deg, rgb(0 0 0 / .05) 0 6px, transparent 6px 12px);
+  color-scheme: light;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--body); display: flex; flex-direction: column; overflow: hidden; }
+button, input, select { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: pointer; }
+svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: square; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+code, .mono { font-family: var(--mono); font-size: 12px; }
+
+/* ---------- barra do protótipo ---------- */
+.proto { display: flex; gap: 6px; align-items: center; padding: 8px 12px; border-bottom: 1px dashed var(--line); background: var(--side); flex-wrap: wrap; }
+.proto > b { font: 700 11px var(--mono); letter-spacing: .12em; margin-right: 8px; background: var(--ink); color: var(--on-ink); padding: 2px 6px; }
+.proto button { font: 12px var(--mono); padding: 5px 10px; border: 1px solid var(--border); color: var(--muted); }
+.proto button:hover { color: var(--text); border-color: var(--line); }
+.proto .note { flex: 1 1 320px; color: var(--faint); font-size: 12px; margin-left: 8px; }
+
+/* ---------- moldura ---------- */
+.app { flex: 1; display: flex; min-height: 0; }
+.rail { width: 60px; flex: none; background: var(--side); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; }
+.avatar { width: 36px; height: 36px; border: 1px solid var(--line); background: #fff url('../../assets/mascot/state-working.webp') center / cover; clip-path: var(--chamfer-sm); margin-bottom: 10px; }
+.icon-btn { width: 34px; height: 34px; display: grid; place-items: center; color: var(--muted); }
+.icon-btn.on { color: var(--on-ink); background: var(--ink); }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.head { padding: 16px 24px 0; border-bottom: 1px solid var(--border); display: grid; gap: 10px; }
+.kicker { font: 700 11px var(--mono); letter-spacing: .16em; color: var(--faint); display: flex; align-items: center; gap: 10px; }
+.kicker::before { content: ''; width: 28px; height: 1px; background: var(--line); }
+h1 { font: 700 26px/1.05 var(--body); letter-spacing: -.03em; margin: 6px 0 4px; }
+.lead { color: var(--muted); font-size: 13px; max-width: 760px; }
+.views { display: flex; gap: 2px; }
+.views button { padding: 8px 14px; font: 600 13px var(--body); color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.views button[aria-selected='true'] { color: var(--text); border-color: var(--ink); }
+.views small { font: 10px var(--mono); color: var(--faint); margin-left: 6px; }
+.btn { display: inline-flex; gap: 7px; align-items: center; font: 600 12px var(--body); padding: 7px 12px; border: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--line); background: var(--hover); transform: translateY(-1px); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.ink { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.btn.sm { padding: 4px 8px; font-size: 11px; }
+.btn.danger:hover:not(:disabled) { border-color: var(--bad); color: var(--bad); }
+
+.body { flex: 1; min-height: 0; display: flex; position: relative; }
+.view { flex: 1; min-width: 0; display: none; }
+.view.on { display: flex; }
+
+/* ---------- estados: erro e atenção leem por forma, não só por cor ---------- */
+.dot { width: 8px; height: 8px; border: 1.5px solid var(--line); flex: none; display: inline-block; }
+.dot.on { background: var(--ink); border-color: var(--ink); }
+.dot.off { border-color: var(--bad); background: var(--bad); border-radius: 0; transform: rotate(45deg); }
+.dot.busy { background: var(--ink); border-color: var(--ink); animation: blink 1.1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+.bad-pill { display: inline-flex; gap: 5px; align-items: center; font: 700 10px var(--mono); letter-spacing: .08em; padding: 1px 6px; background: var(--bad); color: var(--on-bad); text-transform: uppercase; }
+.flag { font: 10px var(--mono); padding: 0 5px; border: 1px dashed var(--warn); color: var(--warn); }
+.ok-mark { font: 11px var(--mono); color: var(--muted); }
+
+/* ---------- vista LUGARES ---------- */
+.places { width: 270px; flex: none; border-right: 1px solid var(--border); background: var(--side); overflow: auto; padding: 12px; display: grid; gap: 8px; align-content: start; }
+.places h3 { font: 700 10px var(--mono); letter-spacing: .16em; color: var(--faint); margin: 2px 2px 4px; }
+.place-btn { text-align: left; padding: 10px 11px; border: 1px solid var(--border); background: var(--surface); display: grid; gap: 3px; transition: border-color .2s, transform .2s; }
+.place-btn:hover { border-color: var(--line); transform: translateY(-1px); }
+.place-btn[aria-current='true'] { border-color: var(--ink); box-shadow: 3px 3px 0 var(--shadow); }
+.place-btn .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.place-btn b { font-size: 14px; }
+.place-btn small { font: 11px var(--mono); color: var(--faint); }
+.place-btn .count { margin-left: auto; font: 11px var(--mono); border: 1px solid var(--line); padding: 0 5px; }
+.add-place { border-style: dashed; color: var(--muted); display: flex; gap: 8px; align-items: center; justify-content: center; padding: 10px; }
+
+.place { flex: 1; min-width: 0; overflow: auto; padding: 18px 24px 28px; background: var(--dots), var(--bg); display: grid; gap: 16px; align-content: start; }
+.place-head { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.place-head h2 { font: 700 22px var(--body); letter-spacing: -.02em; }
+.chip { font: 11px var(--mono); padding: 3px 8px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+.place-head .actions { margin-left: auto; display: flex; gap: 8px; }
+.offline-note { border: 1px solid var(--bad); border-left-width: 4px; padding: 8px 12px; font-size: 13px; display: flex; gap: 10px; align-items: center; background: var(--surface); }
+.boxes { display: grid; grid-template-columns: 1fr 1.2fr 1.5fr; gap: 12px; }
+.box { border: 1px solid var(--border); background: var(--surface); padding: 12px; display: grid; gap: 8px; align-content: start; position: relative; }
+.box::before { content: ''; position: absolute; left: -1px; top: -1px; width: 8px; height: 8px; border-left: 2px solid var(--ink); border-top: 2px solid var(--ink); }
+.box h4 { font: 700 10px var(--mono); letter-spacing: .14em; color: var(--faint); display: flex; justify-content: space-between; align-items: center; }
+.big { font: 700 20px var(--mono); }
+.ais { display: grid; gap: 4px; }
+.ai-row { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.ai-row .mark { width: 16px; font: 700 12px var(--mono); }
+.ai-row.no { color: var(--faint); }
+.ai-row .how { margin-left: auto; font: 11px var(--mono); color: var(--faint); text-decoration: underline; }
+.path { display: flex; gap: 6px; align-items: center; background: var(--bg); border: 1px solid var(--border-soft); padding: 6px 8px; }
+.path code { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmds { display: grid; gap: 3px; font: 11px var(--mono); color: var(--muted); }
+.cmds span::before { content: '$ '; color: var(--faint); }
+.section-title { display: flex; align-items: baseline; gap: 10px; }
+.section-title h3 { font: 700 11px var(--mono); letter-spacing: .16em; color: var(--faint); }
+.section-title .actions { margin-left: auto; display: flex; gap: 8px; }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); }
+th { font: 700 10px var(--mono); letter-spacing: .12em; color: var(--faint); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--border-soft); vertical-align: top; font-size: 13px; }
+tr:last-child td { border-bottom: 0; }
+tbody tr { transition: background .2s; }
+tbody tr:hover, tbody tr.hl { background: var(--hover); }
+tbody tr.err td:first-child { box-shadow: inset 4px 0 0 var(--bad); }
+tbody tr.new { animation: enter .6s ease-out; }
+@keyframes enter { from { background: var(--hover); box-shadow: inset 3px 0 0 var(--ink); } }
+.a-name b { display: block; }
+.a-name code { color: var(--faint); font-size: 11px; }
+.ai-badge { display: inline-grid; place-items: center; width: 20px; height: 20px; font: 700 11px var(--mono); background: var(--ink); color: var(--on-ink); clip-path: var(--chamfer-sm); margin-right: 6px; vertical-align: middle; flex: none; }
+.ver { font: 11px var(--mono); color: var(--muted); }
+.ver.old { color: var(--warn); }
+.ver small { display: block; color: var(--faint); }
+.row-actions { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
+.empty { padding: 18px; text-align: center; color: var(--faint); font-size: 13px; border: 1px dashed var(--border); }
+.tree { border: 1px solid var(--border); background: var(--surface); padding: 12px 14px; font: 12px/1.75 var(--mono); color: var(--muted); white-space: pre; overflow: auto; }
+.tree .c { color: var(--faint); }
+.tree .ln { display: block; transition: background .2s, color .2s; }
+.tree .ln.hl { background: var(--hover); color: var(--text); box-shadow: inset 2px 0 0 var(--ink); }
+
+/* ---------- gaveta (atualizar, remover, execuções, conectar) ---------- */
+.scrim { position: fixed; inset: 0; background: rgb(0 0 0 / .5); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 5; }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 460px; max-width: 92%; background: var(--side); border-left: 1px solid var(--ink); z-index: 6; transform: translateX(100%); transition: transform .3s cubic-bezier(.2,.8,.2,1); display: flex; flex-direction: column; }
+.drawer.on { transform: none; box-shadow: -6px 0 0 var(--shadow); }
+.d-head { padding: 16px 18px 12px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-start; }
+.d-head h3 { font: 700 18px var(--body); }
+.d-head p { color: var(--muted); font-size: 12px; }
+.d-head .x { margin-left: auto; padding: 4px; color: var(--faint); }
+.d-body { flex: 1; overflow: auto; padding: 14px 18px; display: grid; gap: 14px; align-content: start; }
+.d-foot { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+.d-foot .hint { margin-right: auto; font-size: 12px; color: var(--faint); }
+.label { font: 700 10px var(--mono); letter-spacing: .14em; color: var(--faint); margin-bottom: 6px; }
+.goes { display: grid; gap: 6px; font-size: 12px; }
+.goes div { display: flex; gap: 8px; }
+.goes .k { width: 86px; flex: none; font: 11px var(--mono); color: var(--faint); }
+.goes .no { color: var(--faint); }
+.checks { display: grid; gap: 5px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; }
+.check .m { width: 16px; flex: none; font: 700 12px var(--mono); }
+.check.bad .m { color: var(--bad); }
+.check code { display: block; color: var(--muted); margin-top: 2px; }
+.steps { display: grid; gap: 4px; }
+.step { display: grid; grid-template-columns: 18px 1fr; gap: 8px; font-size: 12px; color: var(--muted); padding: 4px 0; }
+.step .m { font: 700 12px var(--mono); color: var(--faint); }
+.step code { display: block; color: var(--faint); font-size: 11px; word-break: break-all; }
+.step.doing { color: var(--text); }
+.step.doing .m { color: var(--text); animation: blink .6s steps(2) infinite; }
+.step.ok, .step.ok .m { color: var(--text); }
+.field { display: grid; gap: 5px; }
+.field input { background: var(--surface); border: 1px solid var(--border); padding: 7px 9px; }
+.grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+.runs { display: grid; gap: 6px; }
+.run { border: 1px solid var(--border); background: var(--surface); padding: 8px 10px; display: grid; gap: 3px; }
+.run.err { border-left: 4px solid var(--bad); }
+.run .top { display: flex; gap: 8px; font: 11px var(--mono); color: var(--faint); align-items: center; }
+.run .top .st { margin-left: auto; }
+.run p { font-size: 12px; }
+.lesson { border: 1px solid var(--ink); padding: 9px 10px; display: grid; gap: 6px; font-size: 12px; }
+.lesson .btns { display: flex; gap: 6px; }
+.opt { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; }
+
+/* ---------- janela de instalar: quadrados, como na tela Agents ---------- */
+.modal { position: fixed; inset: 0; display: grid; place-items: center; z-index: 7; pointer-events: none; }
+.modal-box { width: min(1180px, 94vw); height: min(760px, 90vh); background: var(--side); border: 1px solid var(--ink); box-shadow: 8px 8px 0 var(--shadow); display: grid; grid-template-rows: auto auto 1fr auto; opacity: 0; transform: translateY(12px) scale(.98); transition: opacity .2s, transform .25s cubic-bezier(.2,.8,.2,1); pointer-events: none; }
+.modal.on .modal-box { opacity: 1; transform: none; pointer-events: auto; }
+.m-head { display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px 10px; border-bottom: 1px solid var(--border); }
+.m-head h3 { font: 700 20px var(--body); letter-spacing: -.02em; }
+.m-head p { font-size: 12px; color: var(--muted); }
+.m-head .x { margin-left: auto; color: var(--faint); padding: 4px; }
+.m-bar { display: flex; gap: 10px; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--border-soft); flex-wrap: wrap; }
+.m-tabs { display: flex; gap: 4px; }
+.m-tabs button { font: 12px var(--mono); padding: 4px 10px; border: 1px solid var(--border); color: var(--muted); }
+.m-tabs button[aria-selected='true'] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.search { display: flex; gap: 6px; align-items: center; border: 1px solid var(--border); padding: 5px 9px; margin-left: auto; min-width: 260px; background: var(--surface); }
+.search input { border: 0; background: none; outline: 0; flex: 1; font-size: 13px; }
+.m-main { display: grid; grid-template-columns: 1fr 360px; min-height: 0; }
+.tiles { overflow: auto; padding: 16px 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; align-content: start; }
+.tile { text-align: left; position: relative; aspect-ratio: 1 / .82; border: 1px solid var(--border); background: var(--surface); padding: 12px; display: flex; flex-direction: column; gap: 6px; transition: border-color .2s, transform .2s, box-shadow .2s; }
+.tile:hover:not(.dis) { border-color: var(--line); transform: translateY(-2px); }
+.tile.focus { border-color: var(--ink); }
+.tile.sel { border-color: var(--ink); box-shadow: 4px 4px 0 var(--shadow); }
+.tile.dis { opacity: .5; cursor: default; }
+.tile .sq { position: absolute; right: 10px; top: 10px; width: 18px; height: 18px; border: 1.5px solid var(--line); display: grid; place-items: center; font: 700 12px var(--mono); }
+.tile.sel .sq { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.tile b { font-size: 15px; line-height: 1.15; padding-right: 26px; }
+.tile .sched { font: 11px var(--mono); color: var(--faint); }
+.tile .prompt { font-size: 12px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tile .foot { margin-top: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font: 10px var(--mono); color: var(--faint); }
+.tile .need { width: 100%; font: 11px var(--mono); padding: 3px 6px; border: 1px dashed var(--warn); color: var(--warn); }
+.tile .here { width: 100%; font: 11px var(--mono); color: var(--faint); }
+.m-side { border-left: 1px solid var(--border); overflow: auto; padding: 16px 18px; display: grid; gap: 14px; align-content: start; background: var(--bg); }
+.m-side .ph { color: var(--faint); font-size: 13px; padding: 30px 6px; text-align: center; border: 1px dashed var(--border); }
+.m-foot { display: flex; gap: 8px; align-items: center; padding: 12px 20px; border-top: 1px solid var(--border); }
+.m-foot .hint { margin-right: auto; font-size: 12px; color: var(--faint); }
+.picked { display: flex; gap: 6px; flex-wrap: wrap; margin-right: auto; align-items: center; font-size: 12px; color: var(--faint); }
+.picked span { font: 11px var(--mono); border: 1px solid var(--ink); padding: 1px 6px; color: var(--text); }
+
+/* ---------- vista MAPA ---------- */
+.map { flex: 1; position: relative; overflow: hidden; background: var(--dots), var(--bg); user-select: none; }
+.map-label { position: absolute; left: 16px; top: 12px; font: 700 10px var(--mono); letter-spacing: .16em; color: var(--faint); z-index: 1; }
+.map-legend { position: absolute; right: 16px; bottom: 10px; display: flex; gap: 14px; font: 11px var(--mono); color: var(--faint); z-index: 4; flex-wrap: wrap; align-items: center; }
+.map-legend i { display: inline-block; width: 22px; height: 0; border-top: 2px dashed var(--line); vertical-align: middle; margin-right: 6px; }
+.map-legend i.x { border-top: 2.5px solid var(--ink); }
+.zone { position: absolute; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 55%, transparent); z-index: 1; }
+.zone::before, .zone::after { content: ''; position: absolute; width: 12px; height: 12px; border: 0 solid var(--ink); }
+.zone::before { left: -1px; top: -1px; border-left-width: 2px; border-top-width: 2px; }
+.zone::after { right: -1px; bottom: -1px; border-right-width: 2px; border-bottom-width: 2px; }
+.zone-head { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-bottom: 1px dashed var(--border); flex-wrap: wrap; }
+.zone-head b { font-size: 14px; }
+.zone-head small { font: 11px var(--mono); color: var(--faint); }
+.zone-head .count { margin-left: auto; font: 11px var(--mono); color: var(--muted); }
+.zone.off { background: var(--hatch), color-mix(in srgb, var(--surface) 40%, transparent); border-color: var(--bad); border-style: dashed; }
+.zone.off .n-card { opacity: .5; }
+.team-frame { position: absolute; border: 1px dashed var(--line); z-index: 1; }
+.team-frame span { position: absolute; left: 8px; top: -9px; background: var(--bg); padding: 0 6px; font: 700 10px var(--mono); letter-spacing: .12em; color: var(--muted); }
+svg.map-wires { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; overflow: visible; }
+.mw .base { fill: none; stroke: var(--line); stroke-width: 1.3; stroke-dasharray: 2 6; }
+.mw.cross .base { stroke: var(--ink); stroke-width: 2; stroke-dasharray: 10 5 2 5; }
+.mw.cross.down .base { stroke: var(--bad); stroke-dasharray: 3 7; opacity: .8; }
+.mw.hot .base { stroke: var(--ink); stroke-width: 2.4; stroke-dasharray: 12 7; animation: flow .7s linear infinite; }
+.mw.hot.rev .base { animation-direction: reverse; }
+@keyframes flow { to { stroke-dashoffset: -19; } }
+.mw-tag { font: 10px var(--mono); fill: var(--text); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
+.mw-tag.down { fill: var(--bad); }
+.packet .core { fill: var(--ink); stroke: var(--bg); stroke-width: 1.5; }
+.packet .halo { fill: none; stroke: var(--ink); stroke-width: 1.2; opacity: .45; }
+.packet .trail { fill: var(--ink); }
+.n-card { position: absolute; transform: translate(-50%, -50%); width: 150px; background: var(--surface); border: 1px solid var(--border); padding: 6px 8px; z-index: 3; display: grid; gap: 2px; transition: border-color .2s; }
+.n-card .t { display: flex; gap: 6px; align-items: center; font-weight: 700; font-size: 12px; line-height: 1.15; }
+.n-card .t .ai-badge { width: 16px; height: 16px; font-size: 9px; margin: 0; }
+.n-card small { font: 10px var(--mono); color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.n-card[data-state='working'] { border-color: var(--ink); }
+.n-card[data-state='working'] small::before { content: '■ '; animation: blink 1.1s steps(2) infinite; display: inline; }
+.n-card[data-state='error'] { box-shadow: inset 4px 0 0 var(--bad); }
+.n-card.you { width: 120px; }
+.n-card.solo { border-style: dashed; }
+.n-card.got { animation: got .6s ease-out; }
+@keyframes got { 40% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ink) 30%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
+.n-card .elsewhere { font: 9px var(--mono); border: 1px solid var(--ink); padding: 0 4px; justify-self: start; }
+.map-side { width: 320px; flex: none; border-left: 1px solid var(--border); background: var(--side); overflow: auto; padding: 12px; display: grid; gap: 6px; align-content: start; }
+.map-side h3 { font: 700 10px var(--mono); letter-spacing: .16em; color: var(--faint); margin-bottom: 4px; }
+.entry { display: grid; grid-template-columns: 40px 1fr; gap: 8px; padding: 6px 2px; border-bottom: 1px solid var(--border-soft); animation: enter2 .35s ease-out; font-size: 12px; }
+@keyframes enter2 { from { opacity: 0; transform: translateY(-4px); } }
+.entry time { font: 10px var(--mono); color: var(--faint); }
+.entry .route { font: 11px var(--mono); color: var(--muted); }
+.entry .route b { color: var(--text); }
+.entry .xp { font: 9px var(--mono); border: 1px solid var(--ink); padding: 0 4px; margin-left: 4px; }
+
+/* ---------- vistas AGENTS e EQUIPE (como ficam) ---------- */
+.mock { flex: 1; overflow: auto; padding: 18px 24px 28px; display: grid; gap: 14px; align-content: start; background: var(--dots), var(--bg); }
+.mock-note { font-size: 12px; color: var(--faint); border-left: 2px solid var(--ink); padding-left: 10px; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.filters span { font: 700 10px var(--mono); letter-spacing: .14em; color: var(--faint); margin-right: 4px; }
+.filters button { font: 12px var(--mono); padding: 4px 10px; border: 1px solid var(--border); color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+.filters button[aria-selected='true'] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.a-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.a-card { border: 1px solid var(--border); background: var(--surface); padding: 12px; display: grid; gap: 7px; align-content: start; position: relative; }
+.a-card.err { box-shadow: inset 4px 0 0 var(--bad); }
+.a-card .top { display: flex; gap: 8px; align-items: center; }
+.a-card .top b { font-size: 15px; }
+.a-card .sched { font: 11px var(--mono); color: var(--faint); }
+.a-card .res { font-size: 12px; color: var(--muted); }
+.where { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; border-top: 1px dashed var(--border); padding-top: 7px; }
+.where > span:first-child { font: 700 9px var(--mono); letter-spacing: .14em; color: var(--faint); }
+.loc { display: inline-flex; gap: 5px; align-items: center; font: 11px var(--mono); padding: 1px 6px; border: 1px solid var(--line); }
+.loc.vesta { border-style: dashed; }
+.loc.off { border-color: var(--bad); color: var(--bad); }
+.loc.off .dot { transform: rotate(45deg) scale(.8); }
+.t-head { border: 1px solid var(--border); background: var(--surface); padding: 12px 14px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.t-head h2 { font: 700 20px var(--body); }
+.t-desk { position: relative; height: 380px; border: 1px solid var(--border); background: var(--dots), var(--bg); overflow: hidden; }
+.t-desk .n-card { width: 190px; }
+</style>
+</head>
+<body>
+<div class="proto" role="toolbar" aria-label="Controles do protótipo">
+  <b>PROTÓTIPO</b>
+  <button id="p-run">Chega uma execução</button>
+  <button id="p-off">VPS cai / volta</button>
+  <button id="p-fail">Um agent falha</button>
+  <button id="theme">Tema: Tinta</button>
+  <span class="note">Quatro vistas nas abas: <b>Lugares</b>, <b>Mapa</b>, e como as telas <b>Agents</b> e <b>Equipes</b> mostram onde cada um roda.</span>
+</div>
+
+<div class="app">
+  <nav class="rail" aria-label="Menu">
+    <span class="avatar" aria-hidden="true"></span>
+    <span class="icon-btn"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/></svg></span>
+    <span class="icon-btn"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>
+    <span class="icon-btn on" title="Agents · Onde rodam"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="10"/><path d="M12 4v4M9 13h.01M15 13h.01"/></svg></span>
+    <span class="icon-btn"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="7" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 8l3 8M16 8l-3 8M8.5 7h7"/></svg></span>
+  </nav>
+
+  <div class="main">
+    <header class="head">
+      <div>
+        <div class="kicker">AGENT MODE · ONDE RODAM</div>
+        <h1>Agents que rodam sem o VeSTA aberto.</h1>
+        <p class="lead">Cada lugar (este PC ou uma VPS) guarda os agents na mesma pasta padrão e usa o agendador do próprio sistema. O VeSTA instala, atualiza, lê o que aconteceu e remove — por SSH, com as suas chaves.</p>
+      </div>
+      <div class="views" role="tablist">
+        <button role="tab" aria-selected="true" data-view="places">Lugares</button>
+        <button role="tab" aria-selected="false" data-view="map">Mapa <small>equipes por lugar</small></button>
+        <button role="tab" aria-selected="false" data-view="agents">Tela Agents <small>como fica</small></button>
+        <button role="tab" aria-selected="false" data-view="team">Tela Equipes <small>como fica</small></button>
+      </div>
+    </header>
+
+    <div class="body">
+      <div class="view on" id="v-places">
+        <aside class="places" aria-label="Lugares">
+          <h3>LUGARES</h3>
+          <div id="place-list" style="display:grid;gap:8px"></div>
+          <button class="place-btn add-place" id="add-place"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Conectar uma VPS</button>
+        </aside>
+        <section class="place" id="place" aria-live="polite"></section>
+      </div>
+      <div class="view" id="v-map">
+        <section class="map" id="map" aria-label="Mapa dos lugares">
+          <span class="map-label">// MAPA · CADA ÁREA É UM LUGAR · FIOS QUE CRUZAM PASSAM PELO SSH</span>
+          <svg class="map-wires" id="map-wires" aria-hidden="true"></svg>
+          <div class="map-legend"><span><i></i>dentro do lugar</span><span><i class="x"></i>entre lugares</span><span><span class="dot off" style="margin-right:6px"></span>lugar fora do ar</span></div>
+        </section>
+        <aside class="map-side"><h3>CONVERSAS DE TODOS OS LUGARES</h3><div id="map-log"></div></aside>
+      </div>
+      <div class="view" id="v-agents"><section class="mock" id="agents-mock"></section></div>
+      <div class="view" id="v-team"><section class="mock" id="team-mock"></section></div>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Gaveta"></aside>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Instalar agents"><div class="modal-box" id="modal-box"></div></div>
+<div class="toast" id="toast" role="status" style="position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--on-ink);font:12px var(--mono);padding:8px 14px;opacity:0;transition:.25s;z-index:9"></div>
+
+<script>
+// ---------------------------------------------------------------------------------------------------------------
+// Dados fictícios.
+const AI = { claude: 'C', codex: 'G', opencode: 'O', drael: 'D' };
+const AI_NAME = { claude: 'Claude', codex: 'Codex', opencode: 'OpenCode', drael: 'Drael' };
+const VESTA_AGENTS = [
+  { id: 'bom-dia', name: 'Bom dia do VeSTA', ai: 'claude', schedule: 'Dias úteis 08:30', mode: 'Só lê', skills: ['resumo-commits'], version: 4, prompt: 'Leia os commits de ontem nos projetos e diga por onde começar o dia.' },
+  { id: 'testes-noite', name: 'Testes de toda noite', ai: 'claude', schedule: 'Todo dia 23:50', mode: 'Só lê', skills: ['depurar-testes', 'portas-ocupadas'], version: 7, changes: 'pedido novo (refino de ontem) e 1 skill nova', prompt: 'Rode npm run build e npm test. Se algo falhar, confira portas ocupadas e diga a causa provável.' },
+  { id: 'faxina', name: 'Faxina da memória', ai: 'claude', schedule: 'A cada 6 h', mode: 'Só lê', skills: [], version: 2, needsMemory: true, prompt: 'Procure páginas repetidas ou vencidas na memória e proponha o que unir.' },
+  { id: 'deps', name: 'Dependências do Mora', ai: 'codex', schedule: 'Segunda 07:00', mode: 'Edita', skills: ['go-modules'], version: 3, prompt: 'Atualize as dependências Go do Mora numa branch e rode os testes.' },
+  { id: 'backup-check', name: 'Backup conferido', ai: 'claude', schedule: 'Todo dia 03:30', mode: 'Só lê', skills: [], version: 1, prompt: 'Confira se o backup de ontem existe, abre e tem os 3 projetos.' },
+  { id: 'issues', name: 'Triagem de issues', ai: 'claude', schedule: 'Dias úteis 09:00', mode: 'Só lê', skills: ['triagem'], version: 2, prompt: 'Leia as issues novas dos repositórios e sugira rótulo e prioridade.' },
+  { id: 'changelog', name: 'Changelog da semana', ai: 'opencode', schedule: 'Sexta 17:00', mode: 'Edita', skills: ['changelog'], version: 1, prompt: 'Escreva o CHANGELOG da semana a partir dos commits.' },
+  { id: 'precos', name: 'Preços da API', ai: 'claude', schedule: 'Todo dia 06:00', mode: 'Só lê', skills: [], version: 1, prompt: 'Compare os preços das APIs de IA com os da semana passada.' },
+  { id: 'logs', name: 'Logs da VPS', ai: 'claude', schedule: 'A cada 2 h', mode: 'Só lê', skills: ['ler-journal'], version: 2, prompt: 'Leia o journal das últimas 2 h e avise só se houver erro novo.' },
+  { id: 'docs', name: 'README em dia', ai: 'drael', schedule: 'Quinta 18:00', mode: 'Edita', skills: [], version: 1, prompt: 'Confira se o README descreve o que mudou e proponha o texto.' },
+  { id: 'seguranca', name: 'Dependências vulneráveis', ai: 'codex', schedule: 'Domingo 10:00', mode: 'Só lê', skills: ['audit'], version: 1, prompt: 'Rode npm audit e govulncheck e liste o que é grave.' },
+];
+const PLACES = [
+  { id: 'pc', name: 'Este PC', kind: 'Windows 11 · Agendador de Tarefas', addr: 'local', online: true, seen: 'agora',
+    runner: '0.32.0', latest: '0.32.0', root: '%LOCALAPPDATA%\\VeSTA\\agents', sep: '\\',
+    ais: { claude: true, codex: true, opencode: true, drael: true },
+    cmds: ['vesta-agent list', 'schtasks /query /tn "\\VeSTA\\"', 'explorer %LOCALAPPDATA%\\VeSTA\\agents'],
+    sched: (id) => '\\VeSTA\\vesta-agent-' + id,
+    agents: [{ id: 'bom-dia', version: 4, next: 'amanhã 08:30', last: { at: 'hoje 08:30', st: 'ok', text: '3 commits ontem; comece pelo teste do quest-lead.', tokens: '41k' } }] },
+  { id: 'vps', name: 'vps-hetzner', kind: 'Ubuntu 24.04 · systemd', addr: 'thiago@203.0.113.10', online: true, seen: 'há 1 min',
+    runner: '0.31.0', latest: '0.32.0', root: '~/.vesta-agents', sep: '/',
+    ais: { claude: true, codex: false, opencode: false, drael: false },
+    cmds: ['vesta-agent list', "systemctl --user list-timers 'vesta-agent-*'", 'journalctl --user -u vesta-agent-testes-noite -n 50'],
+    sched: (id) => 'vesta-agent-' + id + '.timer',
+    agents: [
+      { id: 'testes-noite', version: 6, next: 'hoje 23:50', last: { at: 'ontem 23:50', st: 'err', text: 'test-remote-e2e: porta 4319 ocupada (2 falhas).', tokens: '88k' }, lesson: 'o test-remote-e2e falha quando a porta 4319 está ocupada; confira antes de culpar o código.' },
+      { id: 'backup-check', version: 1, next: 'amanhã 03:30', last: { at: 'hoje 03:30', st: 'ok', text: 'Backup de ontem íntegro (412 MB, 3 projetos).', tokens: '12k' } },
+    ] },
+  { id: 'pi', name: 'raspberry-casa', kind: 'Debian 12 · systemd', addr: 'pi@raspberrypi.local', online: false, seen: 'há 3 dias',
+    runner: '0.30.0', latest: '0.32.0', root: '~/.vesta-agents', sep: '/',
+    ais: { claude: true, codex: false, opencode: false, drael: false },
+    cmds: ['vesta-agent list', "systemctl --user list-timers 'vesta-agent-*'"],
+    sched: (id) => 'vesta-agent-' + id + '.timer',
+    agents: [{ id: 'bom-dia', version: 3, next: '—', last: { at: 'há 3 dias', st: 'ok', text: 'Nada novo nos repositórios.', tokens: '30k' } }] },
+];
+// Agents que rodam no VeSTA aberto mesmo estando instalados noutro lugar; quem não está em lugar nenhum também roda lá.
+const IN_VESTA = ['faxina', 'issues', 'precos'];
+const RUNS = { 'testes-noite': [
+  { at: 'ontem 23:50', st: 'err', dur: '4 min', tokens: '88k', text: 'test-remote-e2e: porta 4319 ocupada (2 falhas). Nada no código.' },
+  { at: 'anteontem 23:50', st: 'ok', dur: '3 min', tokens: '71k', text: '465 testes passaram.' },
+  { at: 'segunda 23:50', st: 'ok', dur: '3 min', tokens: '69k', text: '462 testes passaram.' },
+] };
+
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const agentOf = (id) => VESTA_AGENTS.find((a) => a.id === id);
+const placeOf = (id) => PLACES.find((p) => p.id === id);
+let current = 'vps';
+const place = () => placeOf(current);
+function toast(t) { const el = $('#toast'); el.textContent = t; el.style.opacity = 1; clearTimeout(el.t); el.t = setTimeout(() => (el.style.opacity = 0), 2400); }
+const badPill = (t = 'falhou') => '<span class="bad-pill">✕ ' + t + '</span>';
+// Onde cada agent do VeSTA roda: os lugares em que está instalado, e "VeSTA aberto" para os de hoje.
+function locationsOf(id) {
+  const out = PLACES.filter((p) => p.agents.some((x) => x.id === id)).map((p) => ({ place: p, inst: p.agents.find((x) => x.id === id) }));
+  return { out, inVesta: !out.length || IN_VESTA.includes(id) };
+}
+const locChip = (p) => '<span class="loc' + (p.online ? '' : ' off') + '"><span class="dot ' + (p.online ? 'on' : 'off') + '"></span>' + esc(p.name) + (p.online ? '' : ' · fora do ar') + '</span>';
+const vestaChip = '<span class="loc vesta" title="Só roda com o VeSTA aberto"><span class="dot"></span>VeSTA aberto</span>';
+
+// ---------------------------------------------------------------------------------------------------------------
+// LUGARES
+function renderPlaces() {
+  $('#place-list').innerHTML = PLACES.map((p) => {
+    const old = p.agents.filter((x) => x.version < agentOf(x.id).version).length;
+    const failed = p.agents.filter((x) => x.last.st === 'err').length;
+    return '<button class="place-btn" data-place="' + p.id + '" aria-current="' + (p.id === current) + '">' +
+      '<span class="row"><span class="dot ' + (p.online ? (p.agents.some((a) => a.running) ? 'busy' : 'on') : 'off') + '"></span><b>' + esc(p.name) + '</b><span class="count">' + p.agents.length + '</span></span>' +
+      '<small>' + esc(p.kind) + '</small>' +
+      '<small>' + (p.online ? 'online · ' + p.seen : 'fora do ar · visto ' + p.seen) + '</small>' +
+      (failed || old || p.runner !== p.latest ? '<span class="row" style="gap:6px;margin-top:2px">' + (failed ? badPill(failed + ' falhou') : '') + (p.runner !== p.latest ? '<span class="flag">executor ' + p.runner + '</span>' : '') + (old ? '<span class="flag">' + old + ' desatualizado' + (old > 1 ? 's' : '') + '</span>' : '') + '</span>' : '') +
+      '</button>';
+  }).join('');
+}
+function renderPlace(newIds = []) {
+  const p = place(), off = !p.online, dis = off ? ' disabled' : '';
+  const aiRows = Object.keys(AI).map((k) => p.ais[k]
+    ? '<div class="ai-row"><span class="mark">✓</span>' + AI_NAME[k] + '<span class="how" style="text-decoration:none">login feito</span></div>'
+    : '<div class="ai-row no"><span class="mark">—</span>' + AI_NAME[k] + '<button class="how" data-howto="' + k + '">como instalar</button></div>').join('');
+  const rows = p.agents.map((x) => {
+    const a = agentOf(x.id), old = x.version < a.version, err = x.last.st === 'err';
+    const st = x.running ? '<span class="ok-mark"><span class="dot busy"></span> rodando</span>' : err ? badPill() : '<span class="ok-mark">✓ ok</span>';
+    return '<tr data-agent="' + x.id + '" class="' + (newIds.includes(x.id) ? 'new ' : '') + (err ? 'err' : '') + '">' +
+      '<td class="a-name"><b>' + esc(a.name) + '</b><code>' + esc(p.sched(x.id)) + '</code></td>' +
+      '<td><span class="ai-badge">' + AI[a.ai] + '</span>' + AI_NAME[a.ai] + '</td>' +
+      '<td>' + esc(a.schedule) + '<div class="ver">próxima: ' + esc(x.next) + '</div></td>' +
+      '<td>' + st + '<div class="ver">' + esc(x.last.at) + ' · ' + x.last.tokens + ' tokens</div><div style="font-size:12px;color:var(--muted)">' + esc(x.last.text) + '</div>' + (x.lesson ? '<div class="flag" style="display:inline-block;margin-top:4px">1 lição esperando seu sim</div>' : '') + '</td>' +
+      '<td class="ver' + (old ? ' old' : '') + '">v' + x.version + (old ? '<small>VeSTA tem v' + a.version + '</small>' : '<small>em dia</small>') + '</td>' +
+      '<td><div class="row-actions">' + (old ? '<button class="btn sm ink" data-act="update" data-id="' + x.id + '"' + dis + '>Atualizar</button>' : '') +
+      '<button class="btn sm" data-act="runnow" data-id="' + x.id + '"' + dis + '>Rodar agora</button><button class="btn sm" data-act="runs" data-id="' + x.id + '">Execuções</button><button class="btn sm danger" data-act="remove" data-id="' + x.id + '"' + dis + '>Remover</button></div></td></tr>';
+  }).join('');
+  const s = p.sep;
+  const lines = [['', p.root + s, ''], ['', '├─ runner' + s, 'o executor (versão ' + p.runner + ')'], ['', '├─ config.json', 'onde está cada IA, fuso, teto de tokens'], ['', '└─ agents' + s, ''],
+    ...p.agents.flatMap((x, i) => {
+      const last = i === p.agents.length - 1, b = last ? '    ' : '   │', a = agentOf(x.id);
+      return [[x.id, '   ' + (last ? '└─ ' : '├─ ') + x.id + s, ''], [x.id, b + ' ├─ agent.json', 'pedido, agenda, IA, modelo, modo, lições (v' + x.version + ')'], [x.id, b + ' ├─ skills' + s, a.skills.length ? a.skills.join(', ') : 'nenhuma'], [x.id, b + ' ├─ work' + s, 'pasta de trabalho'], [x.id, b + ' └─ runs' + s, 'uma linha por execução + log']];
+    })];
+  $('#place').innerHTML =
+    '<div class="place-head"><span class="dot ' + (off ? 'off' : 'on') + '"></span><h2>' + esc(p.name) + '</h2><span class="chip">' + esc(p.kind) + '</span><span class="chip mono">' + esc(p.addr) + '</span>' +
+      '<div class="actions"><button class="btn" id="refresh"' + dis + '>Atualizar a lista</button>' + (p.id !== 'pc' ? '<button class="btn danger" id="forget">Esquecer este lugar</button>' : '') + '</div></div>' +
+    (off ? '<div class="offline-note"><span class="bad-pill">✕ fora do ar</span>Sem conexão com ' + esc(p.addr) + ' desde ' + p.seen + '. A lista abaixo é a última que o VeSTA leu.</div>' : '') +
+    '<div class="boxes"><div class="box"><h4>EXECUTOR</h4><div class="big">' + p.runner + '</div>' +
+      (p.runner !== p.latest ? '<div style="font-size:12px;color:var(--warn)">' + p.latest + ' disponível</div><button class="btn sm ink" id="up-runner"' + dis + '>Atualizar o executor</button>' : '<div style="font-size:12px;color:var(--faint)">a versão deste VeSTA</div>') + '</div>' +
+      '<div class="box"><h4>IAS NESTE LUGAR</h4><div class="ais">' + aiRows + '</div></div>' +
+      '<div class="box"><h4>PASTA PADRÃO <button class="btn sm" id="copy">Copiar</button></h4><div class="path"><code>' + esc(p.root) + '</code></div><div class="label" style="margin:4px 0 0">PARA MEXER SEM O VESTA</div><div class="cmds">' + p.cmds.map((c) => '<span>' + esc(c) + '</span>').join('') + '</div></div></div>' +
+    '<div class="section-title"><h3>AGENTS INSTALADOS AQUI · ' + p.agents.length + '</h3><div class="actions"><button class="btn ink" id="install"' + dis + '><svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Instalar agents aqui</button></div></div>' +
+    (p.agents.length ? '<table><thead><tr><th>AGENT · AGENDADOR</th><th>IA</th><th>QUANDO</th><th>ÚLTIMA EXECUÇÃO</th><th>VERSÃO</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '<div class="empty">Nenhum agent aqui ainda.</div>') +
+    '<div class="section-title"><h3>A PASTA · PASSE O MOUSE NUM AGENT</h3></div>' +
+    '<div class="tree" id="tree">' + lines.map(([k, t, c]) => '<span class="ln" data-k="' + k + '">' + esc(t) + (c ? '  <span class="c"># ' + esc(c) + '</span>' : '') + '</span>').join('') + '</div>';
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Gaveta e passos.
+function openDrawer(html) { $('#drawer').innerHTML = html; $('#drawer').classList.add('on'); $('#scrim').classList.add('on'); }
+function closeAll() { $('#drawer').classList.remove('on'); $('#modal').classList.remove('on'); $('#scrim').classList.remove('on'); }
+const head = (title, sub) => '<div class="d-head"><div><h3>' + title + '</h3><p>' + sub + '</p></div><button class="x" data-close aria-label="Fechar">✕</button></div>';
+const stepsHtml = (list) => '<div class="steps">' + list.map(([t, c], i) => '<div class="step" data-step="' + i + '"><span class="m">·</span><div>' + t + (c ? '<code>' + esc(c) + '</code>' : '') + '</div></div>').join('') + '</div>';
+function play(root, done, ms = 450) {
+  const steps = [...root.querySelectorAll('.step')];
+  let i = 0;
+  const next = () => {
+    if (i > 0) { steps[i - 1].classList.replace('doing', 'ok'); steps[i - 1].querySelector('.m').textContent = '✓'; }
+    if (i === steps.length) return done();
+    steps[i].classList.add('doing'); steps[i].querySelector('.m').textContent = '›'; steps[i].scrollIntoView({ block: 'nearest' });
+    i++; setTimeout(next, ms);
+  };
+  next();
+}
+const remoteRoot = (p) => p.root.replace('%LOCALAPPDATA%', 'C:\\Users\\voce\\AppData\\Local');
+
+// ---------------------------------------------------------------------------------------------------------------
+// INSTALAR: uma janela grande com os agents em quadrados (como na tela Agents), vários de uma vez.
+let pick = { tab: 'all', q: '', sel: new Set(), focus: null };
+function statusFor(p, a) {
+  if (p.agents.some((x) => x.id === a.id)) return { kind: 'here' };
+  if (!p.ais[a.ai]) return { kind: 'need', text: AI_NAME[a.ai] + ' não está instalado lá' };
+  return { kind: 'ready', warn: a.needsMemory ? 'roda sem a memória do VeSTA' : '' };
+}
+function installModal() {
+  pick = { tab: 'all', q: '', sel: new Set(), focus: null };
+  const p = place();
+  $('#modal-box').innerHTML =
+    '<div class="m-head"><div><h3>Instalar agents em ' + esc(p.name) + '</h3><p>' + esc(p.kind) + ' · pasta ' + esc(p.root) + ' · cada um leva o pedido, a agenda e as skills.</p></div><button class="x" data-close aria-label="Fechar">✕</button></div>' +
+    '<div class="m-bar"><div class="m-tabs" id="m-tabs"></div><label class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><input id="m-q" placeholder="Buscar pelo nome ou pelo pedido" aria-label="Buscar agent"></label></div>' +
+    '<div class="m-main"><div class="tiles" id="tiles"></div><aside class="m-side" id="m-side"></aside></div>' +
+    '<div class="m-foot"><div class="picked" id="picked"></div><button class="btn" data-close>Cancelar</button><button class="btn ink" id="do-install" disabled>Instalar</button></div>';
+  $('#modal').classList.add('on'); $('#scrim').classList.add('on');
+  $('#m-q').oninput = (e) => { pick.q = e.target.value.toLowerCase(); renderTiles(); };
+  renderTiles();
+  setTimeout(() => $('#m-q').focus(), 50);
+}
+function renderTiles() {
+  const p = place();
+  const all = VESTA_AGENTS.map((a) => ({ a, s: statusFor(p, a) }));
+  const count = (k) => all.filter((x) => x.s.kind === k).length;
+  $('#m-tabs').innerHTML = [['all', 'Todos', all.length], ['ready', 'Prontos', count('ready')], ['need', 'Precisam de algo', count('need')], ['here', 'Já estão aqui', count('here')]]
+    .map(([id, l, n]) => '<button data-mtab="' + id + '" aria-selected="' + (pick.tab === id) + '">' + l + ' ' + n + '</button>').join('');
+  const shown = all.filter(({ a, s }) => (pick.tab === 'all' || s.kind === pick.tab) && (!pick.q || (a.name + ' ' + a.prompt).toLowerCase().includes(pick.q)));
+  $('#tiles').innerHTML = shown.map(({ a, s }) => {
+    const dis = s.kind !== 'ready', sel = pick.sel.has(a.id), here = locationsOf(a.id);
+    return '<button class="tile' + (dis ? ' dis' : '') + (sel ? ' sel' : '') + (pick.focus === a.id ? ' focus' : '') + '" data-tile="' + a.id + '"' + (dis ? ' aria-disabled="true"' : '') + ' aria-pressed="' + sel + '">' +
+      '<span class="sq">' + (sel ? '✓' : '') + '</span><b>' + esc(a.name) + '</b>' +
+      '<span class="sched"><span class="ai-badge" style="width:16px;height:16px;font-size:9px">' + AI[a.ai] + '</span>' + esc(a.schedule) + ' · ' + a.mode + '</span>' +
+      '<span class="prompt">' + esc(a.prompt) + '</span>' +
+      '<span class="foot">' + (a.skills.length ? a.skills.length + ' skill' + (a.skills.length > 1 ? 's' : '') : 'sem skills') + ' · v' + a.version +
+        (here.out.length || here.inVesta ? ' · já roda em: ' + [...(here.inVesta ? ['VeSTA aberto'] : []), ...here.out.map((o) => o.place.name)].join(', ') : '') + '</span>' +
+      (s.kind === 'need' ? '<span class="need">✕ ' + esc(s.text) + '</span>' : s.kind === 'here' ? '<span class="here">✓ já está neste lugar</span>' : s.warn ? '<span class="need" style="border-style:dotted">! ' + esc(s.warn) + '</span>' : '') +
+      '</button>';
+  }).join('') || '<div class="empty" style="grid-column:1/-1">Nenhum agent com esse filtro.</div>';
+  renderSide();
+}
+function renderSide() {
+  const p = place();
+  const n = pick.sel.size;
+  $('#picked').innerHTML = n ? '<b style="color:var(--text)">' + n + ' escolhido' + (n > 1 ? 's' : '') + ':</b> ' + [...pick.sel].map((id) => '<span>' + esc(agentOf(id).name) + '</span>').join('') : 'Clique nos quadrados para escolher (dá para escolher vários).';
+  $('#do-install').disabled = !n;
+  $('#do-install').textContent = n > 1 ? 'Instalar ' + n + ' agents' : 'Instalar';
+  const id = pick.focus;
+  if (!id) { $('#m-side').innerHTML = '<div class="ph">Passe o mouse ou clique num quadrado para ver o que vai junto e o que o VeSTA vai fazer.</div>'; return; }
+  const a = agentOf(id), s = statusFor(p, a);
+  const checks = [[true, 'Conexão e executor ' + p.runner], [!!p.ais[a.ai], AI_NAME[a.ai] + (p.ais[a.ai] ? ' instalado e com login' : ' não está instalado lá'), p.ais[a.ai] ? '' : 'ssh ' + p.addr + ' e rode: npm i -g @openai/codex && codex login']];
+  if (a.needsMemory) checks.push([null, 'Usa a memória do VeSTA: lá ele roda sem ela (a memória fica no seu PC).']);
+  $('#m-side').innerHTML =
+    '<div><div class="label">' + esc(a.name).toUpperCase() + '</div><div class="goes">' +
+      '<div><span class="k">pedido</span><span>' + esc(a.prompt) + '</span></div>' +
+      '<div><span class="k">agenda</span><span>' + esc(a.schedule) + '</span></div>' +
+      '<div><span class="k">skills</span><span>' + (a.skills.length ? a.skills.map((x) => '<code>' + x + '</code>').join(', ') : '<span class="no">nenhuma</span>') + '</span></div>' +
+      '<div><span class="k">modo</span><span>' + a.mode + '</span></div>' +
+      '<div><span class="k">não vai</span><span class="no">suas chaves e logins, a memória, as conversas</span></div></div></div>' +
+    '<div><div class="label">ANTES DE INSTALAR</div><div class="checks">' + checks.map(([ok, t, c]) => '<div class="check' + (ok === false ? ' bad' : '') + '"><span class="m">' + (ok === false ? '✕' : ok === null ? '!' : '✓') + '</span><div>' + t + (c ? '<code>' + esc(c) + '</code>' : '') + '</div></div>').join('') + '</div></div>' +
+    (s.kind === 'here' ? '' : '<div><div class="label">O QUE O VESTA VAI FAZER</div>' + stepsHtml([
+      ['Empacotar com as skills', a.id + '-v' + a.version + '.tgz'],
+      [p.id === 'pc' ? 'Copiar para a pasta padrão' : 'Enviar por SSH', p.id === 'pc' ? '' : 'scp … ' + p.addr + ':' + p.root + '/inbox/'],
+      ['Instalar', 'vesta-agent install ' + a.id + '-v' + a.version + '.tgz'],
+      ['Criar o agendamento', p.id === 'pc' ? 'schtasks /create /tn "\\VeSTA\\vesta-agent-' + a.id + '" …' : 'systemctl --user enable --now vesta-agent-' + a.id + '.timer'],
+    ]) + '</div>');
+}
+function doInstall() {
+  const p = place(), ids = [...pick.sel];
+  $('#do-install').disabled = true;
+  $('#m-side').innerHTML = '<div><div class="label">INSTALANDO EM ' + esc(p.name).toUpperCase() + '</div>' + stepsHtml(ids.flatMap((id) => {
+    const a = agentOf(id);
+    return [[esc(a.name) + ': empacotar e enviar', a.id + '-v' + a.version + '.tgz'], [esc(a.name) + ': instalar e agendar', 'vesta-agent install ' + a.id + '-v' + a.version + '.tgz']];
+  }).concat([['Conferir', 'vesta-agent list --json']])) + '</div>';
+  play($('#m-side'), () => {
+    for (const id of ids) p.agents.push({ id, version: agentOf(id).version, next: 'na próxima da agenda', last: { at: '—', st: 'ok', text: 'Ainda não rodou.', tokens: '0' } });
+    closeAll(); renderPlaces(); renderPlace(ids); toast(ids.length + ' agent' + (ids.length > 1 ? 's' : '') + ' instalado' + (ids.length > 1 ? 's' : '') + ' em ' + p.name);
+  }, 380);
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Atualizar, remover, execuções, conectar, executor (gavetas).
+function updateDrawer(id) {
+  const p = place(), a = agentOf(id), x = p.agents.find((y) => y.id === id);
+  openDrawer(head('Atualizar ' + esc(a.name), 'Em ' + esc(p.name) + ': v' + x.version + ' → v' + a.version) +
+    '<div class="d-body"><div class="goes"><div><span class="k">mudou</span><span>' + esc(a.changes || 'pequenos ajustes') + '</span></div><div><span class="k">fica lá</span><span>runs/ e work/</span></div>' +
+    (x.lesson ? '<div><span class="k">antes</span><span>a lição pendente de lá vem para o VeSTA.</span></div>' : '') + '</div>' +
+    stepsHtml([x.lesson ? ['Trazer a lição pendente', 'vesta-agent pull ' + id + ' --lessons'] : ['Ler o estado de lá', 'vesta-agent status ' + id], ['Enviar a versão nova', id + '-v' + a.version + '.tgz'], ['Trocar agent.json e skills/', 'vesta-agent update ' + id + '-v' + a.version + '.tgz'], ['Conferir', 'vesta-agent list --json']]) + '</div>' +
+    '<div class="d-foot"><button class="btn" data-close>Cancelar</button><button class="btn ink" id="do-update">Atualizar</button></div>');
+  $('#do-update').onclick = () => { $('#do-update').disabled = true; play($('#drawer'), () => { x.version = a.version; closeAll(); renderPlaces(); renderPlace([id]); toast(a.name + ' atualizado'); }); };
+}
+function removeDrawer(id) {
+  const p = place(), a = agentOf(id);
+  openDrawer(head('Remover ' + esc(a.name), 'De ' + esc(p.name) + '. O agent continua no VeSTA.') +
+    '<div class="d-body"><label class="opt"><input type="checkbox" id="keep" checked><div><b>Guardar o histórico</b><br><span style="color:var(--faint)">Traz runs/ para o diário do agent antes de apagar.</span></div></label>' +
+    stepsHtml([['Desligar o agendamento', p.id === 'pc' ? 'schtasks /delete /tn "\\VeSTA\\vesta-agent-' + id + '" /f' : 'systemctl --user disable --now vesta-agent-' + id + '.timer'], ['Trazer o histórico', 'vesta-agent pull ' + id + ' --runs'], ['Apagar a pasta do agent', 'vesta-agent remove ' + id + '   → ' + remoteRoot(p) + p.sep + 'agents' + p.sep + id]]) + '</div>' +
+    '<div class="d-foot"><span class="hint">Se estiver rodando, espera terminar.</span><button class="btn" data-close>Cancelar</button><button class="btn ink" id="do-remove">Remover</button></div>');
+  $('#keep').onchange = (e) => { $('#drawer .step[data-step="1"]').style.display = e.target.checked ? '' : 'none'; };
+  $('#do-remove').onclick = () => { $('#do-remove').disabled = true; document.querySelectorAll('#drawer .step').forEach((s) => s.style.display === 'none' && s.remove()); play($('#drawer'), () => { p.agents = p.agents.filter((y) => y.id !== id); closeAll(); renderPlaces(); renderPlace(); toast(a.name + ' removido de ' + p.name); }); };
+}
+function runsDrawer(id) {
+  const p = place(), a = agentOf(id), x = p.agents.find((y) => y.id === id);
+  const runs = RUNS[id] || [{ at: x.last.at, st: x.last.st, dur: '2 min', tokens: x.last.tokens, text: x.last.text }];
+  openDrawer(head('Execuções de ' + esc(a.name), 'Em ' + esc(p.name) + ' · lidas de ' + esc(remoteRoot(p) + p.sep + 'agents' + p.sep + id + p.sep + 'runs')) +
+    '<div class="d-body">' + (x.lesson ? '<div class="lesson" id="lesson"><div class="label" style="margin:0">APRENDEU LÁ · ESPERA O SEU SIM</div><div>Lição: ' + esc(x.lesson) + '</div><div class="btns"><button class="btn sm ink" data-lesson="keep">Manter</button><button class="btn sm" data-lesson="drop">Apagar</button></div></div>' : '') +
+    '<div class="runs">' + runs.map((r) => '<div class="run' + (r.st === 'err' ? ' err' : '') + '"><div class="top"><span>' + esc(r.at) + '</span><span>' + r.dur + '</span><span>' + r.tokens + ' tokens</span><span class="st">' + (r.st === 'err' ? badPill() : '<span class="ok-mark">✓ ok</span>') + '</span></div><p>' + esc(r.text) + '</p></div>').join('') + '</div></div>' +
+    '<div class="d-foot"><button class="btn" data-close>Fechar</button></div>');
+}
+function connectDrawer() {
+  openDrawer(head('Conectar uma VPS', 'Por SSH, com as chaves que você já usa (~/.ssh). O VeSTA não guarda senha.') +
+    '<div class="d-body"><div class="field"><span class="label" style="margin:0">NOME</span><input id="c-name" value="vps-nova"></div>' +
+    '<div class="grid2"><div class="field"><span class="label" style="margin:0">USUÁRIO@HOST</span><input id="c-addr" value="thiago@198.51.100.7"></div><div class="field"><span class="label" style="margin:0">PORTA</span><input value="22"></div></div>' +
+    stepsHtml([['Conectar', 'ssh thiago@198.51.100.7 "uname -a"'], ['Node 20 ou mais', 'node --version   → v22.11.0'], ['Instalar o executor na pasta padrão', 'npm i -g vesta-agent@0.32.0 && vesta-agent init'], ['Agendador sem login aberto', 'loginctl enable-linger thiago'], ['Procurar as IAs', 'claude ✓ · codex — · opencode — · drael —']]) + '</div>' +
+    '<div class="d-foot"><span class="hint">Cada passo mostra o comando antes.</span><button class="btn" data-close>Cancelar</button><button class="btn ink" id="do-connect">Testar e conectar</button></div>');
+  $('#do-connect').onclick = () => { $('#do-connect').disabled = true; play($('#drawer'), () => {
+    PLACES.push({ id: 'n' + Date.now(), name: $('#c-name').value || 'vps-nova', kind: 'Ubuntu 24.04 · systemd', addr: $('#c-addr').value, online: true, seen: 'agora', runner: '0.32.0', latest: '0.32.0', root: '~/.vesta-agents', sep: '/', ais: { claude: true, codex: false, opencode: false, drael: false }, cmds: ['vesta-agent list'], sched: (id) => 'vesta-agent-' + id + '.timer', agents: [] });
+    current = PLACES.at(-1).id; closeAll(); renderPlaces(); renderPlace(); toast('VPS conectada'); }); };
+}
+function runnerDrawer() {
+  const p = place();
+  openDrawer(head('Atualizar o executor', esc(p.name) + ': ' + p.runner + ' → ' + p.latest) +
+    '<div class="d-body">' + stepsHtml([['Esperar quem está rodando', 'vesta-agent status'], ['Instalar a versão nova', 'npm i -g vesta-agent@' + p.latest], ['Conferir', 'vesta-agent --version']]) + '</div>' +
+    '<div class="d-foot"><button class="btn" data-close>Cancelar</button><button class="btn ink" id="do-runner">Atualizar</button></div>');
+  $('#do-runner').onclick = () => { $('#do-runner').disabled = true; play($('#drawer'), () => { p.runner = p.latest; closeAll(); renderPlaces(); renderPlace(); toast('Executor atualizado'); }); };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// MAPA: cada lugar é uma área; dentro, as equipes (num quadro tracejado) e os agents soltos. Fios dentro do lugar são
+// finos; fios entre lugares são grossos e passam pelo SSH (o VeSTA leva a mensagem). Um lugar fora do ar corta os fios.
+const ZONES = [
+  { id: 'pc', x: .02, y: .05, w: .46, h: .9 },
+  { id: 'vps', x: .51, y: .05, w: .47, h: .62 },
+  { id: 'pi', x: .51, y: .71, w: .47, h: .24 },
+];
+const FRAMES = [
+  { label: 'EQUIPE DO MORA', zone: 'pc', x: .035, y: .3, w: .3, h: .62 },
+  { label: 'EQUIPE DO SITE', zone: 'vps', x: .535, y: .2, w: .3, h: .43 },
+];
+const NODES = [
+  { id: 'voce', name: 'Você', sub: 'no VeSTA', zone: 'pc', x: .4, y: .17, you: true },
+  { id: 'm-lider', name: 'Líder', sub: 'Equipe do Mora', ai: 'claude', zone: 'pc', x: .18, y: .42 },
+  { id: 'm-dev', name: 'Go-dev', sub: 'equipe/mora/go-dev', ai: 'codex', zone: 'pc', x: .11, y: .64 },
+  { id: 'm-testes', name: 'Testes', sub: 'equipe/mora/testes', ai: 'opencode', zone: 'pc', x: .25, y: .8 },
+  { id: 's-docs', name: 'Docs', sub: 'equipe/site/docs', ai: 'drael', zone: 'pc', x: .4, y: .6, elsewhere: 'vps-hetzner' },
+  { id: 's-lider', name: 'Líder', sub: 'Equipe do site', ai: 'claude', zone: 'vps', x: .685, y: .3 },
+  { id: 's-dev', name: 'Dev', sub: 'equipe/site/dev', ai: 'claude', zone: 'vps', x: .6, y: .53 },
+  { id: 's-rev', name: 'Revisor', sub: 'só lê', ai: 'claude', zone: 'vps', x: .77, y: .53 },
+  { id: 'testes-noite', name: 'Testes de toda noite', sub: 'sozinho · 23:50', ai: 'claude', zone: 'vps', x: .91, y: .17, solo: true, error: true },
+  { id: 'backup-check', name: 'Backup conferido', sub: 'sozinho · 03:30', ai: 'claude', zone: 'vps', x: .91, y: .48, solo: true },
+  { id: 'pi-bom', name: 'Bom dia do VeSTA', sub: 'sozinho · 08:30', ai: 'claude', zone: 'pi', x: .74, y: .85, solo: true },
+];
+const LINKS = [
+  ['voce', 'm-lider'], ['m-lider', 'm-dev'], ['m-lider', 'm-testes'], ['m-dev', 'm-testes'],
+  ['s-lider', 's-dev'], ['s-lider', 's-rev'], ['s-dev', 's-rev'],
+  ['voce', 's-lider'], ['s-lider', 's-docs'], ['m-lider', 's-lider'], ['testes-noite', 'voce'], ['backup-check', 'pi-bom'],
+];
+const nodeOf = (id) => NODES.find((n) => n.id === id);
+const zoneOfNode = (id) => nodeOf(id).zone;
+const cross = (a, b) => zoneOfNode(a) !== zoneOfNode(b);
+const SCRIPT = [
+  ['voce', 'm-lider', 'task', 'Objetivo: tela de agendamentos no Mora.'],
+  ['m-lider', 'm-dev', 'task', 'T1: endpoint /agendamentos em Go.'],
+  ['m-lider', 's-lider', 'ask', 'O site vai consumir /agendamentos? Combinamos o formato?'],
+  ['s-lider', 'm-lider', 'answer', 'Sim: JSON com id, data, cliente. Docs anota no README.'],
+  ['s-lider', 's-docs', 'task', 'T4: documentar o contrato /agendamentos.'],
+  ['m-dev', 'm-testes', 'review', 'T1 pronta para testes.'],
+  ['s-lider', 's-dev', 'task', 'T2: página que lista os agendamentos.'],
+  ['s-dev', 's-rev', 'review', 'T2 pronta para revisão.'],
+  ['s-docs', 's-lider', 'answer', 'T4 feita na branch equipe/site/docs.'],
+  ['testes-noite', 'voce', 'ask', 'Falhou de novo: porta 4319 ocupada. Ignoro amanhã?'],
+  ['s-rev', 's-dev', 'review', 'T2 voltou: falta paginação.'],
+  ['m-testes', 'm-lider', 'answer', 'T1 passou: 14 testes.'],
+  ['backup-check', 'pi-bom', 'answer', 'Backup íntegro: entra no resumo de amanhã.'],
+  ['s-lider', 'voce', 'human', 'Posso juntar equipe/site/dev?'],
+];
+let mapBuilt = false, scriptAt = 0;
+const NS = 'http://www.w3.org/2000/svg';
+const svgEl = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.appendChild(e); return e; };
+const wires = new Map();
+function buildMap() {
+  const map = $('#map');
+  map.querySelectorAll('.zone,.team-frame,.n-card').forEach((e) => e.remove());
+  for (const z of ZONES) {
+    const p = placeOf(z.id);
+    const el = document.createElement('div');
+    el.className = 'zone' + (p.online ? '' : ' off');
+    el.dataset.zone = z.id;
+    Object.assign(el.style, { left: z.x * 100 + '%', top: z.y * 100 + '%', width: z.w * 100 + '%', height: z.h * 100 + '%' });
+    const n = NODES.filter((x) => x.zone === z.id && !x.you).length;
+    el.innerHTML = '<div class="zone-head"><span class="dot ' + (p.online ? 'on' : 'off') + '"></span><b>' + esc(p.name) + '</b><small>' + esc(p.kind) + '</small>' + (p.online ? '' : '<span class="bad-pill">✕ fora do ar · ' + p.seen + '</span>') + '<span class="count">' + n + ' agent' + (n === 1 ? '' : 's') + '</span></div>';
+    map.appendChild(el);
+  }
+  for (const f of FRAMES) {
+    const el = document.createElement('div');
+    el.className = 'team-frame';
+    Object.assign(el.style, { left: f.x * 100 + '%', top: f.y * 100 + '%', width: f.w * 100 + '%', height: f.h * 100 + '%' });
+    el.innerHTML = '<span>' + f.label + '</span>';
+    map.appendChild(el);
+  }
+  for (const n of NODES) {
+    const el = document.createElement('div');
+    el.className = 'n-card' + (n.you ? ' you' : '') + (n.solo ? ' solo' : '');
+    el.dataset.node = n.id;
+    el.dataset.state = n.error ? 'error' : 'idle';
+    el.style.left = n.x * 100 + '%'; el.style.top = n.y * 100 + '%';
+    el.innerHTML = '<div class="t">' + (n.ai ? '<span class="ai-badge">' + AI[n.ai] + '</span>' : '') + esc(n.name) + '</div><small>' + esc(n.sub) + '</small>' +
+      (n.error ? '<span class="bad-pill" style="justify-self:start">✕ falhou ontem</span>' : '') +
+      (n.elsewhere ? '<span class="elsewhere">equipe em ' + n.elsewhere + '</span>' : '');
+    map.appendChild(el);
+  }
+  mapBuilt = true;
+  drawMapWires();
+}
+function center(id) { const r = $('#map').getBoundingClientRect(), n = nodeOf(id); return [n.x * r.width, n.y * r.height]; }
+function curve([x1, y1], [x2, y2]) {
+  const dx = x2 - x1, dy = y2 - y1;
+  if (Math.abs(dy) > Math.abs(dx) * .6) { const k = dy * .5; return `M${x1},${y1} C${x1},${y1 + k} ${x2},${y2 - k} ${x2},${y2}`; }
+  const k = dx * .5; return `M${x1},${y1} C${x1 + k},${y1} ${x2 - k},${y2} ${x2},${y2}`;
+}
+function drawMapWires() {
+  const svg = $('#map-wires');
+  svg.querySelectorAll('.mw').forEach((g) => g.remove());
+  wires.clear();
+  for (const [a, b] of LINKS) {
+    const x = cross(a, b);
+    const down = !placeOf(zoneOfNode(a)).online || !placeOf(zoneOfNode(b)).online;
+    const g = svgEl('g', { class: 'mw' + (x ? ' cross' : '') + (down ? ' down' : '') }, svg);
+    const base = svgEl('path', { class: 'base', d: curve(center(a), center(b)) }, g);
+    if (x) {
+      const p = base.getPointAtLength(base.getTotalLength() / 2);
+      svgEl('text', { class: 'mw-tag' + (down ? ' down' : ''), x: p.x, y: p.y - 8, 'text-anchor': 'middle' }, g).textContent = down ? '✕ sem conexão' : 'ssh';
+    }
+    wires.set([a, b].sort().join('|'), { g, base, a, down });
+  }
+}
+function shape(kind, g) {
+  if (kind === 'task') return svgEl('rect', { class: 'core', x: -5.5, y: -5.5, width: 11, height: 11 }, g);
+  if (kind === 'review') return svgEl('polygon', { class: 'core', points: '0,-7.5 7.5,0 0,7.5 -7.5,0' }, g);
+  if (kind === 'human') return svgEl('polygon', { class: 'core', points: '0,-8 2.3,-3 7.6,-2.5 3.6,1.2 4.7,6.5 0,3.8 -4.7,6.5 -3.6,1.2 -7.6,-2.5 -2.3,-3' }, g);
+  return svgEl('circle', { class: 'core', r: 5.5 }, g);
+}
+const KIND = { task: 'tarefa', ask: 'pergunta', answer: 'resposta', review: 'revisão', human: 'seu sim' };
+let clock = 9 * 60 + 14;
+function mapLog(from, to, kind, text, held) {
+  const e = document.createElement('div');
+  e.className = 'entry';
+  const x = cross(from, to);
+  const hh = String(Math.floor(clock / 60)).padStart(2, '0') + ':' + String(clock % 60).padStart(2, '0');
+  e.innerHTML = '<time>' + hh + '</time><div><div class="route"><b>' + esc(nodeOf(from).name) + '</b> → <b>' + esc(nodeOf(to).name) + '</b> · ' + KIND[kind] + (x ? '<span class="xp">' + esc(placeOf(zoneOfNode(from)).name) + ' → ' + esc(placeOf(zoneOfNode(to)).name) + '</span>' : '') + '</div><div>' + (held ? badPill('na fila: lugar fora do ar') + ' ' : '') + esc(text) + '</div></div>';
+  $('#map-log').prepend(e);
+}
+function travel(from, to, kind, text) {
+  const w = wires.get([from, to].sort().join('|'));
+  if (!w) return;
+  clock += 1 + Math.floor(Math.random() * 3);
+  if (w.down) { mapLog(from, to, kind, text, true); return; }
+  w.g.classList.add('hot'); w.g.classList.toggle('rev', w.a !== [from, to].sort()[0] ? false : from !== [from, to].sort()[0]);
+  const fromCard = $('[data-node="' + from + '"]');
+  if (fromCard && !nodeOf(from).you && !nodeOf(from).error) fromCard.dataset.state = 'working';
+  const g = svgEl('g', { class: 'packet', visibility: 'hidden' }, $('#map-wires'));
+  const trail = [0, 1, 2, 3, 4, 5].map((i) => svgEl('circle', { class: 'trail', r: 3.6 - i * .5, opacity: .55 - i * .09 }, g));
+  const halo = svgEl('circle', { class: 'halo', r: 11 }, g);
+  const core = shape(kind, g);
+  const back = [from, to].sort()[0] !== from;
+  const dur = cross(from, to) ? 2300 : 1500, start = performance.now();
+  const at = (d) => { const len = w.base.getTotalLength(); return w.base.getPointAtLength(Math.max(0, Math.min(len, back ? len * (1 - d) : len * d))); };
+  const frame = (t) => {
+    const e = Math.min(1, (t - start) / dur), ease = e < .5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2, pt = at(ease);
+    core.setAttribute('transform', 'translate(' + pt.x + ',' + pt.y + ')');
+    halo.setAttribute('cx', pt.x); halo.setAttribute('cy', pt.y); halo.setAttribute('r', 9 + Math.sin(t / 90) * 2.5);
+    trail.forEach((c, i) => { const q = at(Math.max(0, ease - (i + 1) * .028)); c.setAttribute('cx', q.x); c.setAttribute('cy', q.y); });
+    g.removeAttribute('visibility');
+    if (e < 1) return requestAnimationFrame(frame);
+    g.remove();
+    setTimeout(() => w.g.classList.remove('hot', 'rev'), 1200);
+    if (fromCard && fromCard.dataset.state === 'working') fromCard.dataset.state = 'idle';
+    const card = $('[data-node="' + to + '"]');
+    if (card) { card.classList.remove('got'); void card.offsetWidth; card.classList.add('got'); }
+    mapLog(from, to, kind, text);
+  };
+  requestAnimationFrame(frame);
+}
+setInterval(() => {
+  if (!$('#v-map').classList.contains('on') || !mapBuilt) return;
+  const [a, b, k, t] = SCRIPT[scriptAt++ % SCRIPT.length];
+  travel(a, b, k, t);
+}, 1700);
+
+// ---------------------------------------------------------------------------------------------------------------
+// TELA AGENTS (como fica): cada cartão diz onde o agent roda; um filtro por lugar.
+let agentsFilter = 'all';
+function renderAgentsMock() {
+  const filters = [['all', 'Todos'], ['vesta', 'VeSTA aberto'], ...PLACES.map((p) => [p.id, p.name])];
+  const match = (a) => { const l = locationsOf(a.id); return agentsFilter === 'all' || (agentsFilter === 'vesta' ? l.inVesta : l.out.some((o) => o.place.id === agentsFilter)); };
+  $('#agents-mock').innerHTML =
+    '<p class="mock-note">Na tela <b>Agents</b> de hoje, cada cartão ganha a linha <b>ONDE</b>, e a barra de filtros ganha os lugares. "VeSTA aberto" é o jeito de hoje (só roda com o app aberto); os outros rodam sozinhos. Um agent pode estar em mais de um lugar.</p>' +
+    '<div class="filters"><span>ONDE</span>' + filters.map(([id, l]) => {
+      const p = placeOf(id);
+      return '<button data-afilter="' + id + '" aria-selected="' + (agentsFilter === id) + '">' + (p ? '<span class="dot ' + (p.online ? 'on' : 'off') + '"></span>' : '') + esc(l) + '</button>';
+    }).join('') + '</div>' +
+    '<div class="a-grid">' + VESTA_AGENTS.filter(match).map((a) => {
+      const l = locationsOf(a.id);
+      const err = l.out.find((o) => o.inst.last.st === 'err');
+      const last = l.out[0]?.inst.last;
+      const chips = [...(l.inVesta ? [vestaChip] : []), ...l.out.map((o) => locChip(o.place))];
+      return '<article class="a-card' + (err ? ' err' : '') + '"><div class="top"><span class="ai-badge">' + AI[a.ai] + '</span><b>' + esc(a.name) + '</b></div>' +
+        '<div class="sched">' + esc(a.schedule) + ' · ' + a.mode + '</div>' +
+        (err ? '<div>' + badPill('falhou em ' + err.place.name) + '</div><div class="res">' + esc(err.inst.last.text) + '</div>' : last ? '<div class="res">✓ ' + esc(last.text) + '</div>' : '<div class="res" style="color:var(--faint)">' + (l.inVesta ? 'Roda quando o VeSTA estiver aberto.' : 'Não está instalado em nenhum lugar.') + '</div>') +
+        '<div class="where"><span>ONDE</span>' + (chips.length ? chips.join('') : '<span class="loc" style="border-style:dotted;color:var(--faint)">em nenhum lugar</span>') + '<button class="btn sm" style="margin-left:auto" data-goto="places">Mudar</button></div></article>';
+    }).join('') + '</div>';
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// TELA EQUIPES (como fica): o cabeçalho diz onde a equipe roda; um membro em outro lugar mostra o fio cruzando.
+function renderTeamMock() {
+  const vps = placeOf('vps');
+  $('#team-mock').innerHTML =
+    '<p class="mock-note">Na tela <b>Equipes</b>, o cabeçalho diz onde a equipe roda e cada cartão mostra o lugar do agent quando ele está noutro (aqui, o Docs roda no seu PC e conversa com a equipe da VPS pelo VeSTA).</p>' +
+    '<div class="t-head"><div><div class="kicker">AGENT MODE · EQUIPE · TRABALHANDO</div><h2>Equipe do site</h2></div><div class="where" style="border:0;padding:0;margin-left:auto"><span>RODA EM</span>' + locChip(vps) + '<span class="loc">+1 agent em <b style="margin-left:4px">Este PC</b></span></div></div>' +
+    '<div class="t-desk" id="t-desk"><svg class="map-wires" id="t-wires"></svg></div>';
+  const desk = $('#t-desk');
+  const nodes = [
+    { id: 'voce', name: 'Você', sub: 'no VeSTA · Este PC', x: .5, y: .14, you: true },
+    { id: 'l', name: 'Líder', sub: 'vps-hetzner', ai: 'claude', x: .5, y: .45 },
+    { id: 'd', name: 'Dev', sub: 'vps-hetzner · equipe/site/dev', ai: 'claude', x: .2, y: .78 },
+    { id: 'r', name: 'Revisor', sub: 'vps-hetzner · só lê', ai: 'claude', x: .5, y: .82 },
+    { id: 'o', name: 'Docs', sub: 'Este PC · equipe/site/docs', ai: 'drael', x: .82, y: .66, other: true },
+  ];
+  const r = desk.getBoundingClientRect();
+  const c = (id) => { const n = nodes.find((x) => x.id === id); return [n.x * r.width, n.y * r.height]; };
+  for (const [a, b, x] of [['voce', 'l', true], ['l', 'd'], ['l', 'r'], ['d', 'r'], ['l', 'o', true]]) {
+    const g = svgEl('g', { class: 'mw' + (x ? ' cross' : '') }, $('#t-wires'));
+    const base = svgEl('path', { class: 'base', d: curve(c(a), c(b)) }, g);
+    if (x) { const p = base.getPointAtLength(base.getTotalLength() / 2); svgEl('text', { class: 'mw-tag', x: p.x, y: p.y - 8, 'text-anchor': 'middle' }, g).textContent = 'ssh'; }
+  }
+  for (const n of nodes) {
+    const el = document.createElement('div');
+    el.className = 'n-card' + (n.you ? ' you' : '');
+    el.style.left = n.x * 100 + '%'; el.style.top = n.y * 100 + '%';
+    el.innerHTML = '<div class="t">' + (n.ai ? '<span class="ai-badge">' + AI[n.ai] + '</span>' : '') + n.name + '</div><small>' + n.sub + '</small>' + (n.other ? '<span class="elsewhere">noutro lugar: Este PC</span>' : '');
+    desk.appendChild(el);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Vistas e eventos.
+function show(view) {
+  document.querySelectorAll('.views button').forEach((b) => b.setAttribute('aria-selected', b.dataset.view === view));
+  document.querySelectorAll('.view').forEach((v) => v.classList.toggle('on', v.id === 'v-' + view));
+  if (view === 'map') buildMap();
+  if (view === 'agents') renderAgentsMock();
+  if (view === 'team') renderTeamMock();
+}
+function renderAll() { renderPlaces(); renderPlace(); if ($('#v-map').classList.contains('on')) buildMap(); if ($('#v-agents').classList.contains('on')) renderAgentsMock(); }
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button, [data-close]');
+  if (!t) return;
+  if (t.matches('[data-close]')) return closeAll();
+  if (t.dataset.view) return show(t.dataset.view);
+  if (t.dataset.goto) return show(t.dataset.goto);
+  if (t.dataset.place) { current = t.dataset.place; return renderAll(); }
+  if (t.dataset.afilter) { agentsFilter = t.dataset.afilter; return renderAgentsMock(); }
+  if (t.dataset.mtab) { pick.tab = t.dataset.mtab; return renderTiles(); }
+  if (t.dataset.tile) {
+    const s = statusFor(place(), agentOf(t.dataset.tile));
+    pick.focus = t.dataset.tile;
+    if (s.kind === 'ready') pick.sel.has(pick.focus) ? pick.sel.delete(pick.focus) : pick.sel.add(pick.focus);
+    return renderTiles();
+  }
+  if (t.id === 'do-install') return doInstall();
+  if (t.id === 'add-place') return connectDrawer();
+  if (t.id === 'install') return installModal();
+  if (t.id === 'up-runner') return runnerDrawer();
+  if (t.id === 'refresh') return toast('Lido de ' + place().addr + ': vesta-agent list --json');
+  if (t.id === 'copy') return toast('Copiado: ' + place().root);
+  if (t.id === 'forget') return toast('Esquecer só tira o lugar do VeSTA; os agents lá continuam');
+  if (t.dataset.howto) return toast('No SSH: instale a IA e faça o login uma vez');
+  if (t.dataset.act === 'update') return updateDrawer(t.dataset.id);
+  if (t.dataset.act === 'remove') return removeDrawer(t.dataset.id);
+  if (t.dataset.act === 'runs') return runsDrawer(t.dataset.id);
+  if (t.dataset.act === 'runnow') {
+    const x = place().agents.find((y) => y.id === t.dataset.id);
+    x.running = true; renderAll(); toast('Rodando lá: vesta-agent run ' + x.id);
+    setTimeout(() => { x.running = false; x.last = { at: 'agora', st: 'ok', text: 'Rodou pelo botão: nada novo.', tokens: '18k' }; renderAll(); }, 3000);
+    return;
+  }
+  if (t.dataset.lesson) {
+    const x = place().agents.find((y) => y.lesson); if (x) delete x.lesson;
+    $('#lesson').outerHTML = '<div class="lesson">' + (t.dataset.lesson === 'keep' ? '✓ Mantida: vai na próxima atualização.' : 'Apagada: não volta a ser proposta.') + '</div>';
+    renderAll();
+  }
+});
+// Passar o mouse num quadrado mostra o detalhe dele ao lado.
+document.addEventListener('mouseover', (e) => {
+  const tile = e.target.closest('[data-tile]');
+  if (tile && pick.focus !== tile.dataset.tile && $('#modal').classList.contains('on')) { pick.focus = tile.dataset.tile; document.querySelectorAll('.tile').forEach((x) => x.classList.toggle('focus', x === tile)); renderSide(); }
+  const tr = e.target.closest('tr[data-agent]'), k = tr?.dataset.agent || null;
+  document.querySelectorAll('#tree .ln').forEach((l) => l.classList.toggle('hl', !!k && l.dataset.k === k));
+  document.querySelectorAll('tbody tr').forEach((r) => r.classList.toggle('hl', r === tr));
+});
+$('#scrim').onclick = closeAll;
+document.addEventListener('keydown', (e) => e.key === 'Escape' && closeAll());
+window.addEventListener('resize', () => { if ($('#v-map').classList.contains('on')) drawMapWires(); if ($('#v-team').classList.contains('on')) renderTeamMock(); });
+
+$('#p-run').onclick = () => {
+  const x = placeOf('vps').agents.find((y) => y.id === 'backup-check');
+  if (!x) return toast('Instale o Backup conferido na vps-hetzner');
+  x.running = true; renderAll(); setTimeout(() => { x.running = false; x.last = { at: 'agora', st: 'ok', text: 'Backup íntegro (413 MB).', tokens: '11k' }; renderAll(); toast('Nova execução lida da vps-hetzner'); }, 2500);
+};
+$('#p-off').onclick = () => { const p = placeOf('vps'); p.online = !p.online; p.seen = p.online ? 'agora' : 'há 1 min'; renderAll(); };
+$('#p-fail').onclick = () => { const x = placeOf('pc').agents.find((y) => y.id === 'bom-dia'); if (x) { x.last = { at: 'agora', st: 'err', text: 'O Claude não respondeu: login vencido.', tokens: '0' }; renderAll(); toast('Bom dia do VeSTA falhou no Este PC'); } };
+$('#theme').onclick = (e) => {
+  const paper = document.documentElement.dataset.theme !== 'paper';
+  document.documentElement.dataset.theme = paper ? 'paper' : 'ink';
+  e.target.textContent = 'Tema: ' + (paper ? 'Papel' : 'Tinta');
+};
+renderPlaces(); renderPlace();
+</script>
+</body>
+</html>

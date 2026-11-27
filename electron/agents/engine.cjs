@@ -69,6 +69,7 @@ function createAgentEngine(ctx, deps = {}) {
   function remove({ id }) {
     const a = find(id);
     if (A.isRunning(a)) throw new UserError('Espere o agent terminar ou pare a execução antes de apagar');
+    ctx.places?.forget(a);
     store.state.agents = agents().filter((x) => x !== a);
     for (const c of store.state.chats) if (c.agentId === id) delete c.agentId;
     commit();
@@ -155,8 +156,32 @@ function createAgentEngine(ctx, deps = {}) {
       .catch((e) => finish(a.id, run.id, 'error', '', e.message));
     return run.id;
   }
+  // Installed in a place, it runs there (places/engine.cjs); the diary gets the run when it ends.
   function runNow({ id }) {
+    if (find(id).places?.pc) return { runId: null, chatId: null, ...ctx.places.runNow({ agentId: id }) };
     return { runId: start(find(id), 'manual'), chatId: find(id).runs[0].chatId };
+  }
+  // A run that happened in a place, read from its folder: into the diary in time order, its lessons pending as usual.
+  function importRun(agentId, rec, place) {
+    const a = agents().find((x) => x.id === agentId);
+    if (!a || (a.runs || []).some((r) => r.id === rec.id)) return false;
+    const run = {
+      id: rec.id,
+      at: rec.at,
+      endedAt: rec.endedAt,
+      trigger: rec.trigger === 'manual' ? 'manual' : 'schedule',
+      status: rec.status === 'ok' ? 'ok' : 'error',
+      chatId: null,
+      summary: A.summaryOf(rec.summary || ''),
+      error: rec.error ? redact(String(rec.error)).slice(0, 400) : '',
+      place,
+      usage: rec.usage || null,
+    };
+    a.runs = [...(a.runs || []), run].sort((x, y) => y.at - x.at).slice(0, A.MAX_RUNS);
+    if (run.status === 'ok' && rec.text) learn(a, String(rec.text), run.id, 'place');
+    a.lastRunAt = Math.max(a.lastRunAt || 0, run.at);
+    a.unseen = (a.unseen || 0) + 1;
+    return true;
   }
   // "Lição:" lines become pending lessons (once each) and a "Pedido sugerido:" waits for a yes. Only kept lessons
   // reach the next runs (A.buildPrompt).
@@ -247,7 +272,7 @@ function createAgentEngine(ctx, deps = {}) {
       for (const r of a.runs || [])
         if (r.status === 'running')
           Object.assign(r, { status: 'error', endedAt: now(), error: 'O VeSTA fechou durante a execução.' });
-      if (a.enabled && a.nextRunAt && a.nextRunAt <= now() && a.catchUp) missed.push(a);
+      if (a.enabled && a.nextRunAt && a.nextRunAt <= now() && a.catchUp && !A.installedSomewhere(a)) missed.push(a);
       else schedule(a);
     }
     if (agents().length) store.save();
@@ -276,6 +301,7 @@ function createAgentEngine(ctx, deps = {}) {
     suggestion,
     seen,
     runNow,
+    importRun,
     onChatDone,
     tick,
     recover,

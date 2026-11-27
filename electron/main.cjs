@@ -15,6 +15,9 @@ const {
 } = require('electron');
 const fs = require('node:fs'),
   path = require('node:path');
+// Started by the system scheduler to run an installed agent (runner/launch.cjs): nothing of the app opens.
+const agentArgs = require('./runner/launch.cjs').agentArgs(process.argv);
+if (agentArgs) return require('./runner/launch.cjs').launch(app, agentArgs);
 const privacy = require('./app/privacy.cjs');
 const bg = require('./app/background-mode.cjs');
 const { createBus } = require('./app/events.cjs');

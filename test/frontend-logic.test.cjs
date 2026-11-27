@@ -358,3 +358,44 @@ test('filters: the sidebar folders are the Espaço pessoal and every project, ch
     'order kept; a chat of a removed project falls back to the Espaço pessoal'
   );
 });
+
+test('Onde rodam: where an agent runs, the ONDE filter, the install squares and the folder tree', async () => {
+  const { whereOf, filterWhere, installStatus, installTiles, folderTree } = await lib('places');
+  const vesta = { id: 'v', name: 'Faxina', prompt: 'Limpe', provider: 'claude', memory: true, mode: 'ask' };
+  const pc = {
+    id: 'p',
+    name: 'Bom dia',
+    prompt: 'Resuma',
+    provider: 'claude',
+    places: { pc: { slug: 'bom-dia', running: 5, outdated: true } },
+  };
+  const codex = { id: 'c', name: 'Deps', prompt: 'Atualize', provider: 'codex' };
+  assert.deepEqual(whereOf(vesta), [{ id: 'vesta', label: 'VeSTA aberto' }]);
+  assert.deepEqual(whereOf(pc), [{ id: 'pc', label: 'Este PC', running: true, outdated: true }]);
+  assert.deepEqual(filterWhere([vesta, pc, codex], 'pc'), [pc]);
+  assert.equal(filterWhere([vesta, pc, codex], 'vesta').length, 2);
+  const place = {
+    home: 'C:\\Users\\voce\\AppData\\Local\\VeSTA\\agents',
+    runner: { installed: { version: '0.33.0' } },
+    ais: { claude: { installed: true }, codex: { installed: false } },
+    agents: [{ slug: 'bom-dia', name: 'Bom dia', agentId: 'p' }],
+  };
+  assert.equal(installStatus(pc, place).kind, 'here');
+  assert.equal(installStatus(codex, place).kind, 'need');
+  assert.deepEqual(installStatus(vesta, place), {
+    kind: 'ready',
+    warn: ['roda sem a memória do VeSTA', '"Pedir permissão" vira "Só consulta"'],
+  });
+  assert.deepEqual(
+    installTiles([vesta, pc, codex], place, { tab: 'ready' }).map((t) => t.agent.id),
+    ['v']
+  );
+  assert.deepEqual(
+    installTiles([vesta, pc, codex], place, { query: 'atualize' }).map((t) => t.agent.id),
+    ['c']
+  );
+  const tree = folderTree(place);
+  assert.equal(tree[0][1], place.home + '\\');
+  assert.match(tree[1][2], /0\.33\.0/);
+  assert.ok(tree.some(([k, line]) => k === 'bom-dia' && /└─ bom-dia\\/.test(line)));
+});

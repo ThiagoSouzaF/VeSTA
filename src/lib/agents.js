@@ -21,6 +21,8 @@ const HOUR = 3600000;
 
 // What a card shows first: running (and, inside it, waiting for the person's approval), the last result, or off.
 export function statusOf(agent, chats = []) {
+  // Running in a place (electron/places): its run is in the folder, not in a chat.
+  if (Object.values(agent.places || {}).some((p) => p.running)) return 'running';
   const last = lastRun(agent);
   if (last?.status === 'running') {
     const chat = chats.find((c) => c.id === last.chatId);

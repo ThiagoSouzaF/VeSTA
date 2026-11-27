@@ -17,6 +17,7 @@ const { createSkills } = require('../skills/engine.cjs');
 const { seedBundled } = require('../skills/bundled.cjs');
 const { createAgentEngine } = require('../agents/engine.cjs');
 const { createTeamEngine } = require('../teams/engine.cjs');
+const { createPlaces } = require('../places/engine.cjs');
 const { run } = require('../util/proc.cjs');
 const { createAttachmentStore } = require('../attachments/store.cjs');
 const { createRemote } = require('../remote/index.cjs');
@@ -81,6 +82,9 @@ async function openServices(ctx, { electron, bus, methods }) {
   ctx.agents = createAgentEngine(ctx);
   ctx.agents.startClock();
   bus.subscribe((event) => event.type === 'chat-done' && ctx.agents.onChatDone(event));
+  // Onde rodam: agents installed to run with VeSTA closed; their finished runs come back to the diary.
+  ctx.places = createPlaces(ctx);
+  ctx.places.startClock();
   // Equipes: agents that talk through the team board, each in its own chat and (when it edits) its own git worktree.
   ctx.teams = createTeamEngine(ctx, { root: path.join(dataDir, 'teams') });
   ctx.teams.startClock();
@@ -149,6 +153,7 @@ function closeServices(ctx) {
   ctx.appMcp?.close().catch(() => {});
   ctx.skillsMcp?.close().catch(() => {});
   ctx.agents?.stopClock();
+  ctx.places?.stopClock();
   ctx.teams?.stopClock();
   ctx.refineAuto?.stopClock();
   ctx.consolidator?.stopClock();

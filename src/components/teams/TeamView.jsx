@@ -61,6 +61,13 @@ export function TeamView({ team, project, call, setData, notify, onBack, onEdit,
           </p>
         </div>
         <div className="team-head-right">
+          {/* Where the team runs: VeSTA open, for now (only single agents go to a place, in Agents → Onde rodam). */}
+          <span className="team-chip team-where" data-where="vesta" title="As equipes rodam com o VeSTA aberto">
+            <i />
+            <span>
+              Roda em <b>VeSTA aberto</b> · Este PC
+            </span>
+          </span>
           <span className="team-chip" data-counts>
             <b>{counts.working}</b> trabalhando · <b>{counts.agents}</b> agents
             {counts.waiting > 0 && (

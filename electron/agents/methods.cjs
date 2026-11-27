@@ -1,7 +1,9 @@
 // IPC surface of Agent Mode: thin wrappers over the engine (created once the store is ready).
 function agentMethods(ctx) {
+  // A change of the agent may leave its install in a place outdated (places/engine.cjs).
   const done = (fn) => (args) => {
     fn(args || {});
+    ctx.places?.sync();
     return ctx.state();
   };
   return {

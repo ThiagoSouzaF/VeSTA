@@ -6,6 +6,7 @@ import { MODES } from '../../lib/modes';
 import { ProviderIcon } from '../ProviderIcon';
 import { Switch } from '../skills/SkillBits';
 import { STATUS, agoLabel, describeSchedule, lastRun, statusOf, toReview, untilLabel } from '../../lib/agents';
+import { whereOf } from '../../lib/places';
 
 export function AgentCard({ agent: a, chats, projects, now, selected, onOpen, onToggle, onRun }) {
   const status = statusOf(a, chats);
@@ -14,6 +15,8 @@ export function AgentCard({ agent: a, chats, projects, now, selected, onOpen, on
   const history = (a.runs || []).slice(0, 12).reverse();
   const busy = status === 'running' || status === 'waiting';
   const review = toReview(a);
+  const where = whereOf(a);
+  const placeRunning = where.find((w) => w.running);
   return (
     <article
       className={'agent-card ' + status + (selected ? ' selected' : '')}
@@ -51,11 +54,36 @@ export function AgentCard({ agent: a, chats, projects, now, selected, onOpen, on
         {a.enabled && a.nextRunAt && <b>{untilLabel(a.nextRunAt, now)}</b>}
       </p>
       <p className={'agent-last' + (last?.status === 'error' ? ' error' : '')}>
-        {busy
-          ? 'Trabalhando · começou ' + agoLabel(last.at, now) + '…'
-          : last
-            ? last.summary || last.error || 'Terminou sem resumo.'
-            : 'Ainda não rodou. Use "Rodar agora" para ver como fica.'}
+        {placeRunning
+          ? 'Trabalhando em ' +
+            placeRunning.label +
+            ' · começou ' +
+            agoLabel(a.places[placeRunning.id].running, now) +
+            '…'
+          : busy
+            ? 'Trabalhando · começou ' + agoLabel(last.at, now) + '…'
+            : last
+              ? last.summary || last.error || 'Terminou sem resumo.'
+              : 'Ainda não rodou. Use "Rodar agora" para ver como fica.'}
+      </p>
+      <p className="agent-where" aria-label="Onde roda">
+        <span>ONDE</span>
+        {where.map((w) => (
+          <span
+            key={w.id}
+            className={'agent-loc ' + w.id + (w.running ? ' running' : '')}
+            data-where={w.id}
+            title={
+              w.id === 'vesta'
+                ? 'Roda com o VeSTA aberto, mesmo minimizado'
+                : 'Roda pelo agendador, com o VeSTA fechado'
+            }
+          >
+            <i />
+            {w.label}
+            {w.outdated && <em>desatualizado</em>}
+          </span>
+        ))}
       </p>
       <footer>
         <span className="agent-history" aria-label={'Últimas ' + history.length + ' execuções'}>
