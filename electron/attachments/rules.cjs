@@ -156,12 +156,6 @@ function resolveUrl(root, url) {
 }
 // The thumbnail sits beside the file as <id>.thumb.png (no name part, so it never matches the "<id>-" lookup).
 const thumbPath = (file) => path.join(path.dirname(file), path.basename(file).split('-')[0] + '.thumb.png');
-const urlOf = (scope, file, thumb) =>
-  'vesta-attachment://f/' +
-  encodeURIComponent(scope) +
-  '/' +
-  encodeURIComponent(path.basename(file)) +
-  (thumb ? '?t=1' : '');
 
 // ---- what each provider receives ------------------------------------------------------------------------------------
 // Largest image sent inline as base64 per provider (the API refuses more; bigger ones go by path).
@@ -283,7 +277,6 @@ module.exports = {
   fileName,
   resolveUrl,
   thumbPath,
-  urlOf,
   isNative,
   section,
   promptWith,

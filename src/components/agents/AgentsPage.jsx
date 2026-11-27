@@ -22,20 +22,11 @@ import {
 import { RefineAuto } from '../refine/RefineAuto';
 import { PlacesView } from '../places/PlacesView';
 import { whereFilters, filterWhere } from '../../lib/places';
-
-// Relative times ("em 25 min") stay true while the screen is open.
-function useNow(ms = 30000) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), ms);
-    return () => clearInterval(t);
-  }, [ms]);
-  return now;
-}
+import { useNow } from '../../hooks/useNow';
 
 export function AgentsPage({ data, integrations, call, setData, notify, onOpenChat, onOpenRefine }) {
   const agents = data.agents || [];
-  const now = useNow();
+  const now = useNow(true, 30000); // relative times ("em 25 min") stay true
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   // Agents (the overview) or Onde rodam (the places where they run with VeSTA closed).

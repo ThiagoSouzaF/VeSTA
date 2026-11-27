@@ -14,6 +14,7 @@ const { UserError } = require('../app/errors.cjs');
 const { redact } = require('../memory/redact.cjs');
 const T = require('../shared/teams.cjs');
 const { createTeamGit } = require('./git.cjs');
+const { clock } = require('../util/clock.cjs');
 
 const TICK_MS = 15000;
 const userSafe = (message) => Object.assign(new Error(message), { userSafe: true });
@@ -557,16 +558,7 @@ function createTeamEngine(ctx, deps = {}) {
     }
     if (changed) store.save();
   }
-  let timer = null;
-  function startClock() {
-    recover();
-    timer = (deps.setInterval || setInterval)(tick, Number(process.env.VESTA_TEAM_TICK_MS) || TICK_MS);
-    timer?.unref?.();
-  }
-  function stopClock() {
-    if (timer) (deps.clearInterval || clearInterval)(timer);
-    timer = null;
-  }
+  const { startClock, stopClock } = clock(tick, { ms: TICK_MS, env: 'VESTA_TEAM_TICK_MS', first: recover, deps });
 
   return {
     create,

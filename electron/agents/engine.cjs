@@ -9,6 +9,7 @@ const { UserError } = require('../app/errors.cjs');
 const { redact } = require('../memory/redact.cjs');
 const A = require('../shared/agents.cjs');
 const R = require('../shared/refine.cjs');
+const { clock } = require('../util/clock.cjs');
 
 const TICK_MS = 30000;
 
@@ -280,18 +281,7 @@ function createAgentEngine(ctx, deps = {}) {
     if (agents().length) store.save();
     return missed.length;
   }
-  let timer = null;
-  // VESTA_AGENT_TICK_MS only shortens the 30 s clock for the E2E tests.
-  function startClock() {
-    recover();
-    const every = deps.setInterval || setInterval;
-    timer = every(tick, Number(process.env.VESTA_AGENT_TICK_MS) || TICK_MS);
-    timer?.unref?.();
-  }
-  function stopClock() {
-    if (timer) (deps.clearInterval || clearInterval)(timer);
-    timer = null;
-  }
+  const { startClock, stopClock } = clock(tick, { ms: TICK_MS, env: 'VESTA_AGENT_TICK_MS', first: recover, deps });
 
   return {
     keepVersion,

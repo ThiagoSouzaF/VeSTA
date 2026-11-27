@@ -362,8 +362,7 @@
   padding: 0 6px;
   letter-spacing: 0.04em;
 }
-:root[data-look='ink'] .usage-bar-card small,
-:root[data-look='ink'] .usage-section .muted {
+:root[data-look='ink'] .usage-bar-card small {
   font-family: var(--font-mono);
   letter-spacing: 0.04em;
 }

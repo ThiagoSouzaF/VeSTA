@@ -22,11 +22,12 @@ const { createRunner, defaultHome, packageHash, FORMAT } = require('../runner/ve
 const { installedRunner, runnerHash, writeRunner } = require('../runner/files.cjs');
 const { createSsh, sshLine } = require('./ssh.cjs');
 const { createRemote, connect: connectRemote, configOf, Offline } = require('./remote.cjs');
+const { clock } = require('../util/clock.cjs');
 
 const PC = 'pc';
 const SYNC_MS = 20000;
 const REMOTE_SYNC_MS = 3 * 60000;
-const AI_IDS = ['claude', 'codex', 'opencode', 'drael'];
+const AI_IDS = A.PROVIDER_IDS;
 
 // What starts the runner: VeSTA's own executable (the portable one is unpacked to a temp folder on each start, so its
 // real path comes from electron-builder's variable); in development, Electron with the app folder.
@@ -568,19 +569,8 @@ function createPlaces(ctx, deps = {}) {
     return { left };
   }
 
-  let timer = null;
-  function startClock() {
-    sync().catch(() => {});
-    timer = (deps.setInterval || setInterval)(
-      () => sync().catch(() => {}),
-      Number(process.env.VESTA_PLACES_SYNC_MS) || SYNC_MS
-    );
-    timer?.unref?.();
-  }
-  function stopClock() {
-    if (timer) (deps.clearInterval || clearInterval)(timer);
-    timer = null;
-  }
+  const quiet = () => sync().catch(() => {});
+  const { startClock, stopClock } = clock(quiet, { ms: SYNC_MS, env: 'VESTA_PLACES_SYNC_MS', first: quiet, deps });
 
   return {
     home,

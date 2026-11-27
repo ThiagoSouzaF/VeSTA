@@ -62,48 +62,7 @@ kbd {
   background: var(--hover);
   color: var(--text);
 }
-.project-item {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  height: 32px;
-  text-align: left;
-  padding: 0 10px;
-  color: var(--muted);
-  border-radius: 5px;
-  font-size: 11px;
-}
-.project-item > span:last-child {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--faint);
-}
-.project-item > svg:last-child {
-  margin-left: auto;
-}
-.project-item:hover {
-  background: var(--hover);
-}
-.project-item.selected {
-  color: var(--text);
-}
-.project-item.selected > svg:first-child {
-  color: var(--accent);
-}
-.add-project-empty {
-  font-size: 11px;
-  color: var(--faint);
-  margin: 8px 9px 0;
-  display: flex;
-  text-align: left;
-  align-items: center;
-  gap: 6px;
-  line-height: 1.6;
-}
-.add-project-empty:hover {
-  color: var(--accent);
-}
+
 .conversation-heading {
   margin-top: 28px;
 }
@@ -204,11 +163,6 @@ kbd {
   box-shadow: none;
 }
 
-/* Many projects scroll inside their own list, so the conversations keep the room. */
-.project-list {
-  max-height: 118px;
-  overflow-y: auto;
-}
 /* Conversas grouped by project (ConversationTree). */
 .tree-actions {
   display: flex;

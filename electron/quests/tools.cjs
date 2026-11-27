@@ -2,10 +2,7 @@
 // server through the engine, and by the tests.
 const { messageTasks, countTasks, summaryLine, isDetached } = require('../shared/tasks.cjs');
 
-const clip = (v, n) => {
-  const s = String(v ?? '');
-  return s.length > n ? s.slice(0, n - 1) + '…' : s;
-};
+const { ellipsis: clip } = require('../util/text.cjs');
 const PAGE_BUDGET = 14000; // characters of message text per page (activities come on top, bounded)
 const MAX_LINES = 30;
 

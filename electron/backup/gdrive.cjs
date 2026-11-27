@@ -11,7 +11,7 @@ const { randomBytes, createHash } = require('node:crypto');
 const { pipeline } = require('node:stream/promises');
 const { Readable } = require('node:stream');
 const { UserError } = require('../app/errors.cjs');
-const { writeAtomic } = require('../util/sys.cjs');
+const { writeAtomic, sleep } = require('../util/sys.cjs');
 
 const GOOGLE = {
   auth: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -98,7 +98,6 @@ function createDrive({
     return d.clientId ? { clientId: d.clientId, clientSecret: secret(d.clientSecret) } : null;
   };
 
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const transient = (status) => status === 408 || status === 429 || status >= 500;
   // fetch with the retries: a transient failure is tried again (the bodies sent here are strings or buffers, so they
   // can be sent again); anything else, or the last attempt, is returned or thrown as is.

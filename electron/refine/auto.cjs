@@ -14,11 +14,12 @@ const { redact } = require('../memory/redact.cjs');
 const A = require('../shared/agents.cjs');
 const R = require('../shared/refine.cjs');
 const B = require('./brief.cjs');
+const { clock } = require('../util/clock.cjs');
 
 const TICK_MS = 60000;
 const MAX_RUNS = 10;
 const PER_RUN = [1, 2, 3, 5];
-const PROVIDERS = ['claude', 'codex', 'opencode', 'drael'];
+const PROVIDERS = A.PROVIDER_IDS;
 
 function normalizeAuto(input) {
   input ||= {};
@@ -172,17 +173,7 @@ function createAutoRefiner(ctx, deps = {}) {
         Object.assign(r, { status: 'error', endedAt: now(), error: 'O VeSTA fechou durante a revisão.' });
     if (!cfg().nextRunAt) schedule();
   }
-  let timer = null;
-  // VESTA_REFINE_TICK_MS only shortens the 1 min clock for the E2E tests.
-  function startClock() {
-    recover();
-    timer = (deps.setInterval || setInterval)(tick, Number(process.env.VESTA_REFINE_TICK_MS) || TICK_MS);
-    timer?.unref?.();
-  }
-  function stopClock() {
-    if (timer) (deps.clearInterval || clearInterval)(timer);
-    timer = null;
-  }
+  const { startClock, stopClock } = clock(tick, { ms: TICK_MS, env: 'VESTA_REFINE_TICK_MS', first: recover, deps });
 
   return { configure, runNow, tick, recover, idle, startClock, stopClock, candidates: list };
 }

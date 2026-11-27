@@ -308,15 +308,6 @@
   pointer-events: none;
   background: var(--marks);
 }
-:root[data-look='ink'] .provider-icon {
-  font-variant-emoji: text;
-  filter: grayscale(1);
-}
-:root[data-look='ink'] .provider-icon.green,
-:root[data-look='ink'] .provider-icon.orange,
-:root[data-look='ink'] .provider-icon.violet {
-  color: var(--ink);
-}
 
 /* ---- chat view: the user speaks in a balloon with a straight tail ---- */
 :root[data-look='ink'] .bubble {

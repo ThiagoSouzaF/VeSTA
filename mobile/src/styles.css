@@ -550,27 +550,6 @@ fieldset.plain {
   gap: 4px;
   align-items: flex-end;
 }
-.provider-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  line-height: 1;
-}
-.provider-icon.green {
-  color: var(--green);
-}
-.provider-icon.orange {
-  color: var(--orange);
-}
-.provider-icon.violet {
-  color: var(--accent);
-}
-.provider-icon.small {
-  width: 18px;
-  height: 18px;
-  font-size: 16px;
-}
 
 /* ---- chat view ---- */
 .chat-view {

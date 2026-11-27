@@ -53,12 +53,7 @@
 .usage-note p {
   margin: 0;
 }
-.usage-section {
-  margin-bottom: 24px;
-}
-.usage-section .muted {
-  font-size: 11px;
-}
+
 .usage-row {
   display: grid;
   grid-template-columns: 1.1fr 1fr 1fr 1fr 0.9fr 0.9fr 1fr;
@@ -80,15 +75,7 @@
   text-align: right;
   color: var(--text);
 }
-.usage-day {
-  margin-top: 14px;
-}
-.usage-day-head {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  padding: 0 4px;
-}
+
 @media (max-width: 900px) {
   .usage-bars {
     grid-template-columns: 1fr;

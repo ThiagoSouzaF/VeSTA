@@ -178,30 +178,6 @@
 .context-section > .fine-print {
   margin-bottom: 0;
 }
-.context-bottom {
-  margin-top: auto;
-  padding-top: 35px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  color: var(--faint);
-}
-.small-mark {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-}
-.context-bottom p {
-  font-size: 11px;
-  line-height: 1.8;
-}
-.context-bottom strong {
-  font-weight: 450;
-  color: var(--muted);
-}
 
 /* The context panel opens as a popover under the header's "Contexto" button. */
 .chat-layout {

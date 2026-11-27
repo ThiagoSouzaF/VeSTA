@@ -134,15 +134,11 @@
   margin-right: auto;
 }
 :root[data-look='ink'] .icon-button:hover,
-:root[data-look='ink'] .project-item:hover,
 :root[data-look='ink'] .chat-list-item:hover {
   background: var(--dots-strong);
   color: var(--ink);
 }
-:root[data-look='ink'] .project-item.selected {
-  background: var(--surface);
-  box-shadow: inset 2px 0 0 var(--ink);
-}
+
 :root[data-look='ink'] .chat-list-item.selected {
   background: var(--surface);
   border-left: 3px solid var(--ink);

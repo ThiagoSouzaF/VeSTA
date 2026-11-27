@@ -87,7 +87,6 @@ export const QuestsPage = memo(function QuestsPage({
         onOpenQuestChat={onOpenQuestChat}
         call={call}
         onAct={onAct}
-        notify={notify}
       />
     );
   return (

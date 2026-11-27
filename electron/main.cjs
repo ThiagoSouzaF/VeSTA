@@ -47,7 +47,7 @@ ctx.permissions = createPermissionBridge(ctx);
 const methods = { ...createMethods(ctx), ...remoteMethods(ctx) };
 const updates = createUpdateFlow(ctx, { app, dialog });
 ctx.checkForUpdate = updates.check;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const { sleep } = require('./util/sys.cjs');
 // Test-only: lengthens every boot stage so the splash can be observed (screenshots, e2e). Progress stays real.
 const STEP_DELAY_MS = Number(process.env.VESTA_BOOT_STEP_DELAY_MS) || 0;
 let quitting = false;

@@ -5,12 +5,9 @@
 // deps (tests): { send(ctx, args), installed(provider), now() }
 const { randomUUID } = require('node:crypto');
 const { UserError } = require('../app/errors.cjs');
-const { PROVIDER_IDS } = require('../shared/agents.cjs');
 const A = require('../shared/agents.cjs');
 const H = require('../skills/health.cjs');
 const B = require('./brief.cjs');
-
-const ORDER = ['claude', 'codex', 'opencode', 'drael'];
 
 function createRefiner(ctx, deps = {}) {
   const store = ctx.store;
@@ -86,8 +83,8 @@ function createRefiner(ctx, deps = {}) {
       if (goal) await send(ctx, { chatId: open.id, text: goal });
       return { chatId: open.id };
     }
-    const ai = provider || ORDER.find(installed);
-    if (!PROVIDER_IDS.includes(ai)) throw new UserError('Escolha a IA que vai refinar');
+    const ai = provider || A.PROVIDER_IDS.find(installed);
+    if (!A.PROVIDER_IDS.includes(ai)) throw new UserError('Escolha a IA que vai refinar');
     if (!installed(ai)) throw new UserError('Essa IA não está instalada (tela Conexões)');
     const a = k.kind === 'agent' ? agentOf(k.id) : null;
     const chat = store.addChat({ provider: ai, model, projectId: a?.projectId || null, mode: 'read', memory: true });

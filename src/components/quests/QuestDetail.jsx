@@ -41,17 +41,7 @@ const Log = memo(function Log({ log }) {
 });
 
 // One quest: controls, planning state, plan editor (draft) or board, summary and journal.
-export function QuestDetail({
-  quest,
-  projects,
-  integrations,
-  onBack,
-  onOpenChat,
-  onOpenQuestChat,
-  call,
-  onAct,
-  notify,
-}) {
+export function QuestDetail({ quest, projects, integrations, onBack, onOpenChat, onOpenQuestChat, call, onAct }) {
   const [busy, setBusy] = useState(false),
     [confirmCancel, setConfirmCancel] = useState(false),
     [confirmDelete, setConfirmDelete] = useState(false);

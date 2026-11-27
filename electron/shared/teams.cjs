@@ -326,7 +326,6 @@ function buildTurn(team, member, { projectName = '', now = Date.now(), first = f
 }
 
 // ---- A member on a VPS: action lines instead of tools ---------------------------------------------------------
-const ACTION_TOOLS = ['vesta_team_send', 'vesta_team_task', 'vesta_team_move'];
 function remoteTools(isLead) {
   return [
     'Para falar com a equipe, termine a resposta com linhas de ação, uma por linha, cada uma com o nome e um JSON numa linha só. O VeSTA leva cada uma pela conexão SSH:',
@@ -464,7 +463,6 @@ module.exports = {
   memberState,
   buildTurn,
   boardView,
-  ACTION_TOOLS,
   actionsOf,
   proseOf,
   placesOf,
