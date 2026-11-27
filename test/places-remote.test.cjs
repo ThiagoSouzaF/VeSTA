@@ -15,6 +15,8 @@ const { connectPlan } = require('../electron/shared/places.cjs');
 const { Store } = require('../electron/app/store.cjs');
 const { createAgentEngine } = require('../electron/agents/engine.cjs');
 const { createPlaces } = require('../electron/places/engine.cjs');
+const { createTeamEngine } = require('../electron/teams/engine.cjs');
+const T = require('../electron/shared/teams.cjs');
 
 const tmp = (name) => fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-remote-' + name + '-'));
 
@@ -301,5 +303,139 @@ test('vps: install there, run there, the run comes back; offline keeps the last 
   assert.deepEqual(a().places, {});
   assert.equal(ctx.store.state.places.length, 0);
   assert.equal(fs.existsSync(path.join(home, 'agents', 'testes-de-toda-noite')), false);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+// A fake AI on the VPS: answers with what the test says and keeps what it got (the prompt, the folder).
+function fakeAi(dir, reply) {
+  const file = path.join(dir, 'fake-ai.cjs');
+  fs.writeFileSync(
+    file,
+    `let input = '';
+process.stdin.on('data', (d) => (input += d));
+process.stdin.on('end', () => {
+  require('node:fs').writeFileSync(${JSON.stringify(path.join(dir, 'ai-seen.json'))}, JSON.stringify({ cwd: process.cwd(), input }));
+  console.log(JSON.stringify({ type: 'result', result: ${JSON.stringify(reply)}, usage: { input_tokens: 40, output_tokens: 2 } }));
+});`
+  );
+  return { exe: process.execPath, args: [file] };
+}
+const until = async (fn, ms = 15000) => {
+  for (const end = Date.now() + ms; Date.now() < end; await new Promise((r) => setTimeout(r, 100)))
+    if (await fn()) return;
+  throw new Error('não aconteceu a tempo');
+};
+
+test('vps: changes go by themselves; an offline VPS gets them when it is back', async () => {
+  const { dir, ctx, vps, id, a, tick } = setup();
+  const { placeId } = await ctx.places.connect({ name: 'vps-hetzner', host: 'thiago@203.0.113.10' });
+  await ctx.places.install({ placeId, agentIds: [id] });
+  vps.down = true;
+  tick(10 * 60000);
+  await ctx.places.syncRemotes();
+  ctx.agents.update({ id, ...a(), prompt: 'Rode os testes e o build.' });
+  tick(10 * 60000);
+  await ctx.places.syncRemotes();
+  assert.equal(ctx.places.view().places[1].agents[0].outdated, true, 'waits while offline');
+  vps.down = false;
+  tick(10 * 60000);
+  await ctx.places.syncRemotes();
+  const there = path.posix.join(vps.root, '.vesta-agents', 'agents', 'testes-de-toda-noite', 'agent.json');
+  assert.match(fs.readFileSync(there, 'utf8'), /e o build/);
+  assert.equal(ctx.places.view().places[1].agents[0].outdated, false);
+  assert.equal(a().places[placeId].outdated, undefined);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('vps team member: its turn runs there, its action lines reach the board, offline holds its messages', async () => {
+  const { dir, ctx, vps, tick } = setup();
+  const { placeId } = await ctx.places.connect({ name: 'vps-hetzner', host: 'thiago@203.0.113.10' });
+  const home = path.posix.join(vps.root, '.vesta-agents');
+  createRunner({ home }).setConfig({
+    ais: {
+      claude: fakeAi(
+        dir,
+        'Escrevi o README.\nvesta_team_send {"para":"Líder","tipo":"resposta","texto":"README pronto"}\n`vesta_team_move {"id":"T9","coluna":"feito"}`\nvesta_team_send {quebrado}'
+      ),
+    },
+  });
+  const sent = [];
+  const teams = createTeamEngine(ctx, {
+    installed: () => true,
+    send: async (_c, args) => sent.push(args),
+    git: { isRepo: async () => false },
+    root: path.join(dir, 'teams'),
+    setInterval: () => null,
+  });
+  ctx.teams = teams;
+  const teamId = teams.create({
+    name: 'Equipe do site',
+    projectId: 'p1',
+    goal: 'README novo',
+    members: [
+      { name: 'Líder', provider: 'claude', mode: 'read', lead: true },
+      { name: 'Docs', provider: 'claude', mode: 'edit', place: placeId },
+    ],
+  });
+  const team = ctx.store.state.teams[0];
+  const docs = T.memberOf(team, 'docs');
+  assert.equal(docs.place, placeId);
+  // A runner from an older VeSTA there does not know the team jobs.
+  const vpsPlace = ctx.store.state.places[0];
+  const hash = vpsPlace.runner.hash;
+  vpsPlace.runner.hash = 'antigo';
+  await assert.rejects(teams.start({ id: teamId }), /Atualize o executor de vps-hetzner/);
+  vpsPlace.runner.hash = hash;
+  // Drael never runs on a VPS.
+  teams.update({ id: teamId, members: team.members.map((m) => (m.id === 'docs' ? { ...m, provider: 'drael' } : m)) });
+  await assert.rejects(teams.start({ id: teamId }), /Docs \(vps-hetzner\): a IA não está instalada lá/);
+  teams.update({ id: teamId, members: team.members.map((m) => ({ ...m, provider: 'claude' })) });
+  const t = () => ctx.store.state.teams[0];
+  const m = () => T.memberOf(t(), 'docs');
+  await teams.start({ id: teamId });
+  await new Promise((r) => setImmediate(r));
+  const leadChat = ctx.store.chat(sent[0].chatId);
+  teams.tool(leadChat, 'vesta_team_send', { para: 'Docs', texto: 'Escreva o README.' });
+  await until(() => m().job && vps.calls.some((c) => c.includes("'job' '-'")));
+  assert.equal(m().busy, true);
+  assert.equal(m().chatId, undefined, 'no chat for a member on a VPS');
+  // The job runs there apart from the SSH call; the next read brings it back.
+  await until(async () => (await ctx.places.jobs(placeId)).some((j) => j.state === 'done'));
+  const seenThere = JSON.parse(fs.readFileSync(path.join(dir, 'ai-seen.json'), 'utf8'));
+  assert.match(seenThere.input, /Você roda em vps-hetzner/);
+  assert.match(seenThere.input, /Escreva o README\./);
+  assert.match(seenThere.input, /O quadro agora:/);
+  assert.equal(path.resolve(seenThere.cwd), path.resolve(home, 'teams', teamId, 'docs'));
+  await teams.collect();
+  assert.equal(m().busy, false);
+  assert.equal(m().lastLine, 'Escrevi o README.');
+  assert.equal(m().tokens, 42);
+  const said = t().messages.filter((x) => x.from === 'docs');
+  assert.deepEqual(
+    said.map((x) => [x.to, x.kind, x.text]),
+    [['lider', 'answer', 'README pronto']]
+  );
+  assert.ok(t().messages.some((x) => /move recusado \(Tarefa não encontrada: T9/.test(x.text)));
+  assert.ok(t().messages.some((x) => /1 linha\(s\) de ação sem JSON válido/.test(x.text)));
+  await until(async () => !(await ctx.places.jobs(placeId)).length);
+  // Offline: what goes to Docs waits, marked; when the VPS is back, Docs wakes with it.
+  vps.down = true;
+  tick(10 * 60000);
+  await ctx.places.syncRemotes();
+  const calls = vps.calls.length;
+  teams.tool(leadChat, 'vesta_team_send', { para: 'Docs', texto: 'Agora o CHANGELOG.' });
+  const held = t().messages.at(-1);
+  assert.equal(held.held, true);
+  assert.equal(m().busy, false);
+  vps.down = false;
+  tick(10 * 60000);
+  await ctx.places.syncRemotes();
+  assert.ok(vps.calls.length > calls);
+  await until(() => m().busy && t().messages.find((x) => x.id === held.id).held === false);
+  assert.ok(t().messages.find((x) => x.id === held.id).deliveredAt);
+  await until(async () => (await ctx.places.jobs(placeId)).some((j) => j.state === 'done'));
+  await teams.collect();
+  assert.equal(m().busy, false);
+  teams.stopAll({ id: teamId });
   fs.rmSync(dir, { recursive: true, force: true });
 });

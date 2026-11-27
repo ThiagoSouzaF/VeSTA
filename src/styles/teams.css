@@ -190,6 +190,9 @@
   gap: 6px;
   align-items: center;
 }
+.team-member-row.placed {
+  grid-template-columns: 32px 120px 1fr 120px 140px 92px 130px 32px;
+}
 .team-lead,
 .team-drop,
 .team-add {
@@ -929,7 +932,8 @@
   .team-side {
     width: 300px;
   }
-  .team-member-row {
+  .team-member-row,
+  .team-member-row.placed {
     grid-template-columns: 32px 1fr 1fr 32px;
   }
 }
@@ -941,4 +945,23 @@
   .team-entry {
     animation: none !important;
   }
+}
+
+/* A member on a VPS (Onde rodam): its place on the card; a message waiting for an offline place. */
+.team-place {
+  border: 1px solid var(--team-line);
+  padding: 0 5px;
+}
+.team-place.off,
+.team-where.off {
+  color: var(--danger);
+  border-color: currentColor;
+}
+.team-held {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  font: 10px var(--team-mono);
+  color: var(--danger);
+  border: 1px solid currentColor;
 }

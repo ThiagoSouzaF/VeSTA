@@ -6,9 +6,9 @@ import { ArrowLeft, Pause, Pencil, Play, Send, Square, Trash2 } from 'lucide-rea
 import { TeamStage } from './TeamStage';
 import { TeamSide } from './TeamSide';
 import { fmtTokens } from '../../lib/tokens';
-import { TEAM_STATUS, leadOf, spentToday, teamCounts } from '../../lib/teams';
+import { TEAM_STATUS, leadOf, placesOf, spentToday, teamCounts } from '../../lib/teams';
 
-export function TeamView({ team, project, call, setData, notify, onBack, onEdit, onOpenChat }) {
+export function TeamView({ team, project, places = [], call, setData, notify, onBack, onEdit, onOpenChat }) {
   const [focus, setFocus] = useState(null);
   const [ahead, setAhead] = useState({});
   const [to, setTo] = useState(leadOf(team).id);
@@ -45,6 +45,10 @@ export function TeamView({ team, project, call, setData, notify, onBack, onEdit,
   };
   const running = team.status === 'running';
   const fresh = !(team.messages || []).some((m) => m.kind !== 'note');
+  // Where it runs: the place of most members, and how many are elsewhere.
+  const placeName = (id) => (id === 'pc' ? 'Este PC' : places.find((p) => p.id === id)?.name || 'lugar esquecido');
+  const offline = (id) => id !== 'pc' && places.find((p) => p.id === id)?.online === false;
+  const [home, ...rest] = placesOf(team);
 
   return (
     <div className="team-view" data-team={team.id} data-status={team.status}>
@@ -61,13 +65,28 @@ export function TeamView({ team, project, call, setData, notify, onBack, onEdit,
           </p>
         </div>
         <div className="team-head-right">
-          {/* Where the team runs: VeSTA open, for now (only single agents go to a place, in Agents → Onde rodam). */}
-          <span className="team-chip team-where" data-where="vesta" title="As equipes rodam com o VeSTA aberto">
+          {/* Where the team runs: VeSTA carries the turns; a member on a VPS runs there (Onde rodam). */}
+          <span
+            className={'team-chip team-where' + (offline(home.place) ? ' off' : '')}
+            data-where={home.place}
+            title="O VeSTA aberto leva as mensagens da equipe; quem está numa VPS roda lá"
+          >
             <i />
             <span>
-              Roda em <b>VeSTA aberto</b> · Este PC
+              Roda em <b>{placeName(home.place)}</b>
+              {home.place === 'pc' ? ' · VeSTA aberto' : ''}
             </span>
           </span>
+          {rest.map((r) => (
+            <span
+              key={r.place}
+              className={'team-chip team-where' + (offline(r.place) ? ' off' : '')}
+              data-where={r.place}
+            >
+              +{r.count} agent{r.count > 1 ? 's' : ''} em <b>{placeName(r.place)}</b>
+              {offline(r.place) ? ' · fora do ar' : ''}
+            </span>
+          ))}
           <span className="team-chip" data-counts>
             <b>{counts.working}</b> trabalhando · <b>{counts.agents}</b> agents
             {counts.waiting > 0 && (
@@ -139,6 +158,7 @@ export function TeamView({ team, project, call, setData, notify, onBack, onEdit,
         <div className="team-desk">
           <TeamStage
             team={team}
+            places={places}
             focus={focus}
             onFocus={setFocus}
             ahead={ahead}

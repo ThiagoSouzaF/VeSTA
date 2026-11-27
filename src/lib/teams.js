@@ -24,6 +24,7 @@ export const {
   memberState,
   layout,
   hhmm,
+  placesOf,
 } = shared;
 
 const ORDER = ['claude', 'codex', 'opencode', 'drael'];
@@ -52,7 +53,7 @@ export const editableTeam = (t) => ({
   name: t.name,
   projectId: t.projectId,
   goal: t.goal,
-  members: t.members.map(({ id, name, role, provider, model, mode, lead, x, y }) => ({
+  members: t.members.map(({ id, name, role, provider, model, mode, lead, x, y, place }) => ({
     id,
     name,
     role,
@@ -62,6 +63,7 @@ export const editableTeam = (t) => ({
     lead,
     x,
     y,
+    place: place || 'pc',
   })),
   maxParallel: t.maxParallel,
   budget: t.budget,

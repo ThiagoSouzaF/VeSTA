@@ -16,6 +16,8 @@ function placeMethods(ctx) {
     placeRemove: done((a) => ctx.places.remove(a)),
     placeRun: done((a) => ctx.places.runNow(a)),
     placeRunner: done((a) => ctx.places.updateRunner(a)),
+    placeUpdateAll: done((a) => ctx.places.updateAll(a)),
+    placeAuto: done((a) => ctx.places.setAuto(a)),
     placeConnect: done((a) => ctx.places.connect(a)),
     placeRefresh: done((a) => ctx.places.refresh(a)),
     placeForget: done((a) => ctx.places.forgetPlace(a)),

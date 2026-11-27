@@ -35,6 +35,11 @@ function createRemote(place, { sh }) {
     install: (pkg) => cli(['install', '-'], { stdin: JSON.stringify(pkg), timeoutMs: 60000 }),
     remove: (slug) => cli(['remove', slug]),
     setConfig: (patch) => cli(['config', '-'], { stdin: JSON.stringify(patch) }),
+    // Team turns (runner jobs): the runner starts each one apart from the SSH session.
+    startJob: (spec) => cli(['job', '-'], { stdin: JSON.stringify(spec) }),
+    jobs: () => cli(['jobs']),
+    stopJob: (id) => cli(['job-stop', id]),
+    clearJob: (id) => cli(['job-clear', id]),
     // Apart from the SSH session, so it goes on after it closes (as the timer would start it).
     async start(slug) {
       const run = [q(place.node), q(runnerFile), 'run', q(slug), '--trigger', 'manual', '--home', q(place.home)];

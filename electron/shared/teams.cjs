@@ -5,9 +5,12 @@
 //          start), status: 'idle' | 'running' | 'paused' | 'stopped', tasks: [task], messages: [message],
 //          asks: [ask], spent: { day, tokens }, turns (since the last start), note, createdAt, updatedAt }
 // member = { id, name, role, provider, model, mode: 'read' | 'edit', lead, x, y, chatId, busy, readAt,
-//            branch, workdir, tokens }
+//            branch, workdir, tokens, place: 'pc' | <vps id>, job: { id, place, at } (a turn running on a VPS) }
+// A member on a VPS (place) has no chat: each turn is one job of the runner there (places/engine.cjs) and it talks
+// through action lines at the end of its answer (actionsOf), which VeSTA carries over SSH. A message to a member whose
+// place is offline is held (message.held) until the place is back.
 // task = { id, title, detail, assignee, reviewer (who was asked to review it), column: 'todo' | 'doing' | 'review' | 'done', by, at, updatedAt, note }
-// message = { id, at, from, to, kind, text } (from/to: a member id or HUMAN)
+// message = { id, at, from, to, kind, text, held? } (from/to: a member id or HUMAN)
 // ask = { id, at, from, text, status: 'open' | 'answered', answer }
 
 const HUMAN = 'voce';
@@ -104,6 +107,7 @@ function normalizeTeam(input = {}, prev = null) {
       model: clip(m.model, 80),
       mode: MODES.includes(m.mode) ? m.mode : 'edit',
       lead: !!m.lead,
+      place: /^[\w-]{1,40}$/.test(String(m.place || '')) ? String(m.place) : 'pc',
       x: unit(m.x ?? old.x, null),
       y: unit(m.y ?? old.y, null),
     };
@@ -187,7 +191,8 @@ const openAsks = (team) => (team.asks || []).filter((a) => a.status === 'open');
 
 // Who wakes now: idle members with something new (a message, or a task of theirs nobody has started), the lead first,
 // never more at once than the team allows. A member that asked the person something waits for the answer.
-function due(team, now) {
+// away: ids of members whose place is offline (their messages wait).
+function due(team, now, away = new Set()) {
   if (team.status !== 'running' || overBudget(team, now) || (team.turns || 0) >= team.maxTurns) return [];
   const busy = team.members.filter((m) => m.busy).length;
   const room = Math.max(0, team.maxParallel - busy);
@@ -196,6 +201,7 @@ function due(team, now) {
   const wants = (m) =>
     !m.busy &&
     !waiting.has(m.id) &&
+    !away.has(m.id) &&
     (inboxOf(team, m.id).length > 0 ||
       tasksOf(team, m.id).some((t) => t.column === 'todo' && (t.updatedAt || t.at) > (m.readAt || 0)));
   const lead = leadOf(team);
@@ -231,15 +237,20 @@ const KIND_LABELS = {
 const COLUMN_LABELS = { todo: 'A fazer', doing: 'Fazendo', review: 'Revisão', done: 'Feito' };
 
 // The text a member receives on each turn: who it is, the team, where it works, how to talk, what is new.
-function buildTurn(team, member, { projectName = '', now = Date.now(), first = false } = {}) {
+// remote: the name of the VPS the member runs on (no tools there: action lines, and the board comes in the text).
+function buildTurn(team, member, { projectName = '', now = Date.now(), first = false, remote = '' } = {}) {
   const lead = leadOf(team);
   const isLead = member.id === lead.id;
   const roster = team.members
     .map((m) => '- ' + m.name + (m.lead ? ' (líder)' : '') + ': ' + m.role + (m.id === member.id ? ' ← você' : ''))
     .concat('- Você (a pessoa, nas ferramentas "voce"): aprova juntar branches e publicar; responde quando perguntada.')
     .join('\n');
-  const where =
-    member.mode === 'read'
+  const where = remote
+    ? 'Você roda em ' +
+      remote +
+      ', numa pasta só sua lá, que fica de um turno para o outro. O projeto está no PC da pessoa: você não vê os arquivos dele, então trabalhe na sua pasta e conte nas mensagens o que fez e o que achou.' +
+      (member.mode === 'read' ? ' Você só lê e roda comandos de leitura (modo consulta).' : '')
+    : member.mode === 'read'
       ? 'Você só lê arquivos e roda comandos de leitura (modo consulta). Para ver o trabalho de outro agent, leia a pasta dele (o quadro mostra as pastas).'
       : member.branch
         ? 'Sua pasta é ' +
@@ -263,10 +274,14 @@ function buildTurn(team, member, { projectName = '', now = Date.now(), first = f
     'Objetivo da equipe: ' + team.goal,
     'A equipe:\n' + roster,
     where,
-    'Para falar com a equipe use as ferramentas do servidor vesta-skills: vesta_team_board (o quadro, as tarefas, as pastas e as últimas mensagens), vesta_team_send (mandar uma mensagem a um agent pelo nome, ou à pessoa com para="voce"; tipo: pergunta, resposta, revisao, tarefa ou sim), ' +
-      (isLead ? 'vesta_team_task (criar uma tarefa para um agent) ' : '') +
-      'e vesta_team_move (mover uma tarefa: fazendo, revisao, feito; ou de volta para a_fazer com o motivo). Elas não alteram arquivos e funcionam em qualquer modo.',
-    'Regras: fale só quando precisar (não mande mensagem só para agradecer ou confirmar). Quem recebe uma mensagem acorda para responder, então seja direto. Ao terminar uma tarefa, mova para revisão e avise quem revisa. Peça o sim da pessoa (para="voce", tipo "sim") antes de juntar branches ou publicar qualquer coisa. Termine cada turno com uma linha curta do que fez.',
+    remote
+      ? remoteTools(isLead)
+      : 'Para falar com a equipe use as ferramentas do servidor vesta-skills: vesta_team_board (o quadro, as tarefas, as pastas e as últimas mensagens), vesta_team_send (mandar uma mensagem a um agent pelo nome, ou à pessoa com para="voce"; tipo: pergunta, resposta, revisao, tarefa ou sim), ' +
+        (isLead ? 'vesta_team_task (criar uma tarefa para um agent) ' : '') +
+        'e vesta_team_move (mover uma tarefa: fazendo, revisao, feito; ou de volta para a_fazer com o motivo). Elas não alteram arquivos e funcionam em qualquer modo.',
+    remote
+      ? 'Regras: fale só quando precisar (não mande mensagem só para agradecer ou confirmar). Quem recebe uma mensagem acorda para responder, então seja direto. Ao terminar uma tarefa, mova para revisão e avise quem revisa. Termine com uma linha curta do que fez (antes das linhas de ação).'
+      : 'Regras: fale só quando precisar (não mande mensagem só para agradecer ou confirmar). Quem recebe uma mensagem acorda para responder, então seja direto. Ao terminar uma tarefa, mova para revisão e avise quem revisa. Peça o sim da pessoa (para="voce", tipo "sim") antes de juntar branches ou publicar qualquer coisa. Termine cada turno com uma linha curta do que fez.',
   ];
   if (isLead && first)
     lines.push(
@@ -298,8 +313,57 @@ function buildTurn(team, member, { projectName = '', now = Date.now(), first = f
             .join('\n')
       : 'Nenhuma tarefa sua aberta.'
   );
+  if (remote) lines.push('O quadro agora:\n' + JSON.stringify(boardView(team)));
   return lines.join('\n\n');
 }
+
+// ---- A member on a VPS: action lines instead of tools ---------------------------------------------------------
+const ACTION_TOOLS = ['vesta_team_send', 'vesta_team_task', 'vesta_team_move'];
+function remoteTools(isLead) {
+  return [
+    'Para falar com a equipe, termine a resposta com linhas de ação, uma por linha, cada uma com o nome e um JSON numa linha só. O VeSTA leva cada uma pela conexão SSH:',
+    'vesta_team_send {"para":"Líder","tipo":"resposta","texto":"..."} (para um agent pelo nome, ou "voce" para a pessoa; tipo: pergunta, resposta, revisao, tarefa ou sim)',
+    ...(isLead
+      ? ['vesta_team_task {"para":"Dev","titulo":"...","detalhe":"..."} (criar uma tarefa para um agent)']
+      : []),
+    'vesta_team_move {"id":"T1","coluna":"revisao","para":"Revisor","nota":"..."} (fazendo, revisao, feito; ou a_fazer com o motivo)',
+    'O quadro, as tarefas e as últimas mensagens estão no fim deste pedido.',
+  ].join('\n');
+}
+const ACTION_LINE = /^\s*[`*-]*\s*(vesta_team_(?:send|task|move))\s*[:(]?\s*(\{.*\})\s*\)?[`*]*\s*$/;
+// The action lines of an answer: [{ tool, args }] (a line that is not valid JSON is skipped, said in `bad`).
+function actionsOf(text) {
+  const out = [];
+  let bad = 0;
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const m = ACTION_LINE.exec(line);
+    if (!m) continue;
+    try {
+      const args = JSON.parse(m[2]);
+      if (args && typeof args === 'object' && !Array.isArray(args)) out.push({ tool: m[1], args });
+      else bad++;
+    } catch {
+      bad++;
+    }
+  }
+  return Object.assign(out, { bad });
+}
+// The answer without its action lines (what the card shows as the last line).
+const proseOf = (text) =>
+  String(text || '')
+    .split(/\r?\n/)
+    .filter((l) => !ACTION_LINE.test(l))
+    .join('\n')
+    .trim();
+// Where a team runs: [{ place, count }], the most members first (this PC when tied).
+function placesOf(team) {
+  const n = new Map();
+  for (const m of team.members) n.set(m.place || 'pc', (n.get(m.place || 'pc') || 0) + 1);
+  return [...n.entries()]
+    .map(([place, count]) => ({ place, count }))
+    .sort((a, b) => b.count - a.count || (a.place === 'pc' ? -1 : b.place === 'pc' ? 1 : 0));
+}
+const remoteMember = (m) => !!m.place && m.place !== 'pc';
 
 // The board as the tools return it (and as the person sees it).
 function boardView(team) {
@@ -391,6 +455,11 @@ module.exports = {
   memberState,
   buildTurn,
   boardView,
+  ACTION_TOOLS,
+  actionsOf,
+  proseOf,
+  placesOf,
+  remoteMember,
   kindOf,
   columnOf,
   slug,

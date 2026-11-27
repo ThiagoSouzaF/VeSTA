@@ -97,7 +97,7 @@ export function PlacesMap({ places, data, onOpenPlace }) {
       for (const t of z.teams)
         for (const [a, b] of t.wires) {
           const e = ends(a, b);
-          if (e) out.push({ key: a + '|' + b, ...curve(...e), cls: '' });
+          if (e) out.push({ key: a + '|' + b, ...curve(...e), cls: t.crossing.includes(a + '|' + b) ? 'cross' : '' });
         }
     for (const l of model.links) {
       const e = ends(l.from, l.to);
@@ -123,7 +123,11 @@ export function PlacesMap({ places, data, onOpenPlace }) {
     const fresh = model.events.filter((e) => !seen.current.has(e.id)).reverse();
     for (const id of ids) seen.current.add(id);
     if (reduced()) return;
-    fresh.slice(-MAX_BURST).forEach((e, i) => setTimeout(() => travel(e), i * 350));
+    // A message held for an offline place does not travel (yet).
+    fresh
+      .filter((e) => !e.held)
+      .slice(-MAX_BURST)
+      .forEach((e, i) => setTimeout(() => travel(e), i * 350));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- by the events' ids
   }, [model.events.map((e) => e.id).join()]);
 
@@ -206,16 +210,15 @@ export function PlacesMap({ places, data, onOpenPlace }) {
                   ))}
                 </div>
                 {z.teams.map((t) => (
-                  <div key={t.id} className={'pmap-team ' + t.status} data-team={t.name}>
-                    <span className="pmap-team-label">
-                      {(/^equipe\b/i.test(t.name) ? '' : 'EQUIPE · ') + t.name.toUpperCase() + ' · ' + t.project}
-                    </span>
-                    <div className="pmap-nodes">
-                      {t.members.map((m) => (
-                        <Card key={m.id} n={{ ...m, sub: m.lead ? 'líder · ' + m.role : m.role, running: m.working }} />
-                      ))}
-                    </div>
-                  </div>
+                  <Team key={t.id} t={t} />
+                ))}
+              </div>
+            )}
+            {z.remote && z.teams.length > 0 && (
+              <div className="pmap-group">
+                <div className="pmap-label">EQUIPES · O VESTA LEVA AS MENSAGENS PELO SSH</div>
+                {z.teams.map((t) => (
+                  <Team key={t.id} t={t} />
                 ))}
               </div>
             )}
@@ -249,7 +252,8 @@ export function PlacesMap({ places, data, onOpenPlace }) {
                   <span className={'pmap-where' + (e.cross ? ' cross' : '')}>{e.where}</span>
                 </div>
                 <p>
-                  {e.error && <span className="place-bad">✕ falhou</span>} {e.text}
+                  {e.error && <span className="place-bad">✕ falhou</span>}
+                  {e.held && <span className="place-bad">na fila: lugar fora do ar</span>} {e.text}
                 </p>
               </div>
             </div>
@@ -260,6 +264,23 @@ export function PlacesMap({ places, data, onOpenPlace }) {
           </p>
         )}
       </aside>
+    </div>
+  );
+}
+
+// A team's frame in one place (a team split across places has one in each).
+function Team({ t }) {
+  return (
+    <div className={'pmap-team ' + t.status} data-team={t.name}>
+      <span className="pmap-team-label">
+        {(/^equipe\b/i.test(t.name) ? '' : 'EQUIPE · ') + t.name.toUpperCase() + ' · ' + t.project}
+      </span>
+      <div className="pmap-nodes">
+        {t.members.map((m) => (
+          <Card key={m.id} n={{ ...m, sub: m.lead ? 'líder · ' + m.role : m.role, running: m.working }} />
+        ))}
+        {!t.members.length && <p className="pmap-empty">Todos os agents desta equipe rodam em outro lugar.</p>}
+      </div>
     </div>
   );
 }

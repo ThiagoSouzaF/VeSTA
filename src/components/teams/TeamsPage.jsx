@@ -38,6 +38,7 @@ export function TeamsPage({ data, integrations, call, setData, notify, onOpenCha
           isNew={!view.id}
           projects={projects}
           integrations={integrations}
+          places={data.places || []}
           onSave={save}
           onCancel={() => setView(view.id || null)}
         />
@@ -50,6 +51,7 @@ export function TeamsPage({ data, integrations, call, setData, notify, onOpenCha
           key={open.id}
           team={open}
           project={projects.find((p) => p.id === open.projectId)}
+          places={data.places || []}
           call={call}
           setData={setData}
           notify={notify}

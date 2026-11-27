@@ -45,7 +45,7 @@ function shape(kind, g) {
   return svgEl('circle', { class: 'core', r: 5.5 }, g);
 }
 
-export function TeamStage({ team, focus, onFocus, onPlace, onAnswer, onOpenChat, ahead, onMerge }) {
+export function TeamStage({ team, places = [], focus, onFocus, onPlace, onAnswer, onOpenChat, ahead, onMerge }) {
   const stage = useRef(null);
   const svg = useRef(null);
   const cards = useRef({});
@@ -283,6 +283,8 @@ export function TeamStage({ team, focus, onFocus, onPlace, onAnswer, onOpenChat,
         const state = memberState(team, m);
         const task = currentTask(team, m.id);
         const n = ahead?.[m.id] || 0;
+        const vps =
+          m.place && m.place !== 'pc' ? places.find((p) => p.id === m.place) || { name: 'lugar esquecido' } : null;
         return (
           <article
             key={m.id}
@@ -330,6 +332,12 @@ export function TeamStage({ team, focus, onFocus, onPlace, onAnswer, onOpenChat,
               <div className="team-meta">
                 <span>{fmtTokens(m.tokens || 0)} tokens</span>
                 {m.branch && <span title={m.branch}>{m.branch.split('/').pop()}</span>}
+                {vps && (
+                  <span className={'team-place' + (vps.online === false ? ' off' : '')} data-place={m.place}>
+                    {vps.online === false ? '✕ ' : ''}
+                    {vps.name}
+                  </span>
+                )}
               </div>
               {n > 0 && (
                 <button className="team-merge" onClick={() => onMerge(m)} title={'Juntar ' + m.branch + ' no projeto'}>

@@ -6,6 +6,9 @@
 //
 // This PC is read live; a VPS is read every few minutes (sooner while one of its agents runs) and between reads the
 // screen shows the last list VeSTA got (`snapshot`), marked offline when SSH failed.
+// Changes go by themselves (state.placesAuto, on unless the person turned it off): each read reinstalls the agents
+// whose package changed in VeSTA (task, kept lessons, skills, schedule); an offline VPS gets them when it is back.
+// Team members can run on a VPS too (teams/engine.cjs): their turns go there as one-shot jobs of the runner.
 // state.places = [{ id, name, host, port, home, node, path, os, kind, scheduler, linger, user, ais, runner,
 //                   online, seen, error, snapshot: { list, at } }]
 // deps (tests): { home, scheduler, launcher, version, spawn, sh, setInterval, clearInterval, now }
@@ -68,6 +71,7 @@ function createPlaces(ctx, deps = {}) {
     store.save();
     ctx.sync?.();
   };
+  const auto = () => store.state.placesAuto !== false;
 
   // ---- What goes into a place ------------------------------------------------------------------------------------
   // This PC: each AI as VeSTA found it (ctx.integrations; `args` only in tests, a fake AI run by node). A VPS: what
@@ -83,7 +87,9 @@ function createPlaces(ctx, deps = {}) {
       ])
     );
   const hasAi = (placeId, provider) =>
-    placeId === PC ? !!ctx.integrations?.[provider]?.installed : !!remoteOf(placeId).ais?.[provider];
+    placeId === PC
+      ? !!ctx.integrations?.[provider]?.installed
+      : provider !== 'drael' && !!remoteOf(placeId).ais?.[provider];
   // On a VPS there is no project folder of this PC: the agent works in its own work/ folder there.
   function packageOf(a, placeId = PC) {
     const project = a.projectId ? store.state.projects.find((p) => p.id === a.projectId) : null;
@@ -166,6 +172,10 @@ function createPlaces(ctx, deps = {}) {
       remove: seen(r.remove),
       start: seen(r.start),
       prepare: async () => {},
+      startJob: seen(r.startJob),
+      jobs: seen(r.jobs),
+      clearJob: seen(r.clearJob),
+      stopJob: seen(r.stopJob),
       updateRunner: seen(async () => {
         p.runner = await r.writeRunner(version());
         await r.setConfig(configOf(p, p.home));
@@ -201,6 +211,7 @@ function createPlaces(ctx, deps = {}) {
       home,
       online: true,
       remote: false,
+      auto: auto(),
       runner: { installed: st.runner?.hash ? st.runner : null, latest: latest(), outdated: outdated(st.runner) },
       ais: Object.fromEntries(
         AI_IDS.map((id) => [
@@ -237,6 +248,7 @@ function createPlaces(ctx, deps = {}) {
       error: p.error || '',
       readAt: p.snapshot?.at || null,
       remote: true,
+      auto: auto(),
       runner: { installed: p.runner?.hash ? p.runner : null, latest: latest(), outdated: outdated(p.runner) },
       ais: Object.fromEntries(
         AI_IDS.map((id) => [
@@ -301,9 +313,31 @@ function createPlaces(ctx, deps = {}) {
     } catch {
       return false;
     }
-    const changed = await absorb(PC, list, (slug, n) => local.runs(slug, { n }));
+    let changed = await absorb(PC, list, (slug, n) => local.runs(slug, { n }));
+    if (await carry(PC, access(PC))) changed = true;
     if (changed) commit();
     return changed;
+  }
+  // Changes going by themselves: every outdated install of this place is installed again (not while it runs; an agent
+  // whose AI is missing there keeps the old one and says why in `autoError`).
+  // Outdated there: marked by the last read, or changed in VeSTA since it was installed.
+  const stale = (a, placeId) => {
+    const p = installedAt(a, placeId);
+    return !!p && (!!p.outdated || packageOf(a, placeId).hash !== p.hash);
+  };
+  async function carry(placeId, io, { force = false } = {}) {
+    if (!force && !auto()) return false;
+    const due = agents().filter((a) => stale(a, placeId) && !a.places[placeId].running);
+    if (!due.length) return false;
+    await io.prepare();
+    for (const a of due)
+      try {
+        await installOne(io, a, placeId);
+      } catch (e) {
+        if (e.message.startsWith('Sem conexão')) throw e;
+        a.places[placeId] = { ...a.places[placeId], autoError: e.message };
+      }
+    return true;
   }
   // One VPS: its list (kept as the snapshot) and the runs it has that the diary does not.
   const reading = new Set();
@@ -313,10 +347,13 @@ function createPlaces(ctx, deps = {}) {
     const wasOnline = p.online;
     try {
       const io = access(p.id);
-      const list = await io.list();
+      let list = await io.list();
       p.snapshot = { list, at: now() };
       await absorb(p.id, list, io.runs);
+      if (await carry(p.id, io)) p.snapshot = { list: await io.list(), at: now() };
       commit();
+      // Back online: what waited for it (team turns) goes now.
+      if (wasOnline === false) ctx.teams?.tick?.();
       return true;
     } catch {
       if (wasOnline !== p.online) commit();
@@ -348,7 +385,17 @@ function createPlaces(ctx, deps = {}) {
     if (!hasAi(placeId, a.provider))
       throw new UserError('A IA de "' + a.name + '" não está instalada ' + inPlace(placeId));
     const r = await io.install(packageOf(a, placeId));
-    a.places = { ...(a.places || {}), [placeId]: { slug: r.slug, hash: r.hash, at: now(), task: r.task } };
+    const prev = installedAt(a, placeId);
+    a.places = {
+      ...(a.places || {}),
+      [placeId]: {
+        slug: r.slug,
+        hash: r.hash,
+        at: now(),
+        task: r.task,
+        ...(prev?.running ? { running: prev.running } : {}),
+      },
+    };
     return r;
   }
   async function install({ placeId = PC, agentIds = [] }) {
@@ -418,6 +465,50 @@ function createPlaces(ctx, deps = {}) {
     placeId = placeOfAgent(a, placeId);
     return access(placeId).runs(slugOf(a, placeId), 30);
   }
+  // "Atualizar todos": every outdated install, on every place that answers (or only one), whatever the switch says.
+  async function updateAll({ placeId } = {}) {
+    let updated = 0,
+      failed = 0;
+    const outdated = (id) => agents().filter((a) => stale(a, id)).length;
+    for (const id of placeId ? [placeId] : [PC, ...remotes().map((p) => p.id)]) {
+      // Read first: a change made a moment ago is only marked by a read.
+      try {
+        await syncPlace(id);
+      } catch {}
+      const before = outdated(id);
+      if (!before) continue;
+      try {
+        await carry(id, access(id), { force: true });
+        await syncPlace(id);
+      } catch {}
+      const left = outdated(id);
+      updated += before - left;
+      failed += left;
+    }
+    commit();
+    return { updated, failed };
+  }
+  function setAuto({ on }) {
+    store.state.placesAuto = !!on;
+    commit();
+    if (on) sync().catch(() => {});
+  }
+
+  // ---- Team jobs (teams/engine.cjs) -------------------------------------------------------------------------------
+  // A turn of a team member that runs on a VPS: one AI call there, apart from the SSH session; VeSTA reads the result.
+  const online = (placeId) => placeId === PC || remotes().find((p) => p.id === placeId)?.online !== false;
+  const known = (placeId) => placeId === PC || remotes().some((p) => p.id === placeId);
+  // A runner older than this VeSTA may not know the team jobs.
+  const runnerReady = (placeId) => placeId === PC || remoteOf(placeId).runner?.hash === runnerHash();
+  const job = (placeId) => {
+    if (placeId === PC) throw new UserError('Este PC roda os agents da equipe pelo chat');
+    return access(placeId);
+  };
+  const startJob = (placeId, spec) => job(placeId).startJob(spec);
+  const jobs = (placeId) => job(placeId).jobs();
+  const clearJob = (placeId, id) => job(placeId).clearJob(id);
+  const stopJob = (placeId, id) => job(placeId).stopJob(id);
+
   async function updateRunner({ placeId = PC } = {}) {
     const info = await access(placeId).updateRunner();
     commit();
@@ -501,6 +592,17 @@ function createPlaces(ctx, deps = {}) {
     runNow,
     runs,
     updateRunner,
+    updateAll,
+    setAuto,
+    online,
+    known,
+    runnerReady,
+    nameOf,
+    hasAi,
+    startJob,
+    jobs,
+    clearJob,
+    stopJob,
     connect,
     refresh,
     forgetPlace,

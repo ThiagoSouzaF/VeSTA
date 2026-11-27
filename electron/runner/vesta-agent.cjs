@@ -8,9 +8,12 @@
 //                      path: the PATH the AIs run with (a VPS's login PATH: a systemd timer starts with a bare one)
 //   agents/<slug>/     agent.json (what VeSTA sent), skills/<name>.md, work/ (folder for agents without a project),
 //                      runs/<time>-<id>.json (one per run), running.json (while one runs)
+//   jobs/<id>/         one turn of a team member that runs here (teams/engine.cjs): job.json, running.json, result.json
+//   teams/<team>/<member>/  the folder where that member works
 //
 // Commands (always JSON on stdout): status | list | install <pacote.json | -> | config <patch.json | -> | remove <slug>
-// | run <slug> [--trigger t] | runs <slug> [--n 10]; all take --home <pasta>; "-" reads the JSON from stdin.
+// | run <slug> [--trigger t] | runs <slug> [--n 10] | job <job.json | -> | jobs | job-stop <id> | job-clear <id>;
+// all take --home <pasta>; "-" reads the JSON from stdin.
 const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
@@ -478,7 +481,140 @@ function createRunner({ home = defaultHome(), scheduler = null, now = Date.now }
     if (!readAgent(slug)) throw new Error('Agent não instalado aqui: ' + slug);
     return records(slug, n);
   };
-  return { home, config, setConfig, status, list, install, remove, run, runs, readAgent };
+
+  // ---- Jobs: one turn of a team member, started by VeSTA and read back by it ------------------------------------
+  // job: { id, provider, model, mode, prompt, folder: '<team>/<member>' }. `job` keeps it and starts `job-run` apart
+  // from the caller (an SSH session ends, the turn goes on); `jobs` says how each one is; `job-clear` drops it.
+  const jobsDir = path.join(home, 'jobs');
+  const jobDir = (id) => {
+    if (!/^[a-z0-9-]{1,60}$/.test(String(id))) throw new Error('Trabalho inválido: ' + id);
+    return path.join(jobsDir, id);
+  };
+  const workOf = (folder) => {
+    const parts = String(folder || '').split('/');
+    if (!parts.length || parts.some((p) => !/^[A-Za-z0-9_-]{1,60}$/.test(p)))
+      throw new Error('Pasta inválida: ' + folder);
+    return path.join(home, 'teams', ...parts);
+  };
+  function job(spec, { start = startJob } = {}) {
+    if (!spec || !AI_NAME[spec.provider]) throw new Error('Trabalho sem IA conhecida');
+    if (!String(spec.prompt || '').trim()) throw new Error('Trabalho sem pedido');
+    const dir = jobDir(spec.id);
+    if (fs.existsSync(dir)) throw new Error('Esse trabalho já existe: ' + spec.id);
+    workOf(spec.folder);
+    writeJson(path.join(dir, 'job.json'), {
+      id: spec.id,
+      provider: spec.provider,
+      model: String(spec.model || ''),
+      mode: spec.mode === 'edit' ? 'edit' : 'read',
+      prompt: String(spec.prompt),
+      folder: spec.folder,
+      at: now(),
+    });
+    start(spec.id);
+    return { id: spec.id, started: true };
+  }
+  // The same program again, detached (the way the scheduler starts `run`).
+  function startJob(id) {
+    const child = spawn(process.execPath, [__filename, 'job-run', id, '--home', home], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env: childEnv(),
+    });
+    child.unref();
+  }
+  async function jobRun(id) {
+    const dir = jobDir(id);
+    const spec = readJson(path.join(dir, 'job.json'));
+    if (!spec) throw new Error('Trabalho não encontrado: ' + id);
+    if (fs.existsSync(path.join(dir, 'result.json'))) return { id, skipped: 'já terminou' };
+    const at = now();
+    writeJson(path.join(dir, 'running.json'), { pid: process.pid, at });
+    if (config().path) process.env.PATH = config().path;
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-job-'));
+    let r;
+    try {
+      const ai = config().ais?.[spec.provider];
+      if (!ai?.exe || !fs.existsSync(ai.exe))
+        throw new Error(AI_NAME[spec.provider] + ' não está instalado neste lugar');
+      const cwd = workOf(spec.folder);
+      fs.mkdirSync(cwd, { recursive: true });
+      r = await ask(spec, ai, spec.prompt, { cwd, scratch, timeoutMs: (Number(config().timeoutMin) || 60) * 60000 });
+    } catch (e) {
+      r = { text: '', error: e.message };
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+    // Stopped meanwhile (job-stop wrote its own result): that one stays.
+    if (!fs.existsSync(path.join(dir, 'result.json')))
+      writeJson(path.join(dir, 'result.json'), {
+        status: r.error ? 'error' : 'ok',
+        text: String(r.text || '').slice(0, MAX_TEXT),
+        error: String(r.error || '').slice(0, 400),
+        usage: r.usage || null,
+        at,
+        endedAt: now(),
+      });
+    fs.rmSync(path.join(dir, 'running.json'), { force: true });
+    return { id, done: true };
+  }
+  // [{ id, state: 'running' | 'done' | 'lost', at, result? }]: lost = its process died before writing a result.
+  function jobs() {
+    let ids = [];
+    try {
+      ids = fs.readdirSync(jobsDir).filter((d) => /^[a-z0-9-]{1,60}$/.test(d));
+    } catch {}
+    return ids.map((id) => {
+      const dir = path.join(jobsDir, id);
+      const result = readJson(path.join(dir, 'result.json'));
+      if (result) return { id, state: 'done', at: result.at, result };
+      const lock = readJson(path.join(dir, 'running.json'));
+      const spec = readJson(path.join(dir, 'job.json'));
+      if (lock && alive(lock.pid)) return { id, state: 'running', at: lock.at };
+      // Not started yet (a few seconds) or gone.
+      const young = !lock && spec && now() - spec.at < 60000;
+      return { id, state: young ? 'running' : 'lost', at: spec?.at || null };
+    });
+  }
+  function jobStop(id) {
+    const dir = jobDir(id);
+    const lock = readJson(path.join(dir, 'running.json'));
+    writeJson(path.join(dir, 'result.json'), {
+      status: 'error',
+      text: '',
+      error: 'Parado por você',
+      usage: null,
+      at: lock?.at || now(),
+      endedAt: now(),
+    });
+    if (lock && alive(lock.pid))
+      try {
+        process.kill(lock.pid);
+      } catch {}
+    return { id, stopped: true };
+  }
+  function jobClear(id) {
+    fs.rmSync(jobDir(id), { recursive: true, force: true });
+    return { id, cleared: true };
+  }
+  return {
+    home,
+    config,
+    setConfig,
+    status,
+    list,
+    install,
+    remove,
+    run,
+    runs,
+    readAgent,
+    job,
+    jobRun,
+    jobs,
+    jobStop,
+    jobClear,
+  };
 }
 
 // ---- Command line --------------------------------------------------------------------------------------------------
@@ -516,9 +652,14 @@ async function main(argv, { out = (s) => process.stdout.write(s + '\n') } = {}) 
     else if (cmd === 'run')
       result = await runner.run(arg, { trigger: typeof opt.trigger === 'string' ? opt.trigger : 'schedule' });
     else if (cmd === 'runs') result = runner.runs(arg, { n: Number(opt.n) || 30 });
+    else if (cmd === 'job') result = runner.job(input(arg) || {});
+    else if (cmd === 'job-run') result = await runner.jobRun(arg);
+    else if (cmd === 'jobs') result = runner.jobs();
+    else if (cmd === 'job-stop') result = runner.jobStop(arg);
+    else if (cmd === 'job-clear') result = runner.jobClear(arg);
     else {
       out(
-        'Uso: vesta-agent status | list | install <pacote.json> | config <json> | remove <agent> | run <agent> | runs <agent> [--home pasta]'
+        'Uso: vesta-agent status | list | install <pacote.json> | config <json> | remove <agent> | run <agent> | runs <agent> | job <json> | jobs | job-stop <id> | job-clear <id> [--home pasta]'
       );
       return cmd ? 2 : 0;
     }

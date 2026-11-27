@@ -311,13 +311,26 @@ test('places: install packs the agent, writes the runner and marks where it runs
   assert.equal(view.agents[0].agentId, id);
   assert.equal(view.agents[0].outdated, false);
   assert.ok(view.commands[0].includes('vesta-agent.cmd'));
-  // Changing the task leaves the install outdated until "Atualizar".
+  // With "Levar mudanças sozinho" off, a change of the task leaves the install outdated until "Atualizar".
+  ctx.places.setAuto({ on: false });
   ctx.agents.update({ id, ...a(), prompt: 'Rode os testes e o build.' });
   assert.equal(ctx.places.view().places[0].agents[0].outdated, true);
   await ctx.places.sync();
   assert.equal(a().places.pc.outdated, true);
   await ctx.places.update({ agentId: id });
   assert.equal(ctx.places.view().places[0].agents[0].outdated, false);
+  // "Atualizar todos" takes every outdated one, whatever the switch says.
+  ctx.agents.update({ id, ...a(), prompt: 'Só o build.' });
+  await ctx.places.sync();
+  assert.deepEqual(await ctx.places.updateAll(), { updated: 1, failed: 0 });
+  assert.equal(ctx.places.view().places[0].agents[0].outdated, false);
+  // On (the default), the next read carries the change by itself.
+  ctx.places.setAuto({ on: true });
+  ctx.agents.update({ id, ...a(), prompt: 'Rode os testes de novo.' });
+  await ctx.places.sync();
+  assert.equal(ctx.places.view().places[0].agents[0].outdated, false);
+  assert.equal(ctx.places.view().places[0].auto, true);
+  assert.match(fs.readFileSync(path.join(home, 'agents', 'testes-de-toda-noite', 'agent.json'), 'utf8'), /de novo/);
   fs.rmSync(dir, { recursive: true, force: true });
 });
 

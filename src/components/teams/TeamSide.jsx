@@ -47,7 +47,10 @@ export function TeamSide({ team, focus, onFocus }) {
                       </>
                     )}
                   </span>
-                  <div className="txt">{m.text}</div>
+                  <div className="txt">
+                    {m.held && <span className="team-held">na fila: lugar fora do ar</span>}
+                    {m.text}
+                  </div>
                 </div>
               </div>
             ))}

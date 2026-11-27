@@ -40,6 +40,8 @@ const defaults = () => ({
   teams: [],
   // Onde rodam (see places/engine.cjs): the VPS reached by SSH where agents run with VeSTA closed (this PC is implicit).
   places: [],
+  // Changes of an installed agent go to its places by themselves (off: they wait for Atualizar).
+  placesAuto: true,
   // Consolidation of the shared memory by an AI the person picks (memory/consolidator.cjs): the AI, the schedule,
   // the last runs, and the closed conversation stretches waiting for it.
   consolidation: null,

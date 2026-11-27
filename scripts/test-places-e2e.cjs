@@ -231,6 +231,9 @@ const step = async (name, fn) => {
     });
 
     await step('a changed agent is outdated there until Atualizar', async () => {
+      // With "Levar mudanças sozinho" off (on, the next read would carry it: test-places-sync-e2e).
+      await page.locator('.places-auto').getByRole('switch').click();
+      await page.locator('.places-auto[data-auto="off"]').waitFor();
       const a = (await state()).agents.find((x) => x.id === 'a-bom-dia');
       await call('agentUpdate', { ...a, prompt: 'Leia os commits de ontem e de hoje.' });
       await page.getByRole('button', { name: 'Atualizar a lista' }).click();

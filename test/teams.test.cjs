@@ -46,6 +46,44 @@ test('normalizeTeam: validation, unique ids, one lead, places, limits', () => {
   assert.equal(again.status, 'paused');
 });
 
+test('a member on a VPS: its place, action lines instead of tools, offline waits', () => {
+  const t = T.normalizeTeam(
+    form({
+      members: [
+        { name: 'Líder', lead: true },
+        { name: 'Docs', place: 'vps-1' },
+        { name: 'X', place: '../x' },
+      ],
+    })
+  );
+  assert.deepEqual(
+    t.members.map((m) => m.place),
+    ['pc', 'vps-1', 'pc']
+  );
+  assert.deepEqual(T.placesOf(t), [
+    { place: 'pc', count: 2 },
+    { place: 'vps-1', count: 1 },
+  ]);
+  const turn = T.buildTurn(t, t.members[1], { remote: 'vps-hetzner' });
+  assert.match(turn, /Você roda em vps-hetzner/);
+  assert.match(turn, /vesta_team_send \{"para"/);
+  assert.doesNotMatch(turn, /vesta_team_task \{/, 'only the lead creates tasks');
+  assert.match(turn, /O quadro agora:\n\{"objetivo"/);
+  const text = 'Fiz.\n- vesta_team_send {"para":"Líder","texto":"ok"}\n**vesta_team_task {"x":}**';
+  const acts = T.actionsOf(text);
+  assert.deepEqual([...acts], [{ tool: 'vesta_team_send', args: { para: 'Líder', texto: 'ok' } }]);
+  assert.equal(acts.bad, 1);
+  assert.equal(T.proseOf(text), 'Fiz.');
+  // Docs has a message but its place is offline: it is not woken.
+  t.status = 'running';
+  t.messages = [{ id: 'm', at: 5, from: 'lider', to: 'docs', kind: 'task', text: 'README' }];
+  assert.deepEqual(
+    T.due(t, 10).map((m) => m.id),
+    ['docs']
+  );
+  assert.deepEqual(T.due(t, 10, new Set(['docs'])), []);
+});
+
 test('resolve, wires, due and turn text', () => {
   const t = T.normalizeTeam(form());
   t.status = 'running';

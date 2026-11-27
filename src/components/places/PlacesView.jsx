@@ -12,6 +12,7 @@ import { folderTree } from '../../lib/places';
 import { InstallModal } from './InstallModal';
 import { PlaceDrawer } from './PlaceDrawer';
 import { PlacesMap } from './PlacesMap';
+import { Switch } from '../skills/SkillBits';
 
 const AI_IDS = ['claude', 'codex', 'opencode', 'drael'];
 
@@ -54,6 +55,21 @@ export function PlacesView({ data, call, setData, notify, onOpenAgent }) {
   const off = !place.online;
   const agentOf = (x) => (data.agents || []).find((a) => a.id === x.agentId);
   const now = Date.now();
+  // Changes going by themselves (one switch for every place) and "Atualizar todos".
+  const auto = view.places[0]?.auto !== false;
+  const pending = view.places
+    .filter((p) => p.online)
+    .reduce((n, p) => n + p.agents.filter((x) => x.outdated).length, 0);
+  const updateAll = async () => {
+    const r = await act('placeUpdateAll', {});
+    if (r?.updated != null)
+      notify(
+        r.updated +
+          ' atualizado' +
+          (r.updated === 1 ? '' : 's') +
+          (r.failed ? ' · ' + r.failed + ' não deu (veja o lugar)' : '')
+      );
+  };
   const refresh = async () => {
     setReading(true);
     await act('placeRefresh', here, place.remote ? place.name + ' lida agora' : null);
@@ -95,6 +111,33 @@ export function PlacesView({ data, call, setData, notify, onOpenAgent }) {
               <Plus size={14} />
               Conectar uma VPS
             </button>
+            <div className="places-auto" data-auto={auto ? 'on' : 'off'}>
+              <span>
+                <b>Levar mudanças sozinho</b>
+                <small>
+                  {auto
+                    ? 'Mudou o pedido, as lições ou as skills de um agent: os lugares dele recebem na próxima leitura (uma VPS fora do ar, quando voltar).'
+                    : 'As mudanças esperam você clicar em Atualizar em cada lugar.'}
+                </small>
+              </span>
+              <Switch
+                on={auto}
+                label="Levar mudanças sozinho"
+                onChange={(on) =>
+                  act(
+                    'placeAuto',
+                    { on },
+                    on ? 'As mudanças vão sozinhas para os lugares' : 'As mudanças esperam o Atualizar'
+                  )
+                }
+              />
+            </div>
+            {pending > 0 && (
+              <button className="secondary-button place-all" onClick={updateAll}>
+                <RefreshCw size={13} />
+                Atualizar todos ({pending})
+              </button>
+            )}
           </aside>
 
           <section className="place" aria-label={place.name} data-place={place.id}>
@@ -271,9 +314,16 @@ export function PlacesView({ data, call, setData, notify, onOpenAgent }) {
                         </td>
                         <td>
                           {x.outdated ? (
-                            <span className="place-flag">o VeSTA tem uma versão nova</span>
+                            <span className="place-flag">
+                              {auto && !off && !a?.places?.[place.id]?.autoError
+                                ? 'indo sozinho na próxima leitura'
+                                : 'o VeSTA tem uma versão nova'}
+                            </span>
                           ) : (
                             <small>em dia</small>
+                          )}
+                          {x.outdated && a?.places?.[place.id]?.autoError && (
+                            <small className="place-warn">{a.places[place.id].autoError}</small>
                           )}
                           <small>instalado {agoLabel(x.updatedAt, now)}</small>
                         </td>

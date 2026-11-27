@@ -1,5 +1,7 @@
 // Creating or editing a team: the project, the goal, who is in it (role, AI, model, whether it edits, the lead) and
 // the limits (agents at once, tokens a day, turns per start). The rules that check it live in shared/teams.cjs.
+// With a VPS connected (Onde rodam), each member also says where it runs: this PC, or the VPS (its turns go there by
+// SSH, with the AIs found there; the Drael only on this PC).
 import { useState } from 'react';
 import { Crown, Plus, X } from 'lucide-react';
 import { PROVIDERS } from '../../lib/constants';
@@ -14,7 +16,7 @@ const BUDGETS = [
   [0, 'Sem teto'],
 ];
 
-export function TeamForm({ initial, isNew, projects, integrations, onSave, onCancel }) {
+export function TeamForm({ initial, isNew, projects, integrations, places = [], onSave, onCancel }) {
   const [f, setF] = useState(initial);
   const set = (patch) => setF((x) => ({ ...x, ...patch }));
   const setMember = (i, patch) =>
@@ -38,6 +40,7 @@ export function TeamForm({ initial, isNew, projects, integrations, onSave, onCan
           model: '',
           mode: 'edit',
           lead: false,
+          place: 'pc',
         },
       ],
     }));
@@ -106,13 +109,19 @@ export function TeamForm({ initial, isNew, projects, integrations, onSave, onCan
 
       <div className="team-field">
         <span>
-          QUEM ESTÁ NA EQUIPE <small>o líder planeja e distribui; quem edita ganha uma branch própria</small>
+          QUEM ESTÁ NA EQUIPE{' '}
+          <small>
+            o líder planeja e distribui; quem edita ganha uma branch própria
+            {places.length ? '; numa VPS, trabalha numa pasta dele lá' : ''}
+          </small>
         </span>
         <div className="team-members">
           {f.members.map((m, i) => {
             const models = integrations[m.provider]?.models || [];
+            const at = m.place && m.place !== 'pc' ? places.find((p) => p.id === m.place) : null;
+            const has = (id) => (at ? id !== 'drael' && !!at.ais?.[id] : !!integrations[id]?.installed);
             return (
-              <div className="team-member-row" key={i} data-member={i}>
+              <div className={'team-member-row' + (places.length ? ' placed' : '')} key={i} data-member={i}>
                 <button
                   type="button"
                   className={'team-lead' + (m.lead ? ' on' : '')}
@@ -144,9 +153,9 @@ export function TeamForm({ initial, isNew, projects, integrations, onSave, onCan
                   onChange={(e) => setMember(i, { provider: e.target.value, model: '' })}
                 >
                   {ORDER.map((id) => (
-                    <option key={id} value={id} disabled={!integrations[id]?.installed && m.provider !== id}>
+                    <option key={id} value={id} disabled={!has(id) && m.provider !== id}>
                       {PROVIDERS[id].name}
-                      {integrations[id]?.installed ? '' : ' (não instalada)'}
+                      {has(id) ? '' : at ? ' (não está lá)' : ' (não instalada)'}
                     </option>
                   ))}
                 </select>
@@ -170,6 +179,22 @@ export function TeamForm({ initial, isNew, projects, integrations, onSave, onCan
                   <option value="edit">Edita</option>
                   <option value="read">Só lê</option>
                 </select>
+                {places.length > 0 && (
+                  <select
+                    value={m.place || 'pc'}
+                    aria-label={'Onde ' + m.name + ' roda'}
+                    data-field="place"
+                    onChange={(e) => setMember(i, { place: e.target.value })}
+                  >
+                    <option value="pc">Este PC</option>
+                    {places.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                        {p.online === false ? ' (fora do ar)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <button
                   type="button"
                   className="team-drop"
@@ -232,7 +257,8 @@ export function TeamForm({ initial, isNew, projects, integrations, onSave, onCan
       </label>
       <p className="team-note">
         Nada é publicado: juntar as branches no projeto e qualquer push esperam o seu sim. A equipe só trabalha com o
-        VeSTA aberto e pausa sozinha no teto de tokens ou de turnos.
+        VeSTA aberto (é ele que leva as mensagens, também para quem está numa VPS) e pausa sozinha no teto de tokens ou
+        de turnos.
       </p>
       <div className="team-form-actions">
         <button type="button" className="team-btn" onClick={onCancel}>

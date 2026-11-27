@@ -1174,3 +1174,30 @@
     animation: none;
   }
 }
+
+/* ---- Onde rodam, fase 3: changes going by themselves ---- */
+.places-auto {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 10px;
+  align-items: start;
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+}
+.places-auto > span {
+  display: grid;
+  gap: 4px;
+}
+.places-auto b {
+  font-size: 12px;
+  color: var(--text);
+}
+.places-auto small {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.place-all {
+  justify-content: center;
+}

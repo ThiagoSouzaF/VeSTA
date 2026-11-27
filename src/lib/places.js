@@ -91,8 +91,9 @@ export function folderTree(place) {
 }
 
 // ---- Mapa: every place side by side ---------------------------------------------------------------------------------
-// zones: one per place. This PC holds "VeSTA aberto" (you, the teams — they always run with VeSTA open — and the agents
-// not installed anywhere) and the agents of its scheduler; a VPS holds the agents installed there.
+// zones: one per place. This PC holds "VeSTA aberto" (you, the teams and the agents not installed anywhere) and the
+// agents of its scheduler; a VPS holds the agents installed there and the team members that run there (a team split
+// across places shows a frame in each, its wires crossing between them: `crossing` lists those, as 'a|b').
 // links: this PC (where VeSTA runs) and each VPS (VeSTA reads it over SSH; cut while it is offline). events: the latest team messages and
 // runs that came back from a place, newest first; each has from/to node ids for the packet that travels.
 // Node ids: 'voce', 't:<team>:<member>', 'a:<agent>:<place | vesta>'.
@@ -121,37 +122,61 @@ export function mapModel(places, { agents = [], teams = [], projects = [] } = {}
     nodes: agents.filter((a) => a.places?.[p.id]).map((a) => agentNode(a, p.id)),
   }));
   const pc = zones.find((z) => z.id === 'pc');
-  if (pc) {
-    pc.vesta = agents.filter((a) => !installedSomewhere(a)).map((a) => agentNode(a, 'vesta'));
-    pc.teams = teams.map((t) => ({
-      id: t.id,
-      name: t.name,
-      project: projectName(t.projectId),
-      status: t.status,
-      members: [...t.members]
-        .sort((x, y) => (y.lead ? 1 : 0) - (x.lead ? 1 : 0))
-        .map((m) => ({
-          id: 't:' + t.id + ':' + m.id,
-          name: m.name,
-          role: m.role,
-          provider: m.provider,
-          lead: !!m.lead,
-          working: !!m.busy,
-        })),
-      wires: teamWires(t).map(([a, b]) => [memberNode(t, a), memberNode(t, b)]),
-    }));
+  if (pc) pc.vesta = agents.filter((a) => !installedSomewhere(a)).map((a) => agentNode(a, 'vesta'));
+  for (const t of teams) {
+    const where = (id) => placeOfMember(t, id, zones);
+    const crossing = [];
+    const wires = teamWires(t).map(([a, b]) => {
+      const w = [memberNode(t, a), memberNode(t, b)];
+      if (where(a) !== where(b)) crossing.push(w.join('|'));
+      return w;
+    });
+    // One frame per place with members of the team; the wires go with the first (this PC, where you are).
+    let first = true;
+    for (const z of zones) {
+      const mine = t.members.filter((m) => where(m.id) === z.id);
+      if (!mine.length && !(z.id === 'pc' && first)) continue;
+      z.teams.push({
+        id: t.id,
+        name: t.name,
+        project: projectName(t.projectId),
+        status: t.status,
+        members: [...mine]
+          .sort((x, y) => (y.lead ? 1 : 0) - (x.lead ? 1 : 0))
+          .map((m) => ({
+            id: 't:' + t.id + ':' + m.id,
+            name: m.name,
+            role: m.role,
+            provider: m.provider,
+            lead: !!m.lead,
+            working: !!m.busy,
+          })),
+        wires: first ? wires : [],
+        crossing: first ? crossing : [],
+      });
+      first = false;
+    }
   }
   const links = zones.filter((z) => z.remote).map((z) => ({ from: 'zone:pc', to: 'zone:' + z.id, down: !z.online }));
   return { zones, links, events: mapEvents(places, { agents, teams }) };
 }
 const memberNode = (team, id) => (id === TEAM_HUMAN ? YOU : 't:' + team.id + ':' + id);
+// The zone of a member (you are on this PC; a place VeSTA no longer knows falls back to this PC).
+function placeOfMember(team, id, zones) {
+  if (id === TEAM_HUMAN) return 'pc';
+  const p = team.members.find((m) => m.id === id)?.place || 'pc';
+  return zones.some((z) => z.id === p) ? p : 'pc';
+}
 export function mapEvents(places, { agents = [], teams = [] } = {}, max = 14) {
   const name = (id) => places.find((p) => p.id === id)?.name || id;
   const out = [];
+  const zones = places.map((p) => ({ id: p.id }));
   for (const t of teams) {
     const who = (id) => (id === TEAM_HUMAN ? 'Você' : t.members.find((m) => m.id === id)?.name || id);
     for (const m of (t.messages || []).slice(-30))
-      if (m.kind !== 'note' && m.from && m.to)
+      if (m.kind !== 'note' && m.from && m.to) {
+        const a = placeOfMember(t, m.from, zones),
+          b = placeOfMember(t, m.to, zones);
         out.push({
           id: 'm:' + m.id,
           at: m.at,
@@ -159,9 +184,13 @@ export function mapEvents(places, { agents = [], teams = [] } = {}, max = 14) {
           from: memberNode(t, m.from),
           to: memberNode(t, m.to),
           route: who(m.from) + ' → ' + who(m.to),
-          where: t.name,
+          // Between places, VeSTA carried it over SSH (or holds it while the place is offline).
+          where: a === b ? t.name : name(a) + ' → ' + name(b),
+          cross: a !== b,
+          held: !!m.held,
           text: m.text,
         });
+      }
   }
   for (const a of agents)
     for (const r of (a.runs || []).slice(0, 10))

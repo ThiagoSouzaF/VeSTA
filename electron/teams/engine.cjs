@@ -3,6 +3,9 @@
 // it talks to the others through the vesta_team_* tools (mcp/skills.cjs -> tool()), which only change the team's board
 // and messages. A message wakes whoever receives it; a finished turn ('chat-done') frees the agent and wakes the next.
 // Limits: agents at once (maxParallel), tokens a day (budget) and turns per start (maxTurns); "Parar todos" stops them.
+// A member may run on a VPS (member.place): its turn is a job of the runner there (ctx.places.startJob), read back on
+// each tick, and what it says to the team comes as action lines of its answer (T.actionsOf), applied like the tools.
+// While its place is offline, what is for it waits (held) and it wakes when the place is back.
 // deps (tests): { send(ctx, args), now(), installed(provider), git, root, setInterval, clearInterval }
 const path = require('node:path');
 const fs = require('node:fs');
@@ -34,10 +37,16 @@ function createTeamEngine(ctx, deps = {}) {
     ctx.sync?.();
   };
   const busy = (t) => t.members.some((m) => m.busy);
+  const remote = T.remoteMember;
+  const placeName = (m) => ctx.places?.nameOf(m.place) || m.place;
+  const reachable = (m) => !remote(m) || !!ctx.places?.online(m.place);
+  const offline = (e) => /^Sem conexão/.test(e?.message || '');
 
   // ---- Board and messages ----------------------------------------------------------------------------------------
   function post(t, from, to, kind, text) {
     const msg = { id: randomUUID(), at: now(), from, to, kind, text: redact(String(text || '')).slice(0, 2000) };
+    const target = to && T.memberOf(t, to);
+    if (target && !reachable(target)) msg.held = true;
     t.messages = [...(t.messages || []), msg].slice(-T.MAX_MESSAGES);
     t.updatedAt = msg.at;
     return msg;
@@ -117,7 +126,8 @@ function createTeamEngine(ctx, deps = {}) {
   async function prepare(t) {
     const p = project(t);
     if (!p) throw new UserError('O projeto da equipe não existe mais');
-    const editors = t.members.filter((m) => m.mode !== 'read');
+    // A member on a VPS works in its own folder there.
+    const editors = t.members.filter((m) => m.mode !== 'read' && !remote(m));
     if (!editors.length) return;
     if (!(await git.isRepo(p.path))) {
       if (!t.sharedNoted) note(t, 'O projeto não usa git: os agents dividem a mesma pasta.');
@@ -145,10 +155,26 @@ function createTeamEngine(ctx, deps = {}) {
   async function start({ id }) {
     const t = find(id);
     if (t.status === 'running') return;
-    const missing = t.members.filter((m) => !installed(m.provider));
+    const gone = t.members.filter((m) => remote(m) && !ctx.places?.known(m.place));
+    if (gone.length)
+      throw new UserError(
+        'O lugar de ' + gone.map((m) => m.name).join(', ') + ' não existe mais: escolha outro na equipe'
+      );
+    const missing = t.members.filter((m) => !remote(m) && !installed(m.provider));
     if (missing.length)
       throw new UserError(
         'Instale a IA de ' + missing.map((m) => m.name).join(', ') + ' (tela Conexões) ou troque na equipe'
+      );
+    const old = [...new Set(t.members.filter((m) => remote(m) && !ctx.places.runnerReady(m.place)).map(placeName))];
+    if (old.length)
+      throw new UserError(
+        'Atualize o executor de ' + old.join(', ') + ' (Agents → Onde rodam) antes de começar a equipe'
+      );
+    const far = t.members.filter((m) => remote(m) && !ctx.places.hasAi(m.place, m.provider));
+    if (far.length)
+      throw new UserError(
+        far.map((m) => m.name + ' (' + placeName(m) + ')').join(', ') +
+          ': a IA não está instalada lá. Instale na VPS e use Atualizar a lista em Onde rodam, ou troque na equipe'
       );
     await prepare(t);
     Object.assign(t, { status: 'running', turns: 0, note: '' });
@@ -169,7 +195,16 @@ function createTeamEngine(ctx, deps = {}) {
   function stopAll({ id }) {
     const t = find(id);
     t.status = 'stopped';
-    for (const m of t.members) if (m.busy && m.chatId) ctx.stopChat?.(m.chatId);
+    for (const m of t.members) {
+      if (m.busy && m.job) {
+        const { place, id: jobId } = m.job;
+        ctx.places
+          ?.stopJob(place, jobId)
+          .then(() => ctx.places.clearJob(place, jobId))
+          .catch(() => {});
+        Object.assign(m, { busy: false, job: null });
+      } else if (m.busy && m.chatId) ctx.stopChat?.(m.chatId);
+    }
     note(t, 'Você parou todos os agents.', T.HUMAN);
     commit();
   }
@@ -220,6 +255,7 @@ function createTeamEngine(ctx, deps = {}) {
 
   // One turn of an agent: its chat (made once), the turn text with what is new, the regular send flow.
   function wake(t, m) {
+    if (remote(m)) return wakeRemote(t, m);
     const p = project(t);
     // A new AI for the agent starts a new chat (a session belongs to one AI).
     let chat = m.chatId && store.state.chats.find((c) => c.id === m.chatId && c.provider === m.provider);
@@ -252,7 +288,113 @@ function createTeamEngine(ctx, deps = {}) {
         commit();
       });
   }
+  // A turn on a VPS: one job there with the turn text (the board inside, action lines to answer). What was for the
+  // member is delivered now; an offline place gives it back to the queue.
+  function wakeRemote(t, m) {
+    const p = project(t);
+    const prev = { readAt: m.readAt, turns: m.turns };
+    const text = T.buildTurn(t, m, { projectName: p?.name || '', now: now(), first: !m.turns, remote: placeName(m) });
+    const inbox = T.inboxOf(t, m.id);
+    const job = { id: randomUUID(), place: m.place, at: now() };
+    Object.assign(m, { busy: true, readAt: now(), turns: (m.turns || 0) + 1, job });
+    t.turns = (t.turns || 0) + 1;
+    for (const msg of inbox) if (msg.held) (msg.held = false), (msg.deliveredAt = now());
+    commit();
+    Promise.resolve()
+      .then(() =>
+        ctx.places.startJob(m.place, {
+          id: job.id,
+          provider: m.provider,
+          model: m.model,
+          mode: m.mode,
+          prompt: text,
+          folder: t.id + '/' + m.id,
+        })
+      )
+      .catch((e) => {
+        Object.assign(m, { busy: false, job: null, readAt: prev.readAt, turns: prev.turns });
+        t.turns = Math.max(0, (t.turns || 1) - 1);
+        if (offline(e)) for (const msg of inbox) msg.held = true;
+        else {
+          note(t, m.name + ' não conseguiu começar em ' + placeName(m) + ': ' + redact(e.message).slice(0, 300));
+          t.status = 'paused';
+        }
+        commit();
+      });
+  }
+  // The turns running on a VPS: each place read once per tick; a finished one comes back to the team.
+  const reading = new Set();
+  let quiet = false;
+  function collect() {
+    const byPlace = new Map();
+    for (const t of teams())
+      for (const m of t.members)
+        if (m.busy && m.job) byPlace.set(m.job.place, [...(byPlace.get(m.job.place) || []), [t, m]]);
+    const reads = [];
+    for (const [place, list] of byPlace) {
+      if (reading.has(place)) continue;
+      reading.add(place);
+      const read = ctx.places
+        .jobs(place)
+        .then((all) => {
+          const byId = new Map(all.map((j) => [j.id, j]));
+          for (const [t, m] of list) {
+            if (!m.busy || !m.job) continue;
+            const j = byId.get(m.job.id);
+            if (j?.state === 'done') finishRemote(t, m, j.result);
+            // Gone from there (the VPS restarted, the folder was removed): the turn is lost, the member is free.
+            else if ((!j && now() - m.job.at > 60000) || j?.state === 'lost')
+              finishRemote(t, m, { status: 'error', error: 'o turno se perdeu na VPS', text: '' });
+          }
+        })
+        .catch(() => {})
+        .finally(() => reading.delete(place));
+      reads.push(read);
+    }
+    return Promise.all(reads);
+  }
+  // What a turn on a VPS said: its action lines go through the same rules as the tools; a refused one is noted.
+  function finishRemote(t, m, result) {
+    const { place, id: jobId } = m.job;
+    Object.assign(m, { busy: false, job: null });
+    const used = result.usage ? (result.usage.input || 0) + (result.usage.cached || 0) + (result.usage.output || 0) : 0;
+    const day = T.dayOf(now());
+    t.spent = { day, tokens: (t.spent?.day === day ? t.spent.tokens : 0) + used };
+    m.tokens = (m.tokens || 0) + used;
+    if (result.status !== 'ok')
+      note(
+        t,
+        m.name + ' parou no meio do turno em ' + placeName(m) + ': ' + redact(result.error || 'falhou').slice(0, 200)
+      );
+    const actions = T.actionsOf(result.text);
+    quiet = true;
+    for (const a of actions)
+      try {
+        act(t, m, a.tool, a.args);
+      } catch (e) {
+        note(
+          t,
+          m.name + ': ' + a.tool.replace('vesta_team_', '') + ' recusado (' + String(e.message).slice(0, 200) + ')'
+        );
+      }
+    quiet = false;
+    if (actions.bad) note(t, m.name + ': ' + actions.bad + ' linha(s) de ação sem JSON válido foram ignoradas.');
+    m.lastLine = T.proseOf(result.text).split('\n').filter(Boolean).pop()?.slice(0, 200) || '';
+    m.lastReply = T.proseOf(result.text).slice(0, 4000);
+    commit();
+    ctx.places.clearJob(place, jobId).catch(() => {});
+    tick();
+  }
+  // A member whose place is offline: what is for it waits, marked held.
+  function hold(t) {
+    const away = new Set(t.members.filter((m) => !reachable(m)).map((m) => m.id));
+    let changed = false;
+    for (const id of away) for (const msg of T.inboxOf(t, id)) if (!msg.held) (msg.held = true), (changed = true);
+    if (changed) commit();
+    return away;
+  }
   function tick() {
+    collect();
     for (const t of teams()) {
       if (t.status !== 'running') continue;
       if (T.overBudget(t, now())) {
@@ -267,7 +409,7 @@ function createTeamEngine(ctx, deps = {}) {
         commit();
         continue;
       }
-      for (const m of T.due(t, now())) wake(t, m);
+      for (const m of T.due(t, now(), hold(t))) wake(t, m);
     }
   }
   // Every finished turn passes here; only the chats of team agents matter.
@@ -303,6 +445,11 @@ function createTeamEngine(ctx, deps = {}) {
     const t = teams().find((x) => x.id === chat.teamId);
     const me = t && T.memberOf(t, chat.memberId);
     if (!me) throw userSafe('Este chat não é de uma equipe');
+    return act(t, me, name, args);
+  }
+  // A tool call (or an action line of a member on a VPS) by `me` in team `t`.
+  function act(t, me, name, args = {}) {
+    args = args || {};
     const who = (w) => {
       const id = T.resolve(t, w);
       if (!id)
@@ -329,7 +476,7 @@ function createTeamEngine(ctx, deps = {}) {
           { id: randomUUID(), at: now(), from: me.id, text: text.slice(0, 2000), status: 'open' },
         ];
       commit();
-      tick();
+      if (!quiet) tick();
       return to === T.HUMAN
         ? {
             entregue: 'Você (a pessoa)',
@@ -345,7 +492,7 @@ function createTeamEngine(ctx, deps = {}) {
       const task = addTask(t, { title: args.titulo, detail: args.detalhe, assignee, by: me.id });
       post(t, me.id, assignee, 'task', task.id + ': ' + task.title + (task.detail ? ' — ' + task.detail : ''));
       commit();
-      tick();
+      if (!quiet) tick();
       return { tarefa: task.id, com: T.nameOf(t, assignee) };
     }
     if (name === 'vesta_team_move') {
@@ -376,7 +523,7 @@ function createTeamEngine(ctx, deps = {}) {
       if (column === 'todo' && task.assignee !== me.id)
         post(t, me.id, task.assignee, 'review', task.id + ' voltou: ' + (nota || 'veja o quadro.'));
       commit();
-      tick();
+      if (!quiet) tick();
       return { tarefa: task.id, coluna: T.COLUMN_LABELS[column] };
     }
     throw userSafe('Ferramenta desconhecida: ' + name);
@@ -387,7 +534,8 @@ function createTeamEngine(ctx, deps = {}) {
   function recover() {
     let changed = false;
     for (const t of teams()) {
-      for (const m of t.members) if (m.busy) (m.busy = false), (changed = true);
+      // A turn on a VPS goes on there with VeSTA closed: it is read when the clock starts.
+      for (const m of t.members) if (m.busy && !m.job) (m.busy = false), (changed = true);
       if (t.status === 'running') {
         t.status = 'paused';
         note(t, 'O VeSTA fechou com a equipe trabalhando. Continue quando quiser.');
@@ -420,6 +568,7 @@ function createTeamEngine(ctx, deps = {}) {
     merge,
     branches,
     tick,
+    collect,
     onChatDone,
     tool,
     recover,

@@ -500,3 +500,38 @@ test('Onde rodam fase 2: a VPS in the chips and filters, its warnings, and the m
   assert.equal(m.events[0].text, 'porta 4319 ocupada');
   assert.equal(mapEvents(places, { teams: [team] }, 1).length, 1);
 });
+
+test('Onde rodam fase 3: a team split across places, its crossing wires and a message held for an offline VPS', async () => {
+  const { mapModel } = await lib('places');
+  const team = {
+    id: 't1',
+    name: 'Equipe do site',
+    projectId: 'p1',
+    status: 'running',
+    members: [
+      { id: 'lid', name: 'Líder', role: 'organiza', provider: 'claude', lead: true, place: 'vps-1' },
+      { id: 'docs', name: 'Docs', role: 'README', provider: 'claude', place: 'pc' },
+    ],
+    messages: [{ id: 'm1', at: 10, from: 'docs', to: 'lid', kind: 'answer', text: 'pronto', held: true }],
+  };
+  const places = [
+    { id: 'pc', name: 'Este PC', online: true },
+    { id: 'vps-1', name: 'vps-hetzner', online: false, remote: true },
+  ];
+  const m = mapModel(places, { teams: [team] });
+  const [pc, vps] = m.zones;
+  assert.deepEqual(
+    pc.teams[0].members.map((x) => x.name),
+    ['Docs']
+  );
+  assert.deepEqual(
+    vps.teams[0].members.map((x) => x.name),
+    ['Líder']
+  );
+  assert.deepEqual(vps.teams[0].wires, [], 'the wires go once, with the frame on this PC');
+  assert.deepEqual(pc.teams[0].crossing, ['voce|t:t1:lid', 't:t1:lid|t:t1:docs']);
+  assert.deepEqual(
+    m.events.map((e) => [e.where, e.cross, e.held]),
+    [['Este PC → vps-hetzner', true, true]]
+  );
+});

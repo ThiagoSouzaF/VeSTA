@@ -188,7 +188,7 @@ const step = async (name, fn) => {
       await page.locator('.team-card[data-agent="voce"]').waitFor();
       assert.equal(await page.locator('.team-card').count(), 4);
       assert.equal(await page.locator('.team-wire').count(), 3, 'you-lead and lead to each agent');
-      assert.match(await page.locator('.team-where').innerText(), /Roda em VeSTA aberto/);
+      assert.match(await page.locator('.team-where').innerText(), /Roda em Este PC · VeSTA aberto/);
       await shot('3-mesa-nova');
     });
 
