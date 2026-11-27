@@ -280,13 +280,12 @@ export function App() {
       ? { count: running, live: true }
       : { count: list.reduce((n, a) => n + (a.unseen || 0), 0), live: false };
   }, [data.agents]);
-  // Equipes on the rail: agents working now (live), else the questions waiting for the person.
+  // Equipes on the rail: what waits for the person first (it is their move), else the agents working now (live).
   const teamsBadge = useMemo(() => {
     const list = data.teams || [];
+    const waiting = list.reduce((n, t) => n + (t.asks || []).filter((a) => a.status === 'open').length, 0);
     const working = list.reduce((n, t) => n + t.members.filter((m) => m.busy).length, 0);
-    return working
-      ? { count: working, live: true }
-      : { count: list.reduce((n, t) => n + (t.asks || []).filter((a) => a.status === 'open').length, 0), live: false };
+    return waiting ? { count: waiting, live: false } : { count: working, live: working > 0 };
   }, [data.teams]);
   // Stable callback for the quests screen: reads the chats through a ref so text deltas do not change its identity.
   const chatsRef = useRef(data.chats);

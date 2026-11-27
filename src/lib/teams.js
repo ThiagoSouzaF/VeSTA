@@ -25,6 +25,7 @@ export const {
   layout,
   hhmm,
   placesOf,
+  MAX_SOUL,
 } = shared;
 
 const ORDER = ['claude', 'codex', 'opencode', 'drael'];
@@ -53,10 +54,12 @@ export const editableTeam = (t) => ({
   name: t.name,
   projectId: t.projectId,
   goal: t.goal,
-  members: t.members.map(({ id, name, role, provider, model, mode, lead, x, y, place }) => ({
+  context: t.context || '',
+  members: t.members.map(({ id, name, role, soul, provider, model, mode, lead, x, y, place }) => ({
     id,
     name,
     role,
+    soul: soul || '',
     provider,
     model,
     mode,
@@ -101,3 +104,46 @@ export function teamCounts(team) {
 
 // Messages that travel on the desk (notes are the VeSTA talking, they have no wire).
 export const travels = (m) => m.kind !== 'note' && m.from && m.to;
+
+// ---- What waits for the person, and the conversation with one agent ----------------------------------------------
+// Every open ask of every team, oldest first: [{ team, ask, member }].
+export function pendingFor(teams = []) {
+  return teams
+    .flatMap((team) =>
+      openAsks(team).map((ask) => ({ team, ask, member: team.members.find((m) => m.id === ask.from) || null }))
+    )
+    .sort((a, b) => a.ask.at - b.ask.at);
+}
+// A yes/no ask (the agent used tipo "sim") is answered with Aceitar / Recusar; a question asks for words.
+export const yesNo = (ask) => ask.kind !== 'ask';
+// The words sent for Aceitar / Recusar (with the reason, when there is one).
+export const decisionText = (decision, reason = '') =>
+  (decision === 'yes' ? 'Sim, pode.' : 'Não.') + (reason.trim() ? ' ' + reason.trim() : '');
+
+// The conversation between the person and one agent, oldest first: the team messages between them ('you' / 'them')
+// and what the agent answered on each turn in its chat ('turn': the real chat, also while it streams).
+// Items: { id, at, side, kind?, text, held?, live? }.
+export function talkWith(team, memberId, chat = null, running = []) {
+  const items = (team.messages || [])
+    .filter(
+      (m) => m.kind !== 'note' && ((m.from === HUMAN && m.to === memberId) || (m.from === memberId && m.to === HUMAN))
+    )
+    .map((m) => ({
+      id: 'm:' + m.id,
+      at: m.at,
+      side: m.from === HUMAN ? 'you' : 'them',
+      kind: m.kind,
+      text: m.text,
+      held: !!m.held,
+    }));
+  for (const [i, m] of (chat?.messages || []).entries())
+    if (m.role === 'assistant' && (m.text || '').trim())
+      items.push({
+        id: 'c:' + (m.id || i),
+        at: m.createdAt || 0,
+        side: 'turn',
+        text: m.text,
+        live: running.includes(chat.id) && i === chat.messages.length - 1,
+      });
+  return items.sort((a, b) => a.at - b.at);
+}

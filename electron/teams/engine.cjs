@@ -209,7 +209,8 @@ function createTeamEngine(ctx, deps = {}) {
     commit();
   }
   // The person's answer to what an agent asked: it wakes with it.
-  function answer({ id, askId, text }) {
+  // decision: 'yes' | 'no' when the person used Aceitar / Recusar (the text says the same to the agent).
+  function answer({ id, askId, text, decision = null }) {
     const t = find(id);
     const ask = (t.asks || []).find((a) => a.id === askId && a.status === 'open');
     if (!ask) throw new UserError('Essa pergunta já foi respondida');
@@ -217,7 +218,12 @@ function createTeamEngine(ctx, deps = {}) {
       .trim()
       .slice(0, 2000);
     if (!reply) throw new UserError('Escreva a resposta');
-    Object.assign(ask, { status: 'answered', answer: reply, answeredAt: now() });
+    Object.assign(ask, {
+      status: 'answered',
+      answer: reply,
+      answeredAt: now(),
+      decision: decision === 'yes' || decision === 'no' ? decision : null,
+    });
     post(t, T.HUMAN, ask.from, 'answer', reply);
     commit();
     tick();
@@ -473,7 +479,14 @@ function createTeamEngine(ctx, deps = {}) {
       if (to === T.HUMAN)
         t.asks = [
           ...(t.asks || []),
-          { id: randomUUID(), at: now(), from: me.id, text: text.slice(0, 2000), status: 'open' },
+          {
+            id: randomUUID(),
+            at: now(),
+            from: me.id,
+            text: text.slice(0, 2000),
+            kind: T.kindOf(args.tipo) === 'human' ? 'human' : 'ask',
+            status: 'open',
+          },
         ];
       commit();
       if (!quiet) tick();

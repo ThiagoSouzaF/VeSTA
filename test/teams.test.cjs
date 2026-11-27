@@ -217,10 +217,12 @@ test('engine: asks to the person, answers, pause, stop all, merge, budget and re
   assert.match(r.entregue, /Você/);
   assert.equal(T.openAsks(team).length, 1);
   assert.equal(team.messages.at(-1).kind, 'human');
+  assert.equal(team.asks[0].kind, 'human', 'tipo "sim" asks for a yes');
   finish(leadChat.id);
   await flush();
   assert.equal(sent.length, 1, 'waiting for the person, the lead does not wake again');
-  engine.answer({ id, askId: team.asks[0].id, text: 'Pode' });
+  engine.answer({ id, askId: team.asks[0].id, text: 'Pode', decision: 'yes' });
+  assert.equal(team.asks[0].decision, 'yes');
   await flush();
   assert.equal(sent.length, 2);
   assert.match(sent[1].text, /Você \(resposta\): Pode/);
@@ -345,4 +347,26 @@ test('team git: a worktree per agent, merge only when clean, a conflict changes 
   assert.equal((await g(repo, 'status', '--porcelain')).trim(), '');
   await git.removeWorktree(repo, wt);
   assert.equal(fs.existsSync(wt), false);
+});
+
+test('soul and team context: kept by the form and in every turn of that member', () => {
+  const t = T.normalizeTeam(
+    form({
+      context: '  Go 1.23; nunca mexer em migrations.  ',
+      members: [
+        { name: 'Líder', lead: true, soul: '# Alma\nCalmo e direto.' },
+        { name: 'Dev', soul: 'x'.repeat(T.MAX_SOUL + 50) },
+      ],
+    })
+  );
+  assert.equal(t.context, 'Go 1.23; nunca mexer em migrations.');
+  assert.equal(t.members[0].soul, '# Alma\nCalmo e direto.', 'line breaks kept');
+  assert.equal(t.members[1].soul.length, T.MAX_SOUL);
+  const turn = T.buildTurn(t, t.members[0]);
+  assert.match(turn, /Contexto da equipe \(vale para todos\):\nGo 1\.23/);
+  assert.match(turn, /Quem você é e como trabalha \(siga sempre\):\n# Alma\nCalmo e direto\./);
+  assert.doesNotMatch(
+    T.buildTurn({ ...t, context: '' }, { ...t.members[0], soul: '' }),
+    /Contexto da equipe|Quem você é/
+  );
 });

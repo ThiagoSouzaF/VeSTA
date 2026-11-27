@@ -535,3 +535,54 @@ test('Onde rodam fase 3: a team split across places, its crossing wires and a me
     [['Este PC → vps-hetzner', true, true]]
   );
 });
+
+test('Equipes: what waits for you across teams, yes/no answers and the conversation with one agent', async () => {
+  const { pendingFor, yesNo, decisionText, talkWith } = await lib('teams');
+  const team = (id, asks) => ({ id, name: id, members: [{ id: 'lid', name: 'Líder' }], asks, messages: [] });
+  const p = pendingFor([
+    team('a', [{ id: 'x', at: 30, from: 'lid', status: 'open', kind: 'ask' }]),
+    team('b', [
+      { id: 'y', at: 10, from: 'lid', status: 'open' },
+      { id: 'z', at: 5, from: 'lid', status: 'answered' },
+    ]),
+  ]);
+  assert.deepEqual(
+    p.map((x) => [x.team.id, x.ask.id, x.member.name]),
+    [
+      ['b', 'y', 'Líder'],
+      ['a', 'x', 'Líder'],
+    ],
+    'open ones only, oldest first'
+  );
+  assert.equal(yesNo(p[0].ask), true, 'an old ask without kind asks for a yes');
+  assert.equal(yesNo(p[1].ask), false);
+  assert.equal(decisionText('yes'), 'Sim, pode.');
+  assert.equal(decisionText('no', ' falta o teste '), 'Não. falta o teste');
+  const t = {
+    messages: [
+      { id: '1', at: 10, from: 'voce', to: 'lid', kind: 'task', text: 'Objetivo' },
+      { id: '2', at: 20, from: 'lid', to: 'dev', kind: 'task', text: 'T1' },
+      { id: '3', at: 40, from: 'lid', to: 'voce', kind: 'human', text: 'Posso?' },
+      { id: '4', at: 45, from: null, to: null, kind: 'note', text: 'nota' },
+      { id: '5', at: 50, from: 'voce', to: 'lid', kind: 'task', text: 'Mais isto', held: true },
+    ],
+  };
+  const chat = {
+    id: 'c1',
+    messages: [
+      { role: 'user', text: 'turno', createdAt: 11 },
+      { id: 'r1', role: 'assistant', text: 'Planejei.', createdAt: 30 },
+      { id: 'r2', role: 'assistant', text: 'Escrevendo', createdAt: 60 },
+    ],
+  };
+  assert.deepEqual(
+    talkWith(t, 'lid', chat, ['c1']).map((x) => [x.side, x.text, !!x.held, !!x.live]),
+    [
+      ['you', 'Objetivo', false, false],
+      ['turn', 'Planejei.', false, false],
+      ['them', 'Posso?', false, false],
+      ['you', 'Mais isto', true, false],
+      ['turn', 'Escrevendo', false, true],
+    ]
+  );
+});

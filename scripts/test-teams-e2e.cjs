@@ -2,7 +2,9 @@
 //   1. Equipes on the rail; a new team from the form (template Líder, Dev e Revisor) on a git project
 //   2. "Começar": the lead plans, Dev works in its own worktree and commits, the reviewer approves — every message
 //      travels on its wire (a packet on the desk, the wire hot), the board and the conversations follow
-//   3. the lead asks the person's yes: the Você card waits; the answer wakes the lead
+//   3. the lead asks the person's yes: the Você card and the header say so; "Esperando você" answers it (Aceitar)
+//      and the answer wakes the lead; the conversation sheet shows the lead's real turns and sends a message
+//   (the form also gives the team a context and Dev a soul, and both reach Dev's turn)
 //   4. "Juntar 1 commit" merges Dev's branch into the project; the team chats stay out of Conversas
 //   5. a dragged card keeps its place; "Parar todos"; the Papel theme
 // The fake AI plays each agent by calling the team tools the way the vesta-skills server does (ctx.teams.tool).
@@ -82,7 +84,9 @@ const step = async (name, fn) => {
         for (const p of ['codex', 'opencode', 'drael']) ctx.integrations[p] = { installed: false };
         ctx.integrations.claude = { installed: true, exe: 'fake-claude.exe', models: [] };
         globalThis.__turns = [];
+        globalThis.__prompts = [];
         const play = (prompt) => {
+          globalThis.__prompts.push(prompt);
           const team = ctx.store.state.teams[0];
           const name = (prompt.match(/Você é (\S+) \(/) || [])[1];
           const m = team?.members.find((x) => x.name === name);
@@ -182,6 +186,9 @@ const step = async (name, fn) => {
       await page.locator('.team-field').filter({ hasText: 'OBJETIVO' }).locator('textarea').fill('Página de contato.');
       assert.equal(await page.locator('.team-member-row').count(), 3, 'template trio');
       await page.getByLabel('IA de Dev').selectOption('claude');
+      await page.getByLabel('Contexto da equipe').fill('Stack: HTML puro, sem build.');
+      await page.locator('.team-soul-toggle').nth(1).click();
+      await page.locator('.team-soul textarea').fill('Você escreve HTML sem framework e explica cada arquivo.');
       await shot('2-formulario');
       await page.locator('[data-action="save"]').click();
       await page.locator('.team-view').waitFor();
@@ -198,6 +205,10 @@ const step = async (name, fn) => {
       await until((t) => t.members.find((m) => m.id === 'dev')?.branch, 'the worktrees');
       const t = await until((t) => (t.asks || []).some((a) => a.status === 'open'), 'the lead asking', 45000);
       const dev = t.members.find((m) => m.id === 'dev');
+      assert.equal(dev.soul, 'Você escreve HTML sem framework e explica cada arquivo.');
+      const devTurn = (await app.evaluate(() => globalThis.__prompts)).find((p) => /Você é Dev \(/.test(p));
+      assert.match(devTurn, /Contexto da equipe \(vale para todos\):\nStack: HTML puro/);
+      assert.match(devTurn, /Quem você é e como trabalha \(siga sempre\):\nVocê escreve HTML sem framework/);
       assert.equal(dev.branch, 'equipe/equipe-do-site/dev');
       assert.ok(fs.existsSync(path.join(dev.workdir, 'contato.html')), 'Dev worked in its worktree');
       assert.ok(!fs.existsSync(path.join(projectDir, 'contato.html')), 'the project is untouched until the merge');
@@ -217,14 +228,48 @@ const step = async (name, fn) => {
       await page.locator('.team-tabs [data-tab="log"]').click();
     });
 
-    await step('the answer wakes the lead', async () => {
+    await step('Esperando você: Aceitar answers it and wakes the lead', async () => {
       const before = (await app.evaluate(() => globalThis.__turns)).length;
-      await page.locator('.team-card[data-agent="voce"] .team-ask button', { hasText: 'Sim' }).click();
-      await until((t) => !(t.asks || []).some((a) => a.status === 'open'), 'the ask answered');
+      await page.locator('.team-card[data-agent="voce"] [data-action="see-waiting"]').waitFor();
+      assert.match(await page.locator('[data-action="waiting-head"]').innerText(), /1 esperando você/);
+      await page.locator('[data-action="waiting-head"]').click();
+      const card = page.locator('.team-talk.open .team-ask-card[data-kind="yes"]');
+      await card.waitFor();
+      assert.match(await card.innerText(), /Posso juntar a branch do Dev\?/);
+      await page.waitForTimeout(500); // the sheet rises
+      await shot('5b-esperando-voce');
+      await card.getByRole('button', { name: 'Aceitar' }).click();
+      const t = await until((t) => !(t.asks || []).some((a) => a.status === 'open') && t, 'the ask answered');
+      assert.equal(t.asks[0].decision, 'yes');
+      assert.equal(t.asks[0].answer, 'Sim, pode.');
+      await page.locator('.team-talk-waiting .team-empty').waitFor();
+      await page.keyboard.press('Escape');
+      await page.locator('.team-talk.open').waitFor({ state: 'detached' });
       for (const end = Date.now() + 15000; Date.now() < end; await page.waitForTimeout(250))
         if ((await app.evaluate(() => globalThis.__turns)).slice(before).includes('Líder')) break;
       assert.ok((await app.evaluate(() => globalThis.__turns)).slice(before).includes('Líder'));
       await page.locator('.team-card[data-agent="voce"][data-state="idle"]').waitFor();
+    });
+
+    await step('the conversation sheet: the lead’s real turns, and a message sent from it', async () => {
+      await page.locator('.team-card[data-agent="lider"] .team-card-open').click();
+      const thread = page.locator('.team-talk.open .team-talk-thread[data-member="lider"]');
+      await thread.locator('.team-talk-turn').filter({ hasText: 'Planejei: T1 com o Dev.' }).waitFor();
+      await thread.locator('.team-talk-msg.you').filter({ hasText: 'Sim, pode.' }).waitFor();
+      await thread.getByRole('button', { name: 'Abrir no chat normal' }).waitFor();
+      await thread.locator('textarea').fill('Obrigado. Pode encerrar por hoje.');
+      await thread.locator('textarea').press('Enter');
+      await until(
+        (t) =>
+          t.messages.some(
+            (m) => m.from === 'voce' && m.to === 'lider' && m.text === 'Obrigado. Pode encerrar por hoje.'
+          ),
+        'the message to the lead'
+      );
+      await thread.locator('.team-talk-msg.you').filter({ hasText: 'Pode encerrar por hoje.' }).waitFor();
+      await page.waitForTimeout(400);
+      await shot('5c-conversa');
+      await page.locator('.team-talk-close').click();
     });
 
     await step('Juntar 1 commit; team chats stay out of Conversas', async () => {

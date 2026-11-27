@@ -6,7 +6,8 @@ import { Chapter } from '../Chapter';
 import { ProviderIcon } from '../ProviderIcon';
 import { TeamForm } from './TeamForm';
 import { TeamView } from './TeamView';
-import { TEAM_STATUS, blankTeam, editableTeam, openAsks } from '../../lib/teams';
+import { AskCard } from './TeamTalk';
+import { TEAM_STATUS, blankTeam, editableTeam, openAsks, pendingFor } from '../../lib/teams';
 
 export function TeamsPage({ data, integrations, call, setData, notify, onOpenChat }) {
   const teams = data.teams || [];
@@ -29,6 +30,17 @@ export function TeamsPage({ data, integrations, call, setData, notify, onOpenCha
     } catch {}
   };
   const create = () => setView({ draft: blankTeam(integrations, 'trio', projects[0]?.id || '') });
+  // What every team waits on you for, answered right here.
+  const pending = pendingFor(teams);
+  const answer = async (team, ask, text, decision) => {
+    try {
+      setData(await call('teamAnswer', { id: team.id, askId: ask.id, text, decision }));
+      notify(decision === 'no' ? 'Recusado' : 'Resposta enviada');
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   if (view && typeof view === 'object')
     return (
@@ -52,6 +64,8 @@ export function TeamsPage({ data, integrations, call, setData, notify, onOpenCha
           team={open}
           project={projects.find((p) => p.id === open.projectId)}
           places={data.places || []}
+          chats={data.chats || []}
+          running={data.running || []}
           call={call}
           setData={setData}
           notify={notify}
@@ -79,6 +93,23 @@ export function TeamsPage({ data, integrations, call, setData, notify, onOpenCha
         </button>
       </div>
       {!projects.length && <p className="team-note">Adicione um projeto (no Início) para montar uma equipe nele.</p>}
+      {pending.length > 0 && (
+        <section className="teams-waiting" aria-label="Esperando você">
+          <h2>★ ESPERANDO VOCÊ · {pending.length}</h2>
+          <div className="teams-waiting-list">
+            {pending.map(({ team, ask, member }) => (
+              <AskCard
+                key={ask.id}
+                ask={ask}
+                team={team}
+                member={member}
+                showTeam
+                onAnswer={(a, text, decision) => answer(team, a, text, decision)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
       {teams.length === 0 ? (
         projects.length > 0 && (
           <section className="teams-empty">
@@ -107,7 +138,7 @@ export function TeamsPage({ data, integrations, call, setData, notify, onOpenCha
                 <span className="team-tile-status">
                   {TEAM_STATUS[t.status]}
                   {working > 0 && ' · ' + working + ' trabalhando'}
-                  {asks > 0 && ' · esperando você'}
+                  {asks > 0 && <b className="team-tile-waiting">★ {asks} esperando você</b>}
                 </span>
                 <b>{t.name}</b>
                 <small>{projects.find((p) => p.id === t.projectId)?.name || 'Projeto removido'}</small>

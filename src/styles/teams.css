@@ -186,12 +186,12 @@
 }
 .team-member-row {
   display: grid;
-  grid-template-columns: 32px 130px 1fr 130px 150px 92px 32px;
+  grid-template-columns: 32px 130px 1fr 130px 150px 92px 32px 32px;
   gap: 6px;
   align-items: center;
 }
 .team-member-row.placed {
-  grid-template-columns: 32px 120px 1fr 120px 140px 92px 130px 32px;
+  grid-template-columns: 32px 120px 1fr 120px 140px 92px 130px 32px 32px;
 }
 .team-lead,
 .team-drop,
@@ -341,33 +341,12 @@
   display: flex;
 }
 .team-desk {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
-.team-say {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 8px 12px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--faint);
-}
-.team-say :is(select, input) {
-  font: inherit;
-  font-size: 13px;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 6px 8px;
-}
-.team-say input {
-  flex: 1;
-  min-width: 0;
-}
-
 .team-stage {
   position: relative;
   flex: 1;
@@ -660,17 +639,7 @@
   color: var(--faint);
 }
 .team-merge,
-.team-ask-row button {
-  flex: 1;
-  font: 600 12px var(--sans);
-  padding: 5px 0;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-}
-.team-merge,
-.team-ask-row button.ink {
+.team-merge {
   background: var(--team-ink);
   color: var(--team-on-ink);
   border-color: var(--team-ink);
@@ -692,20 +661,6 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-.team-ask-row {
-  display: flex;
-  gap: 6px;
-}
-.team-ask-row input {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
-  font-size: 12px;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  padding: 5px 7px;
 }
 
 /* What arrived, over the card that got it. */
@@ -934,7 +889,7 @@
   }
   .team-member-row,
   .team-member-row.placed {
-    grid-template-columns: 32px 1fr 1fr 32px;
+    grid-template-columns: 32px 1fr 1fr 32px 32px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -964,4 +919,410 @@
   font: 10px var(--team-mono);
   color: var(--danger);
   border: 1px solid currentColor;
+}
+
+/* ---- Talking with the team: the bar under the desk and the sheet that rises from it ---- */
+.team-talk-bar {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+.team-talk-open {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font: 600 13px var(--sans);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+}
+.team-talk-open small {
+  font: 11px var(--team-mono);
+  color: var(--faint);
+  margin-left: auto;
+}
+.team-talk-open:hover {
+  border-color: var(--team-line);
+}
+.team-waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font: 700 12px var(--sans);
+  background: var(--team-ink);
+  color: var(--team-on-ink);
+  border: 1px solid var(--team-ink);
+  cursor: pointer;
+  white-space: nowrap;
+  animation: team-waiting 2.4s ease-in-out infinite;
+}
+@keyframes team-waiting {
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--team-ink) 25%, transparent);
+  }
+}
+.team-talk {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: min(86%, 760px);
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-top: 2px solid var(--team-ink);
+  box-shadow: 0 -18px 40px color-mix(in srgb, #000 35%, transparent);
+  transform: translateY(102%);
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 20;
+  pointer-events: none;
+}
+.team-talk.open {
+  transform: none;
+  pointer-events: auto;
+}
+.team-talk-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.team-talk-tabs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+.team-talk-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 14px;
+  font: 600 13px var(--sans);
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.team-talk-tabs button[aria-selected='true'] {
+  color: var(--text);
+  border-bottom-color: var(--team-ink);
+}
+.team-talk-tabs button.waiting {
+  color: var(--text);
+}
+.team-talk-tabs .n {
+  font: 700 11px var(--team-mono);
+  padding: 0 5px;
+  border: 1px solid var(--team-line);
+}
+.team-talk-tabs button.waiting .n {
+  background: var(--team-ink);
+  color: var(--team-on-ink);
+  border-color: var(--team-ink);
+}
+.team-talk-tabs .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.team-talk-tabs [data-state='working'] .dot {
+  background: var(--team-ink);
+  animation: team-waiting 1.2s ease-in-out infinite;
+}
+.team-talk-tabs [data-state='waiting'] .dot {
+  background: var(--danger);
+}
+.team-talk-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.team-talk-thread {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.team-talk-who {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.team-talk-who b {
+  color: var(--text);
+}
+.team-talk-who small {
+  font: 11px var(--team-mono);
+  color: var(--faint);
+}
+.team-talk-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px;
+}
+.team-talk-msg {
+  max-width: 72%;
+  display: grid;
+  gap: 4px;
+}
+.team-talk-msg.you {
+  align-self: flex-end;
+}
+.team-talk-msg small,
+.team-talk-turn small {
+  font: 10px var(--team-mono);
+  color: var(--faint);
+  letter-spacing: 0.04em;
+}
+.team-talk-msg p {
+  margin: 0;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.team-talk-msg.you p {
+  background: var(--team-ink);
+  color: var(--team-on-ink);
+  border-color: var(--team-ink);
+}
+.team-talk-msg.you small {
+  text-align: right;
+}
+.team-talk-turn {
+  display: grid;
+  gap: 6px;
+  padding: 10px 14px;
+  border-left: 2px solid var(--team-line);
+  font-size: 13.5px;
+}
+.team-talk-turn[data-live] {
+  border-left-color: var(--team-ink);
+}
+.team-talk-compose {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border);
+}
+.team-talk-compose textarea,
+.team-ask-card textarea,
+.team-soul textarea {
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  resize: vertical;
+}
+.team-talk-asking {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  border: 1px dashed var(--team-ink);
+}
+.team-talk-asking span {
+  flex: 1;
+}
+.team-talk-asking button,
+.team-ask-actions button {
+  font: 600 12px var(--sans);
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.team-talk-asking button.ink,
+.team-ask-actions button.ink {
+  background: var(--team-ink);
+  color: var(--team-on-ink);
+  border-color: var(--team-ink);
+}
+:is(.team-talk-asking, .team-ask-actions) button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* What waits for you: in the sheet and on top of the Equipes list. */
+.team-talk-waiting {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+  padding: 16px 20px;
+}
+.team-ask-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--team-ink);
+}
+.team-ask-card header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.team-ask-card .kind,
+.team-ask-team {
+  font: 10px var(--team-mono);
+  padding: 1px 5px;
+  border: 1px solid var(--team-line);
+  color: var(--muted);
+}
+.team-ask-card[data-kind='yes'] .kind {
+  background: var(--team-ink);
+  color: var(--team-on-ink);
+  border-color: var(--team-ink);
+}
+.team-ask-card time {
+  margin-left: auto;
+  font: 10px var(--team-mono);
+  color: var(--faint);
+}
+.team-ask-card p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.team-ask-actions {
+  display: flex;
+  gap: 6px;
+}
+.teams-waiting {
+  margin: 0 0 22px;
+}
+.teams-waiting h2 {
+  margin: 0 0 10px;
+  font: 700 12px var(--team-mono);
+  letter-spacing: 0.12em;
+  color: var(--team-ink);
+}
+.teams-waiting-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 12px;
+}
+.team-tile-waiting {
+  color: var(--team-ink);
+}
+.team-card.you .team-ask button {
+  font: 600 12px var(--sans);
+  padding: 6px 0;
+  background: var(--team-ink);
+  color: var(--team-on-ink);
+  border: 1px solid var(--team-ink);
+  cursor: pointer;
+}
+
+/* Each member's soul, below its row in the form; a chosen file fills a field. */
+.team-member {
+  display: grid;
+  gap: 6px;
+}
+.team-soul-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  color: var(--faint);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.team-soul-toggle.has {
+  color: var(--team-ink);
+  border-color: var(--team-ink);
+}
+.team-soul-toggle.on {
+  background: var(--team-ink);
+  color: var(--team-on-ink);
+}
+.team-soul {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 6px 38px;
+  padding: 10px 12px;
+  border: 1px dashed var(--team-line);
+}
+.team-soul > span {
+  font: 700 11px var(--team-mono);
+  letter-spacing: 0.08em;
+}
+.team-soul > span small,
+.team-soul > small {
+  font: 400 11px var(--team-mono);
+  letter-spacing: 0;
+  color: var(--faint);
+}
+.team-file {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font: 400 11px var(--team-mono);
+  letter-spacing: 0;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.team-file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .team-talk {
+    transition: none;
+  }
+  .team-waiting,
+  .team-talk-tabs [data-state='working'] .dot {
+    animation: none;
+  }
 }

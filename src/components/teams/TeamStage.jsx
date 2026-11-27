@@ -45,7 +45,7 @@ function shape(kind, g) {
   return svgEl('circle', { class: 'core', r: 5.5 }, g);
 }
 
-export function TeamStage({ team, places = [], focus, onFocus, onPlace, onAnswer, onOpenChat, ahead, onMerge }) {
+export function TeamStage({ team, places = [], focus, onFocus, onPlace, onTalk, ahead, onMerge }) {
   const stage = useRef(null);
   const svg = useRef(null);
   const cards = useRef({});
@@ -275,7 +275,21 @@ export function TeamStage({ team, places = [], focus, onFocus, onPlace, onAnswer
             <span className="dot" />
             {asks.length ? 'Esperando você' + (asks.length > 1 ? ' (' + asks.length + ')' : '') : 'Nada esperando'}
           </div>
-          {asks[0] && <Ask key={asks[0].id} team={team} ask={asks[0]} onAnswer={onAnswer} />}
+          {asks.length > 0 && (
+            <div className="team-ask">
+              <p>
+                <b>{team.members.find((m) => m.id === asks[0].from)?.name || 'Um agent'}:</b> {asks[0].text}
+              </p>
+              <button
+                className="ink"
+                data-action="see-waiting"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => onTalk(HUMAN)}
+              >
+                Ver e responder{asks.length > 1 ? ' (' + asks.length + ')' : ''}
+              </button>
+            </div>
+          )}
         </div>
       </article>
 
@@ -311,16 +325,15 @@ export function TeamStage({ team, places = [], focus, onFocus, onPlace, onAnswer
                   {m.model ? ' · ' + modelLabel(m.model) : ''}
                 </div>
               </div>
-              {m.chatId && (
-                <button
-                  className="team-card-open"
-                  title={'Abrir o chat de ' + m.name}
-                  aria-label={'Abrir o chat de ' + m.name}
-                  onClick={() => onOpenChat(m.chatId)}
-                >
-                  <MessageSquare size={13} />
-                </button>
-              )}
+              <button
+                className="team-card-open"
+                title={'Conversar com ' + m.name}
+                aria-label={'Conversar com ' + m.name}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => onTalk(m.id)}
+              >
+                <MessageSquare size={13} />
+              </button>
             </div>
             <div className="team-card-body">
               <div className="team-state">
@@ -372,37 +385,4 @@ function WireTag({ d }) {
     ref.current.setAttribute('y', p.y - 8);
   }, [d]);
   return <text ref={ref} className="wire-tag" textAnchor="middle" />;
-}
-
-// What an agent asked the person: quick yes/no, or a written answer.
-function Ask({ team, ask, onAnswer }) {
-  const [text, setText] = useState('');
-  const who = team.members.find((m) => m.id === ask.from)?.name || 'Um agent';
-  return (
-    <div className="team-ask">
-      <p>
-        <b>{who}:</b> {ask.text}
-      </p>
-      <div className="team-ask-row">
-        <button className="ink" onClick={() => onAnswer(ask, 'Sim, pode.')}>
-          Sim
-        </button>
-        <button onClick={() => onAnswer(ask, 'Ainda não.')}>Ainda não</button>
-      </div>
-      <form
-        className="team-ask-row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (text.trim()) onAnswer(ask, text.trim());
-        }}
-      >
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Ou responda com suas palavras"
-          aria-label={'Responder a ' + who}
-        />
-      </form>
-    </div>
-  );
 }

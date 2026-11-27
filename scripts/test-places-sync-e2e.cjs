@@ -248,9 +248,12 @@ const step = async (name, fn) => {
       await page.locator('.rail-item').filter({ hasText: 'Equipes' }).click();
       await page.locator('.team-tile').first().click();
       await page.locator('.team-where.off').first().waitFor();
-      await page.locator('.team-say select').selectOption('docs');
-      await page.locator('.team-say input').fill('Agora o CHANGELOG.');
-      await page.locator('.team-say button').click();
+      await page.locator('.team-card[data-agent="docs"] .team-card-open').click();
+      const box = page.locator('.team-talk.open .team-talk-thread[data-member="docs"] textarea');
+      await box.fill('Agora o CHANGELOG.');
+      await box.press('Enter');
+      await page.locator('.team-talk-msg.you .team-held').first().waitFor();
+      await page.keyboard.press('Escape');
       await page.locator('.team-entry .team-held').first().waitFor();
       assert.match(await page.locator('.team-entry').first().innerText(), /na fila: lugar fora do ar/);
       await page.waitForTimeout(400);

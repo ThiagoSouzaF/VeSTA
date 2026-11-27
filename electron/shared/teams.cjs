@@ -1,17 +1,19 @@
 // Equipes (Agent Mode): agents with a role working together on one project, on a shared board, talking through the
 // wires of the team's desk. Pure rules shared by the main process (teams/) and the screen: no require.
 //
-// team = { id, name, projectId, goal, members: [member], maxParallel, budget (tokens a day, 0 = none), maxTurns (per
+// team = { id, name, projectId, goal, context (what every member should know: stack, conventions, links),
+//          members: [member], maxParallel, budget (tokens a day, 0 = none), maxTurns (per
 //          start), status: 'idle' | 'running' | 'paused' | 'stopped', tasks: [task], messages: [message],
 //          asks: [ask], spent: { day, tokens }, turns (since the last start), note, createdAt, updatedAt }
-// member = { id, name, role, provider, model, mode: 'read' | 'edit', lead, x, y, chatId, busy, readAt,
+// member = { id, name, role, soul (who it is and how it works, like a SOUL.md), provider, model, mode: 'read' | 'edit', lead, x, y, chatId, busy, readAt,
 //            branch, workdir, tokens, place: 'pc' | <vps id>, job: { id, place, at } (a turn running on a VPS) }
 // A member on a VPS (place) has no chat: each turn is one job of the runner there (places/engine.cjs) and it talks
 // through action lines at the end of its answer (actionsOf), which VeSTA carries over SSH. A message to a member whose
 // place is offline is held (message.held) until the place is back.
 // task = { id, title, detail, assignee, reviewer (who was asked to review it), column: 'todo' | 'doing' | 'review' | 'done', by, at, updatedAt, note }
 // message = { id, at, from, to, kind, text, held? } (from/to: a member id or HUMAN)
-// ask = { id, at, from, text, status: 'open' | 'answered', answer }
+// ask = { id, at, from, text, kind: 'human' (asks for a yes) | 'ask' (a question), status: 'open' | 'answered',
+//         answer, decision: 'yes' | 'no' | null (how the person answered a yes/no), answeredAt }
 
 const HUMAN = 'voce';
 const PROVIDERS = ['claude', 'codex', 'opencode', 'drael'];
@@ -20,6 +22,8 @@ const MODES = ['read', 'edit'];
 const COLUMNS = ['todo', 'doing', 'review', 'done'];
 const KINDS = ['task', 'ask', 'answer', 'review', 'human', 'note'];
 const MAX_MEMBERS = 6;
+// A soul and the team's context are long texts (a SOUL.md fits).
+const MAX_SOUL = 8000;
 const MAX_MESSAGES = 300;
 const MAX_TASKS = 60;
 const PARALLEL = [1, 2, 3, 4];
@@ -103,6 +107,7 @@ function normalizeTeam(input = {}, prev = null) {
       id,
       name: mName,
       role: clip(m.role, 120) || 'ajuda a equipe',
+      soul: clipText(m.soul, MAX_SOUL),
       provider: PROVIDERS.includes(m.provider) ? m.provider : 'claude',
       model: clip(m.model, 80),
       mode: MODES.includes(m.mode) ? m.mode : 'edit',
@@ -129,6 +134,7 @@ function normalizeTeam(input = {}, prev = null) {
     name,
     projectId: String(input.projectId),
     goal,
+    context: clipText(input.context, MAX_SOUL),
     members,
     maxParallel: PARALLEL.includes(Number(input.maxParallel)) ? Number(input.maxParallel) : 2,
     budget: Number.isFinite(budget) && budget >= 0 ? Math.round(budget) : DEFAULT_BUDGET,
@@ -272,7 +278,9 @@ function buildTurn(team, member, { projectName = '', now = Date.now(), first = f
       (projectName || 'escolhido') +
       '.',
     'Objetivo da equipe: ' + team.goal,
+    ...(team.context ? ['Contexto da equipe (vale para todos):\n' + team.context] : []),
     'A equipe:\n' + roster,
+    ...(member.soul ? ['Quem você é e como trabalha (siga sempre):\n' + member.soul] : []),
     where,
     remote
       ? remoteTools(isLead)
@@ -428,6 +436,7 @@ module.exports = {
   COLUMNS,
   KINDS,
   MAX_MEMBERS,
+  MAX_SOUL,
   MAX_MESSAGES,
   MAX_TASKS,
   PARALLEL,

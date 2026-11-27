@@ -2,17 +2,30 @@
 // conversations and the board. Everything the team does comes from the main process (electron/teams); this screen
 // only calls its methods.
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Pause, Pencil, Play, Send, Square, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pause, Pencil, Play, Square, Trash2 } from 'lucide-react';
 import { TeamStage } from './TeamStage';
 import { TeamSide } from './TeamSide';
+import { TeamTalk } from './TeamTalk';
 import { fmtTokens } from '../../lib/tokens';
-import { TEAM_STATUS, leadOf, placesOf, spentToday, teamCounts } from '../../lib/teams';
+import { TEAM_STATUS, placesOf, spentToday, teamCounts } from '../../lib/teams';
 
-export function TeamView({ team, project, places = [], call, setData, notify, onBack, onEdit, onOpenChat }) {
+export function TeamView({
+  team,
+  project,
+  places = [],
+  chats = [],
+  running = [],
+  call,
+  setData,
+  notify,
+  onBack,
+  onEdit,
+  onOpenChat,
+}) {
   const [focus, setFocus] = useState(null);
   const [ahead, setAhead] = useState({});
-  const [to, setTo] = useState(leadOf(team).id);
-  const [text, setText] = useState('');
+  // The conversation sheet: null (closed), 'voce' (what waits on you) or a member id.
+  const [talk, setTalk] = useState(null);
   const [busy, setBusy] = useState(false);
   const counts = teamCounts(team);
   const spent = spentToday(team, Date.now());
@@ -43,7 +56,9 @@ export function TeamView({ team, project, places = [], call, setData, notify, on
       setBusy(false);
     }
   };
-  const running = team.status === 'running';
+  const answer = (ask, text, decision) =>
+    act('teamAnswer', { askId: ask.id, text, decision }, decision === 'no' ? 'Recusado' : 'Resposta enviada');
+  const working = team.status === 'running';
   const fresh = !(team.messages || []).some((m) => m.kind !== 'note');
   // Where it runs: the place of most members, and how many are elsewhere.
   const placeName = (id) => (id === 'pc' ? 'Este PC' : places.find((p) => p.id === id)?.name || 'lugar esquecido');
@@ -89,12 +104,6 @@ export function TeamView({ team, project, places = [], call, setData, notify, on
           ))}
           <span className="team-chip" data-counts>
             <b>{counts.working}</b> trabalhando · <b>{counts.agents}</b> agents
-            {counts.waiting > 0 && (
-              <>
-                {' '}
-                · <b>esperando você</b>
-              </>
-            )}
           </span>
           <div className="team-budget" aria-label="Tokens de hoje">
             <span>
@@ -107,7 +116,12 @@ export function TeamView({ team, project, places = [], call, setData, notify, on
               </div>
             )}
           </div>
-          {running ? (
+          {counts.waiting > 0 && (
+            <button className="team-waiting" data-action="waiting-head" onClick={() => setTalk('voce')}>
+              ★ {counts.waiting} esperando você
+            </button>
+          )}
+          {working ? (
             <button className="team-btn" disabled={busy} onClick={() => act('teamPause', {}, 'Equipe pausada')}>
               <Pause size={14} />
               Pausar a equipe
@@ -162,36 +176,20 @@ export function TeamView({ team, project, places = [], call, setData, notify, on
             focus={focus}
             onFocus={setFocus}
             ahead={ahead}
-            onOpenChat={onOpenChat}
+            onTalk={setTalk}
             onPlace={(positions) => act('teamPlace', { positions })}
-            onAnswer={(ask, reply) => act('teamAnswer', { askId: ask.id, text: reply }, 'Resposta enviada')}
             onMerge={(m) => act('teamMerge', { memberId: m.id }, m.branch + ' juntada no projeto')}
           />
-          <form
-            className="team-say"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (text.trim() && (await act('teamSay', { to, text: text.trim() }))) setText('');
-            }}
-          >
-            <span>Falar com</span>
-            <select value={to} onChange={(e) => setTo(e.target.value)} aria-label="Para quem">
-              {team.members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={running ? 'Uma mensagem; o agent acorda com ela' : 'Uma mensagem para quando a equipe rodar'}
-              aria-label="Mensagem para o agent"
-            />
-            <button className="team-btn" disabled={!text.trim() || busy} aria-label="Enviar">
-              <Send size={14} />
-            </button>
-          </form>
+          <TeamTalk
+            team={team}
+            chats={chats}
+            running={running}
+            tab={talk}
+            onTab={setTalk}
+            onSay={(to, text) => act('teamSay', { to, text })}
+            onAnswer={answer}
+            onOpenChat={onOpenChat}
+          />
         </div>
         <TeamSide team={team} focus={focus} onFocus={setFocus} />
       </div>
