@@ -42,7 +42,7 @@ export function InstallModal({ place, agents, call, onDone, onClose }) {
     const names = picked.map((id) => agents.find((a) => a.id === id)?.name);
     setSteps(names.map((name) => ({ name, status: 'doing' })));
     try {
-      const r = await call('placeInstall', { agentIds: picked });
+      const r = await call('placeInstall', { placeId: place.id, agentIds: picked });
       const results = r.results || [];
       const ok = results.filter((x) => !x.error).length;
       setResult({ r, ok });
@@ -214,12 +214,17 @@ function Detail({ agent: a, place }) {
       (PROVIDERS[a.provider]?.name || a.provider) +
         (ai?.installed
           ? ' instalado' + (ai.authenticated === false ? ', mas sem login' : '')
-          : ' não está instalado aqui'),
+          : ' não está instalado aqui' + (ai?.note ? ' (' + ai.note + ')' : '')),
     ],
+    ...(place.remote && a.projectId
+      ? [[null, 'O projeto fica neste PC: lá ele trabalha na própria pasta work/.']]
+      : []),
     ...(a.memory ? [[null, 'Usa a memória do VeSTA: fora dele roda sem ela.']] : []),
     ...(a.mode === 'ask' ? [[null, '"Pedir permissão" roda como "Só consulta": ninguém aprova passos.']] : []),
   ];
   const windows = place.scheduler === 'windows';
+  const systemd = place.scheduler === 'systemd';
+  const timed = a.schedule?.kind !== 'manual';
   return (
     <>
       <div className="pi-label">{a.name.toUpperCase()}</div>
@@ -253,16 +258,20 @@ function Detail({ agent: a, place }) {
             <li>
               <span>1</span>
               <div>
-                Escrever o agent na pasta padrão<code>{place.home}</code>
+                {place.remote ? 'Enviar o agent por SSH para a pasta padrão' : 'Escrever o agent na pasta padrão'}
+                <code>{place.home}</code>
               </div>
             </li>
             <li>
               <span>2</span>
               <div>
-                {windows && a.schedule?.kind !== 'manual'
+                {timed && windows
                   ? 'Criar a tarefa no Agendador do Windows'
-                  : 'Sem tarefa agendada: roda quando você pedir'}
-                {windows && a.schedule?.kind !== 'manual' && <code>\VeSTA\vesta-agent-…</code>}
+                  : timed && systemd
+                    ? 'Criar o timer do systemd'
+                    : 'Sem tarefa agendada: roda quando você pedir'}
+                {timed && windows && <code>\VeSTA\vesta-agent-…</code>}
+                {timed && systemd && <code>~/.config/systemd/user/vesta-agent-….timer</code>}
               </div>
             </li>
             <li>

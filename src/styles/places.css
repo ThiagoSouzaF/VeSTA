@@ -1,5 +1,6 @@
 /* Onde rodam: the "Agents | Onde rodam" tabs, the ONDE filter and chips of the cards, the team's "Roda em" chip, the
- * place (runner, AIs, folder, table, tree), the install window with squares and the side drawer.
+ * places list and one place (runner, AIs, folder, table, tree), the install window with squares, the side drawer
+ * (connecting a VPS included) and the Mapa (places side by side, teams, the ssh wires, the log).
  * A failure is the one coloured mark of the ink look: a filled red tag (and a red bar on its row), so in Papel too it
  * cannot be missed; everything else is ink. */
 :root {
@@ -164,8 +165,7 @@
   gap: 18px;
   align-items: flex-start;
 }
-.places-loading,
-.places-soon {
+.places-loading {
   color: var(--muted);
   font-size: 12px;
 }
@@ -761,7 +761,416 @@
   .place-boxes {
     grid-template-columns: 1fr;
   }
+  .places {
+    flex-direction: column;
+    align-items: stretch;
+  }
   .places-list {
+    position: static;
+    width: auto;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(200px, 1fr);
+    overflow-x: auto;
+  }
+  .places-list h3 {
     display: none;
+  }
+}
+
+/* ---- fase 2: several places, a VPS, the map ---- */
+.places-wrap {
+  display: grid;
+  gap: 14px;
+}
+.places-modes {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.places-modes button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 14px;
+  margin-bottom: -1px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.places-modes button small {
+  font: 11px var(--place-mono);
+  color: var(--faint, var(--muted));
+  font-weight: 400;
+}
+.places-modes button[aria-selected='true'] {
+  color: var(--text);
+}
+.place-dot.off {
+  background: none;
+  border: 1.5px solid var(--place-bad);
+}
+.place-pick {
+  cursor: pointer;
+}
+.place-pick[aria-current='false'] {
+  border-color: var(--border);
+  box-shadow: none;
+}
+.place-pick:hover {
+  background: var(--hover, var(--surface));
+}
+.place-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px dashed var(--muted);
+  color: var(--text);
+  font-size: 12px;
+}
+.place-add:hover {
+  border-style: solid;
+}
+.place-chip.mono {
+  color: var(--text);
+}
+.place-offline,
+.place-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--place-bad);
+  font-size: 12px;
+  color: var(--text);
+}
+.place-note {
+  border-left-color: var(--muted);
+  color: var(--muted);
+}
+.place-note code,
+.place-offline code {
+  font: 11px var(--place-mono);
+  color: var(--text);
+}
+.agent-loc.off {
+  border-style: dotted;
+  color: var(--muted);
+}
+.agent-loc.off i {
+  background: none;
+  border: 1.5px solid var(--place-bad);
+}
+.spin {
+  animation: place-spin 1s linear infinite;
+}
+@keyframes place-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* connecting a VPS */
+.pc-form {
+  display: grid;
+  gap: 10px;
+}
+.pc-row {
+  display: grid;
+  grid-template-columns: 1fr 80px;
+  gap: 10px;
+}
+.pc-field {
+  display: grid;
+  gap: 4px;
+}
+.pc-field > span {
+  font: 700 10px var(--place-mono);
+  letter-spacing: 0.14em;
+  color: var(--faint, var(--muted));
+}
+.pc-field input {
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: 13px var(--place-mono);
+}
+.pc-field input:focus {
+  outline: none;
+  border-color: var(--place-ink);
+}
+.pc-steps {
+  margin: 14px 0 4px;
+}
+.pc-steps li small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text);
+  font-size: 12px;
+}
+.pc-steps li.plan > span,
+.pc-steps li.skip > span,
+.pc-steps li.skip {
+  color: var(--muted);
+}
+.pc-steps li.doing > span {
+  animation: place-blink 0.6s steps(2) infinite;
+}
+.pc-steps li.warn > span {
+  color: var(--warn, var(--muted));
+}
+.pc-steps li.error > span,
+.pc-steps li.error small {
+  color: var(--place-bad);
+}
+
+/* the map */
+.pmap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 14px;
+  align-items: start;
+}
+.pmap-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 28px 48px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle, color-mix(in srgb, var(--text) 7%, transparent) 1px, transparent 1.2px) 0 0 / 8px
+    8px;
+}
+.pmap-wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 2;
+}
+.pmap-wire path {
+  fill: none;
+  stroke: var(--line, var(--muted));
+  stroke-width: 1.25;
+}
+.pmap-wire.cross path {
+  stroke: var(--place-ink);
+  stroke-width: 2.5;
+  stroke-dasharray: 7 5;
+}
+.pmap-wire.down path {
+  stroke: var(--place-bad);
+  stroke-dasharray: 2 6;
+}
+.pmap-wire text {
+  font: 700 10px var(--place-mono);
+  letter-spacing: 0.12em;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+}
+.pmap-wire.down text {
+  fill: var(--place-bad);
+}
+.pmap-track {
+  fill: none;
+  stroke: none;
+}
+.pmap-packet .core {
+  fill: var(--place-ink);
+}
+.pmap-packet .halo {
+  fill: none;
+  stroke: var(--place-ink);
+  stroke-width: 1;
+  opacity: 0.4;
+}
+.pmap-packet.error .core {
+  fill: var(--place-bad);
+}
+.pmap-packet.error .halo {
+  stroke: var(--place-bad);
+}
+.pmap-zone {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1.5px solid var(--place-ink);
+  background: var(--bg);
+  box-shadow: 4px 4px 0 var(--border);
+}
+.pmap-zone.off {
+  border-style: dashed;
+  border-color: var(--place-bad);
+  box-shadow: none;
+}
+.pmap-zone.off .pmap-card {
+  opacity: 0.55;
+}
+.pmap-zone-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  text-align: left;
+}
+.pmap-zone-head small {
+  font: 11px var(--place-mono);
+  color: var(--muted);
+}
+.pmap-group {
+  display: grid;
+  gap: 8px;
+}
+.pmap-label,
+.pmap-team-label,
+.pmap-log h3 {
+  font: 700 9px var(--place-mono);
+  letter-spacing: 0.14em;
+  color: var(--faint, var(--muted));
+}
+.pmap-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.pmap-team {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--muted);
+}
+.pmap-team.running .pmap-team-label {
+  color: var(--text);
+}
+.pmap-card {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  gap: 3px;
+  min-width: 120px;
+  max-width: 190px;
+  padding: 7px 9px;
+  border: 1px solid var(--place-ink);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+}
+.pmap-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.pmap-card-top b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pmap-card small {
+  font: 11px var(--place-mono);
+  color: var(--muted);
+}
+.pmap-card.you {
+  border-width: 2px;
+  box-shadow: 3px 3px 0 var(--border);
+}
+.pmap-card.lead {
+  border-width: 2px;
+}
+.pmap-card.dim {
+  border-style: dotted;
+  color: var(--muted);
+}
+.pmap-card[data-state='error'] {
+  border-left: 3px solid var(--place-bad);
+}
+.pmap-card[data-state='working'] {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 3px var(--place-ink);
+}
+.pmap-card[data-sending] {
+  box-shadow: 3px 3px 0 var(--place-ink);
+}
+.pmap-card.got {
+  animation: pmap-got 0.5s ease-out;
+}
+@keyframes pmap-got {
+  40% {
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 3px var(--place-ink);
+  }
+}
+.pmap-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+.pmap-log {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 8px;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.pmap-entry {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+  font-size: 12px;
+}
+.pmap-entry time {
+  font: 11px var(--place-mono);
+  color: var(--muted);
+}
+.pmap-entry p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.pmap-entry.err {
+  border-left: 3px solid var(--place-bad);
+  padding-left: 6px;
+}
+.pmap-where {
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  font: 10px var(--place-mono);
+  color: var(--muted);
+}
+.pmap-where.cross {
+  border-color: var(--place-ink);
+  color: var(--text);
+}
+@media (max-width: 1100px) {
+  .pmap {
+    grid-template-columns: 1fr;
+  }
+  .pmap-log {
+    position: static;
+    max-height: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pmap-card.got,
+  .spin {
+    animation: none;
   }
 }

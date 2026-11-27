@@ -8,14 +8,14 @@ import { Switch } from '../skills/SkillBits';
 import { STATUS, agoLabel, describeSchedule, lastRun, statusOf, toReview, untilLabel } from '../../lib/agents';
 import { whereOf } from '../../lib/places';
 
-export function AgentCard({ agent: a, chats, projects, now, selected, onOpen, onToggle, onRun }) {
+export function AgentCard({ agent: a, chats, projects, places, now, selected, onOpen, onToggle, onRun }) {
   const status = statusOf(a, chats);
   const last = lastRun(a);
   const project = projects.find((p) => p.id === a.projectId);
   const history = (a.runs || []).slice(0, 12).reverse();
   const busy = status === 'running' || status === 'waiting';
   const review = toReview(a);
-  const where = whereOf(a);
+  const where = whereOf(a, places);
   const placeRunning = where.find((w) => w.running);
   return (
     <article
@@ -71,16 +71,19 @@ export function AgentCard({ agent: a, chats, projects, now, selected, onOpen, on
         {where.map((w) => (
           <span
             key={w.id}
-            className={'agent-loc ' + w.id + (w.running ? ' running' : '')}
+            className={'agent-loc ' + w.id + (w.running ? ' running' : '') + (w.online ? '' : ' off')}
             data-where={w.id}
             title={
               w.id === 'vesta'
                 ? 'Roda com o VeSTA aberto, mesmo minimizado'
-                : 'Roda pelo agendador, com o VeSTA fechado'
+                : w.remote
+                  ? 'Roda na VPS pelo agendador dela, com o VeSTA fechado'
+                  : 'Roda pelo agendador, com o VeSTA fechado'
             }
           >
             <i />
             {w.label}
+            {!w.online && <em>fora do ar</em>}
             {w.outdated && <em>desatualizado</em>}
           </span>
         ))}

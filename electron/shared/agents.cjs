@@ -17,7 +17,8 @@
 //   its task ({ n, at, note, prompt, lessons[] }, newest first; shared/refine.cjs).
 // Run { id, at, endedAt, trigger: 'schedule' | 'manual' | 'catch-up', status: 'running' | 'ok' | 'error', chatId,
 //       summary, error, place?, usage? }: place = where it ran with VeSTA closed (chatId null, places/engine.cjs)
-// places { pc: { slug, hash, at, task, running, outdated } }: where the agent is installed to run with VeSTA closed
+// places { <placeId>: { slug, hash, at, task, running, outdated } }: where the agent is installed to run with VeSTA
+//        closed ('pc' = this PC, else a VPS of state.places; places/engine.cjs)
 // Message meant for the person (this file also runs in the renderer, so it cannot require errors.cjs).
 const userError = (message) => Object.assign(new Error(message), { name: 'UserError', userSafe: true });
 // The same four AIs as quests.cjs (a shared file cannot require another; a test keeps both lists equal).
@@ -113,7 +114,7 @@ function normalizeAgent(input = {}, prev = null) {
 
 const isRunning = (a) => (a.runs || []).some((r) => r.status === 'running');
 const lastRun = (a) => (a.runs || [])[0] || null;
-// Installed in a place (places/engine.cjs: { pc: { slug, hash, at, running, outdated } }): the place runs it.
+// Installed in a place (places/engine.cjs: { pc | <vps id>: { slug, hash, at, running, outdated } }): the place runs it.
 const installedSomewhere = (a) => !!a.places && Object.keys(a.places).length > 0;
 // Enabled agents whose time has come; one already running waits for its next time; one installed in a place runs
 // there, never twice.

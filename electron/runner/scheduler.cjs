@@ -2,6 +2,8 @@
 // the agents folder next to vesta-agent.cjs (see runner/files.cjs).
 //   windows  one task per agent in the Task Scheduler folder \VeSTA\ (vesta-agent-<slug>), registered from XML so the
 //            arguments, "run when available" (catch-up) and "keep going on battery" are set exactly
+//   systemd  a user service + timer per agent (vesta-agent-<slug>.timer in ~/.config/systemd/user): a VPS or any Linux
+//            with systemd; Persistent=true is the catch-up, and "loginctl enable-linger" keeps it going logged out
 //   none     nothing is registered: the agent only runs on request (tests, and the manual schedule)
 // A schedule is the agent's own ({ kind, time, days, hours }, shared/agents.cjs).
 const fs = require('node:fs'),
@@ -93,6 +95,98 @@ function taskXml({ name, schedule, catchUp = true, command, args = [], now = new
   );
 }
 
+// ---- systemd -------------------------------------------------------------------------------------------------------
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// The [Timer] lines of a schedule, or null when it only runs on request. Calendar times are the machine's own zone.
+function timerLines(schedule, catchUp = true) {
+  const s = schedule || {};
+  if (s.kind === 'interval') {
+    const h = Math.max(1, Number(s.hours) || 4);
+    return ['OnActiveSec=' + h + 'h', 'OnUnitActiveSec=' + h + 'h'];
+  }
+  if (!['daily', 'weekdays', 'weekly'].includes(s.kind)) return null;
+  const [h, m] = String(s.time || '08:30')
+    .split(':')
+    .map(Number);
+  const at = pad(h || 0) + ':' + pad(m || 0) + ':00';
+  const days =
+    s.kind === 'daily'
+      ? ''
+      : s.kind === 'weekdays'
+        ? 'Mon..Fri '
+        : (s.days || [])
+            .filter((d) => d >= 0 && d <= 6)
+            .map((d) => DOW[d])
+            .join(',') + ' ';
+  if (s.kind === 'weekly' && !days.trim()) return null;
+  return ['OnCalendar=' + days + '*-*-* ' + at, 'Persistent=' + (catchUp ? 'true' : 'false')];
+}
+// systemd reads ExecStart itself: each argument in double quotes, and % is its own escape.
+const unitArg = (a) => '"' + String(a).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '%%') + '"';
+const oneLine = (s) =>
+  String(s)
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/%/g, '%%');
+// { service, timer } texts, or null for a schedule that only runs on request. One run at a time is systemd's own
+// rule for a oneshot service; it stops after two hours.
+function unitFiles({ name, schedule, catchUp = true, command, args = [] }) {
+  const timer = timerLines(schedule, catchUp);
+  if (!timer) return null;
+  const description = 'Description=' + oneLine('Agent do VeSTA: ' + name);
+  return {
+    service: [
+      '[Unit]',
+      description,
+      '',
+      '[Service]',
+      'Type=oneshot',
+      'ExecStart=' + [command, ...args].map(unitArg).join(' '),
+      'TimeoutStartSec=2h',
+      '',
+    ].join('\n'),
+    timer: ['[Unit]', description, '', '[Timer]', ...timer, '', '[Install]', 'WantedBy=timers.target', ''].join('\n'),
+  };
+}
+const unitDir = () => path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'systemd', 'user');
+function systemdScheduler({ run, dir = unitDir() }) {
+  const unit = (slug) => 'vesta-agent-' + slug;
+  const files = (slug) => [path.join(dir, unit(slug) + '.service'), path.join(dir, unit(slug) + '.timer')];
+  const ctl = (...args) => run('systemctl', ['--user', ...args]);
+  return {
+    kind: 'systemd',
+    taskName: (slug) => unit(slug) + '.timer',
+    describe: (slug) => 'systemd: ' + unit(slug) + '.timer',
+    async register(slug, { name, schedule, catchUp, command, args }) {
+      const u = unitFiles({ name, schedule, catchUp, command, args });
+      if (!u) {
+        await this.unregister(slug);
+        return false;
+      }
+      fs.mkdirSync(dir, { recursive: true });
+      const [service, timer] = files(slug);
+      fs.writeFileSync(service, u.service);
+      fs.writeFileSync(timer, u.timer);
+      await ctl('daemon-reload');
+      // A changed timer starts over with its new times.
+      await ctl('enable', unit(slug) + '.timer');
+      await ctl('restart', unit(slug) + '.timer');
+      return true;
+    },
+    async unregister(slug) {
+      try {
+        await ctl('disable', '--now', unit(slug) + '.timer');
+      } catch {}
+      const had = files(slug).some((f) => fs.existsSync(f));
+      for (const f of files(slug)) fs.rmSync(f, { force: true });
+      if (had)
+        try {
+          await ctl('daemon-reload');
+        } catch {}
+    },
+    exists: async (slug) => fs.existsSync(files(slug)[1]),
+  };
+}
+
 const exec = (file, args) =>
   new Promise((resolve, reject) =>
     execFile(file, args, { windowsHide: true, timeout: 30000 }, (e, out, err) =>
@@ -100,12 +194,14 @@ const exec = (file, args) =>
     )
   );
 
-// kind: 'windows' | 'none'; folder: the Task Scheduler folder (tests use their own).
+// kind: 'windows' | 'systemd' | 'none'; folder: the Task Scheduler folder (tests use their own); dir: systemd's units.
 function createScheduler({
   kind = process.platform === 'win32' ? 'windows' : 'none',
   folder = 'VeSTA',
   run = exec,
+  dir,
 } = {}) {
+  if (kind === 'systemd') return systemdScheduler({ run, dir });
   const taskName = (slug) => '\\' + folder + '\\vesta-agent-' + slug;
   if (kind !== 'windows')
     return {
@@ -152,4 +248,4 @@ function createScheduler({
   };
 }
 
-module.exports = { createScheduler, taskXml, triggersXml, quoteArg };
+module.exports = { createScheduler, taskXml, triggersXml, quoteArg, unitFiles, timerLines };

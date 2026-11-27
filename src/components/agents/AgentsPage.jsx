@@ -21,7 +21,7 @@ import {
 } from '../../lib/agents';
 import { RefineAuto } from '../refine/RefineAuto';
 import { PlacesView } from '../places/PlacesView';
-import { WHERE_FILTERS, filterWhere } from '../../lib/places';
+import { whereFilters, filterWhere } from '../../lib/places';
 
 // Relative times ("em 25 min") stay true while the screen is open.
 function useNow(ms = 30000) {
@@ -60,7 +60,9 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
   const active = agents.filter((a) => a.enabled).length;
   const review = agents.reduce((n, a) => n + toReview(a), 0);
   const next = nextUp(agents);
-  const shown = filterWhere(filterAgents(agents, { filter, query }), where);
+  const places = data.places || [];
+  const filters = whereFilters(places);
+  const shown = filterWhere(filterAgents(agents, { filter, query }), where, places);
   const create = (template = {}) => setOpen({ draft: { ...blankAgent(integrations), ...template } });
   const act = async (method, args, message) => {
     try {
@@ -191,10 +193,12 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
             </div>
             <div className="agents-where" role="group" aria-label="Onde rodam">
               <span>ONDE</span>
-              {WHERE_FILTERS.map(([id, label]) => (
+              {filters.map(([id, label]) => (
                 <button key={id} aria-pressed={where === id} data-where={id} onClick={() => setWhere(id)}>
                   {label}
-                  <span className="skills-n">{id === 'all' ? agents.length : filterWhere(agents, id).length}</span>
+                  <span className="skills-n">
+                    {id === 'all' ? agents.length : filterWhere(agents, id, places).length}
+                  </span>
                 </button>
               ))}
             </div>
@@ -216,6 +220,7 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
                 agent={a}
                 chats={data.chats}
                 projects={data.projects}
+                places={places}
                 now={now}
                 selected={current?.id === a.id}
                 onOpen={setOpen}
@@ -233,7 +238,7 @@ export function AgentsPage({ data, integrations, call, setData, notify, onOpenCh
           {!shown.length && (
             <p className="agent-empty-line">
               Nenhum agent {filter === 'on' ? 'ativo' : filter === 'off' ? 'inativo' : ''}
-              {where !== 'all' ? ' rodando em ' + WHERE_FILTERS.find((w) => w[0] === where)[1] : ''}
+              {where !== 'all' ? ' rodando em ' + (filters.find((w) => w[0] === where)?.[1] || 'esse lugar') : ''}
               {query ? ' com “' + query + '”' : ''}.
             </p>
           )}

@@ -370,8 +370,10 @@ test('Onde rodam: where an agent runs, the ONDE filter, the install squares and 
     places: { pc: { slug: 'bom-dia', running: 5, outdated: true } },
   };
   const codex = { id: 'c', name: 'Deps', prompt: 'Atualize', provider: 'codex' };
-  assert.deepEqual(whereOf(vesta), [{ id: 'vesta', label: 'VeSTA aberto' }]);
-  assert.deepEqual(whereOf(pc), [{ id: 'pc', label: 'Este PC', running: true, outdated: true }]);
+  assert.deepEqual(whereOf(vesta), [{ id: 'vesta', label: 'VeSTA aberto', online: true }]);
+  assert.deepEqual(whereOf(pc), [
+    { id: 'pc', label: 'Este PC', remote: false, online: true, running: true, outdated: true },
+  ]);
   assert.deepEqual(filterWhere([vesta, pc, codex], 'pc'), [pc]);
   assert.equal(filterWhere([vesta, pc, codex], 'vesta').length, 2);
   const place = {
@@ -398,4 +400,103 @@ test('Onde rodam: where an agent runs, the ONDE filter, the install squares and 
   assert.equal(tree[0][1], place.home + '\\');
   assert.match(tree[1][2], /0\.33\.0/);
   assert.ok(tree.some(([k, line]) => k === 'bom-dia' && /└─ bom-dia\\/.test(line)));
+});
+
+test('Onde rodam fase 2: a VPS in the chips and filters, its warnings, and the map of places', async () => {
+  const { whereOf, whereFilters, filterWhere, installStatus, mapModel, mapEvents } = await lib('places');
+  const vps = { id: 'vps-1', name: 'vps-hetzner', online: false };
+  const both = {
+    id: 'b',
+    name: 'Testes',
+    prompt: 'Rode',
+    provider: 'claude',
+    projectId: 'p1',
+    schedule: { kind: 'daily', time: '23:50' },
+    places: { pc: { slug: 't' }, 'vps-1': { slug: 't', running: 9 } },
+    runs: [
+      { id: 'r2', at: 20, endedAt: 30, status: 'error', error: 'porta 4319 ocupada', place: 'vps-1' },
+      { id: 'r1', at: 5, status: 'ok', summary: 'ok', chatId: 'c' },
+    ],
+  };
+  const open = { id: 'o', name: 'Faxina', prompt: 'Limpe', provider: 'codex', enabled: false, schedule: {} };
+  assert.deepEqual(
+    whereOf(both, [vps]).map((w) => [w.id, w.label, w.remote, w.online, w.running]),
+    [
+      ['pc', 'Este PC', false, true, false],
+      ['vps-1', 'vps-hetzner', true, false, true],
+    ]
+  );
+  assert.equal(whereOf({ places: { gone: { slug: 'x' } } }, [])[0].label, 'lugar esquecido');
+  assert.deepEqual(
+    whereFilters([vps]).map(([id]) => id),
+    ['all', 'vesta', 'pc', 'vps-1']
+  );
+  assert.deepEqual(filterWhere([both, open], 'vps-1', [vps]), [both]);
+  const remote = {
+    remote: true,
+    ais: { claude: { installed: true }, drael: { installed: false, note: 'só no Windows por enquanto' } },
+    agents: [],
+  };
+  assert.deepEqual(installStatus(both, remote).warn, ['lá trabalha na pasta work/ (o projeto fica neste PC)']);
+  assert.equal(installStatus({ ...open, provider: 'drael' }, remote).text, 'só no Windows por enquanto');
+
+  const team = {
+    id: 't1',
+    name: 'Equipe do Mora',
+    projectId: 'p1',
+    status: 'running',
+    members: [
+      { id: 'dev', name: 'Dev', role: 'Go', provider: 'codex', busy: true },
+      { id: 'lid', name: 'Líder', role: 'organiza', provider: 'claude', lead: true },
+    ],
+    messages: [
+      { id: 'm1', at: 10, from: 'voce', to: 'lid', kind: 'task', text: 'Objetivo' },
+      { id: 'm2', at: 25, from: 'lid', to: 'dev', kind: 'task', text: 'T1' },
+      { id: 'm3', at: 26, from: 'lid', to: 'lid', kind: 'note', text: 'nota' },
+    ],
+  };
+  const places = [
+    { id: 'pc', name: 'Este PC', kind: 'Windows', online: true, remote: false },
+    { id: 'vps-1', name: 'vps-hetzner', kind: 'Ubuntu · systemd', online: false, remote: true },
+  ];
+  const m = mapModel(places, { agents: [both, open], teams: [team], projects: [{ id: 'p1', name: 'Mora' }] });
+  const [pcZone, vpsZone] = m.zones;
+  assert.deepEqual(
+    pcZone.vesta.map((n) => [n.id, n.off]),
+    [['a:o:vesta', true]],
+    'not installed anywhere: runs with VeSTA open'
+  );
+  assert.deepEqual(
+    pcZone.nodes.map((n) => n.id),
+    ['a:b:pc']
+  );
+  assert.deepEqual(
+    vpsZone.nodes.map((n) => [n.id, n.running, n.error]),
+    [['a:b:vps-1', true, true]]
+  );
+  assert.deepEqual(
+    pcZone.teams[0].members.map((x) => [x.name, x.lead, x.working]),
+    [
+      ['Líder', true, false],
+      ['Dev', false, true],
+    ],
+    'the lead first'
+  );
+  assert.deepEqual(pcZone.teams[0].wires, [
+    ['voce', 't:t1:lid'],
+    ['t:t1:lid', 't:t1:dev'],
+  ]);
+  assert.equal(pcZone.teams[0].project, 'Mora');
+  assert.deepEqual(m.links, [{ from: 'zone:pc', to: 'zone:vps-1', down: true }]);
+  assert.deepEqual(
+    m.events.map((e) => [e.id, e.from, e.to, e.where, !!e.cross]),
+    [
+      ['r:r2', 'a:b:vps-1', 'voce', 'vps-hetzner', true],
+      ['m:m2', 't:t1:lid', 't:t1:dev', 'Equipe do Mora', false],
+      ['m:m1', 'voce', 't:t1:lid', 'Equipe do Mora', false],
+    ],
+    'newest first; notes and runs done in a chat stay out'
+  );
+  assert.equal(m.events[0].text, 'porta 4319 ocupada');
+  assert.equal(mapEvents(places, { teams: [team] }, 1).length, 1);
 });

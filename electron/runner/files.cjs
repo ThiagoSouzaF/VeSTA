@@ -45,4 +45,29 @@ function writeRunner(home, { version, launcher, now = Date.now() }) {
   return info;
 }
 
-module.exports = { FILES, runnerHash, installedRunner, writeRunner };
+// The same files for a folder on another machine (places/remote.cjs): a Node program, read by `node -` there, that
+// writes them, a `vesta-agent` shell script to use them by hand and version.json, then prints that version as JSON.
+// Everything it needs travels inside it, so nothing has to be quoted for the remote shell.
+function remoteWriter({ home, node, version, now = Date.now() }) {
+  const files = contents().map(([name, body]) => [name, body.toString('base64')]);
+  const info = { version, hash: runnerHash(), at: now };
+  const script = [
+    '#!/bin/sh',
+    '# Gerado pelo VeSTA: roda o executor de agents. Exemplo: vesta-agent list',
+    'exec ' + JSON.stringify(node) + ' "$(dirname "$0")/vesta-agent.cjs" "$@" --home ' + JSON.stringify(home),
+    '',
+  ].join('\n');
+  return [
+    "const fs = require('fs'), path = require('path');",
+    'const dir = path.join(' + JSON.stringify(home) + ", 'runner');",
+    'fs.mkdirSync(dir, { recursive: true });',
+    'for (const [name, b64] of ' +
+      JSON.stringify(files) +
+      ") fs.writeFileSync(path.join(dir, name), Buffer.from(b64, 'base64'));",
+    "fs.writeFileSync(path.join(dir, 'vesta-agent'), " + JSON.stringify(script) + ', { mode: 0o755 });',
+    "fs.writeFileSync(path.join(dir, 'version.json'), " + JSON.stringify(JSON.stringify(info, null, 2)) + ');',
+    'console.log(' + JSON.stringify(JSON.stringify(info)) + ');',
+  ].join('\n');
+}
+
+module.exports = { FILES, runnerHash, installedRunner, writeRunner, remoteWriter };

@@ -314,7 +314,7 @@ test('places: install packs the agent, writes the runner and marks where it runs
   // Changing the task leaves the install outdated until "Atualizar".
   ctx.agents.update({ id, ...a(), prompt: 'Rode os testes e o build.' });
   assert.equal(ctx.places.view().places[0].agents[0].outdated, true);
-  ctx.places.sync();
+  await ctx.places.sync();
   assert.equal(a().places.pc.outdated, true);
   await ctx.places.update({ agentId: id });
   assert.equal(ctx.places.view().places[0].agents[0].outdated, false);
@@ -324,7 +324,7 @@ test('places: install packs the agent, writes the runner and marks where it runs
 test('places: a run in the folder comes back to the diary with its lessons waiting for a yes', async () => {
   const { dir, home, ctx, id, a, spawned } = setup();
   await ctx.places.install({ agentIds: [id] });
-  ctx.places.runNow({ agentId: id });
+  await ctx.places.runNow({ agentId: id });
   assert.deepEqual(spawned[0].args, [
     '--vesta-agent',
     'run',
@@ -339,7 +339,7 @@ test('places: a run in the folder comes back to the diary with its lessons waiti
   assert.ok(a().places.pc.running, 'running right after the click');
   // What the launched runner would do:
   await createRunner({ home, scheduler: spyScheduler() }).run('testes-de-toda-noite', { trigger: 'manual' });
-  assert.equal(ctx.places.sync(), true);
+  assert.equal(await ctx.places.sync(), true);
   assert.equal(a().places.pc.running, null, 'the run that began after the click ended it');
   const run = a().runs[0];
   assert.equal(run.place, 'pc');
@@ -350,9 +350,9 @@ test('places: a run in the folder comes back to the diary with its lessons waiti
     a().lessons.map((l) => [l.text, l.status, l.from]),
     [['confira a porta 4319 antes.', 'pending', 'place']]
   );
-  assert.equal(ctx.places.sync(), false, 'imported once');
+  assert.equal(await ctx.places.sync(), false, 'imported once');
   // The card's "Rodar agora" goes to the place too.
-  assert.equal(ctx.agents.runNow({ id }).slug, 'testes-de-toda-noite');
+  assert.equal((await ctx.agents.runNow({ id })).slug, 'testes-de-toda-noite');
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -364,7 +364,7 @@ test('places: remove takes it out of the folder; a folder removed by hand is not
   assert.equal(fs.existsSync(path.join(home, 'agents', 'testes-de-toda-noite')), false);
   await ctx.places.install({ agentIds: [id] });
   fs.rmSync(path.join(home, 'agents', 'testes-de-toda-noite'), { recursive: true });
-  ctx.places.sync();
+  await ctx.places.sync();
   assert.equal(a().places.pc, undefined);
   await ctx.places.install({ agentIds: [id] });
   ctx.agents.remove({ id });

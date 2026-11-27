@@ -1,9 +1,9 @@
 // IPC surface of Agent Mode: thin wrappers over the engine (created once the store is ready).
 function agentMethods(ctx) {
   // A change of the agent may leave its install in a place outdated (places/engine.cjs).
-  const done = (fn) => (args) => {
+  const done = (fn) => async (args) => {
     fn(args || {});
-    ctx.places?.sync();
+    await ctx.places?.sync().catch(() => {});
     return ctx.state();
   };
   return {
@@ -15,7 +15,7 @@ function agentMethods(ctx) {
     agentLesson: done((a) => ctx.agents.lesson(a)),
     agentSuggestion: done((a) => ctx.agents.suggestion(a)),
     // The screen also needs the chat of the run, to open it.
-    agentRun: (args) => ({ ...ctx.agents.runNow(args || {}), state: ctx.state() }),
+    agentRun: async (args) => ({ ...(await ctx.agents.runNow(args || {})), state: ctx.state() }),
   };
 }
 module.exports = { agentMethods };

@@ -156,9 +156,11 @@ function createAgentEngine(ctx, deps = {}) {
       .catch((e) => finish(a.id, run.id, 'error', '', e.message));
     return run.id;
   }
-  // Installed in a place, it runs there (places/engine.cjs); the diary gets the run when it ends.
+  // Installed in a place, it runs there (places/engine.cjs; then the answer is a promise, maybe over SSH); the diary
+  // gets the run when it ends.
   function runNow({ id }) {
-    if (find(id).places?.pc) return { runId: null, chatId: null, ...ctx.places.runNow({ agentId: id }) };
+    if (A.installedSomewhere(find(id)))
+      return ctx.places.runNow({ agentId: id }).then((r) => ({ runId: null, chatId: null, ...r }));
     return { runId: start(find(id), 'manual'), chatId: find(id).runs[0].chatId };
   }
   // A run that happened in a place, read from its folder: into the diary in time order, its lessons pending as usual.

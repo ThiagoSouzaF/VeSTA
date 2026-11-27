@@ -1,44 +1,55 @@
-// The side drawer of a place: an agent's runs there (read from its folder), updating or removing it, and updating the
-// place's runner. Each change says what VeSTA will do before the person confirms.
+// The side drawer of a place: an agent's runs there (read from its folder), updating or removing it, updating the
+// place's runner, connecting a VPS and forgetting one. Each change says what VeSTA will do before the person confirms.
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { agoLabel, duration } from '../../lib/agents';
 import { fmtTokens } from '../../lib/tokens';
+import { ConnectForm } from './ConnectForm';
 
-export function PlaceDrawer({ drawer, place, call, act, onClose, onOpenAgent }) {
+export function PlaceDrawer({ drawer, place, call, act, onClose, onOpenAgent, onConnected, onForgotten }) {
   const { kind, x, a } = drawer;
   const [runs, setRuns] = useState(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (kind !== 'runs') return;
-    call('placeRuns', { agentId: a.id })
+    call('placeRuns', { agentId: a.id, placeId: place.id })
       .then(setRuns)
       .catch(() => setRuns([]));
-  }, [kind, a, call]);
+  }, [kind, a, call, place.id]);
   useEffect(() => {
     const key = (e) => e.key === 'Escape' && !busy && onClose();
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [busy, onClose]);
-  const confirm = async (method, args, message) => {
+  const confirm = async (method, args, message, then = onClose) => {
     setBusy(true);
-    const ok = await act(method, args, message);
+    const r = await act(method, { placeId: place.id, ...args }, message);
     setBusy(false);
-    if (ok) onClose();
+    if (r) then(r);
   };
-  const folder = x && place.home + (place.home.includes('\\') ? '\\agents\\' : '/agents/') + x.slug;
+  const win = place.home.includes('\\');
+  const folder = x && place.home + (win ? '\\agents\\' : '/agents/') + x.slug;
+  const where = place.remote ? 'Em ' + place.name : 'Neste PC';
+  const inPlace = place.remote ? 'em ' + place.name : 'neste PC';
   const head = {
-    runs: [
-      'Execuções de ' + x?.name,
-      'Neste PC · lidas de ' + folder + (place.home.includes('\\') ? '\\runs' : '/runs'),
+    runs: ['Execuções de ' + x?.name, where + ' · lidas de ' + folder + (win ? '\\runs' : '/runs')],
+    update: ['Atualizar ' + x?.name, where + ': troca o pedido, as lições e as skills pela versão de agora do VeSTA.'],
+    remove: [
+      'Remover ' + x?.name,
+      (place.remote ? 'De ' + place.name : 'Deste PC') +
+        '. O agent continua no VeSTA e volta a rodar com o VeSTA aberto, se não estiver em outro lugar.',
     ],
-    update: ['Atualizar ' + x?.name, 'Neste PC: troca o pedido, as lições e as skills pela versão de agora do VeSTA.'],
-    remove: ['Remover ' + x?.name, 'Deste PC. O agent continua no VeSTA e volta a rodar com o VeSTA aberto.'],
     runner: [
       'Atualizar o executor',
-      'Neste PC: ' + (place.runner.installed?.version || '—') + ' → ' + place.runner.latest.version,
+      where + ': ' + (place.runner.installed?.version || '—') + ' → ' + place.runner.latest.version,
+    ],
+    connect: ['Conectar uma VPS', 'Por SSH, com as chaves que você já usa (~/.ssh). O VeSTA não guarda senha.'],
+    forget: [
+      'Esquecer ' + place.name,
+      'O VeSTA para de ler este lugar. Os agents dele voltam a rodar com o VeSTA aberto.',
     ],
   }[kind];
+  const mine = (place.agents || []).filter((y) => y.agentId);
 
   return (
     <>
@@ -58,7 +69,7 @@ export function PlaceDrawer({ drawer, place, call, act, onClose, onOpenAgent }) 
           (runs === null ? (
             <p className="muted">Lendo…</p>
           ) : !runs.length ? (
-            <p className="muted">Ainda não rodou neste PC.</p>
+            <p className="muted">Ainda não rodou {inPlace}.</p>
           ) : (
             <>
               <p className="pd-note">
@@ -108,7 +119,7 @@ export function PlaceDrawer({ drawer, place, call, act, onClose, onOpenAgent }) 
               <button
                 className="primary-button"
                 disabled={busy}
-                onClick={() => confirm('placeUpdate', { agentId: a.id }, x.name + ' atualizado neste PC')}
+                onClick={() => confirm('placeUpdate', { agentId: a.id }, x.name + ' atualizado ' + inPlace)}
               >
                 {busy ? 'Atualizando…' : 'Atualizar'}
               </button>
@@ -132,7 +143,13 @@ export function PlaceDrawer({ drawer, place, call, act, onClose, onOpenAgent }) 
               <button
                 className="primary-button danger"
                 disabled={busy}
-                onClick={() => confirm('placeRemove', { agentId: a.id }, x.name + ' removido deste PC')}
+                onClick={() =>
+                  confirm(
+                    'placeRemove',
+                    { agentId: a.id },
+                    x.name + ' removido ' + (place.remote ? 'de ' + place.name : 'deste PC')
+                  )
+                }
               >
                 {busy ? 'Removendo…' : 'Remover'}
               </button>
@@ -145,8 +162,8 @@ export function PlaceDrawer({ drawer, place, call, act, onClose, onOpenAgent }) 
             <Steps
               list={[
                 [
-                  'Copiar o executor novo para a pasta',
-                  place.home + (place.home.includes('\\') ? '\\runner' : '/runner'),
+                  place.remote ? 'Enviar o executor novo por SSH' : 'Copiar o executor novo para a pasta',
+                  place.home + (win ? '\\runner' : '/runner'),
                 ],
                 ['Os agents e as tarefas ficam como estão', ''],
               ]}
@@ -162,6 +179,39 @@ export function PlaceDrawer({ drawer, place, call, act, onClose, onOpenAgent }) 
                 onClick={() => confirm('placeRunner', {}, 'Executor atualizado')}
               >
                 Atualizar
+              </button>
+            </div>
+          </>
+        )}
+
+        {kind === 'connect' && (
+          <ConnectForm act={act} busy={busy} setBusy={setBusy} onClose={onClose} onConnected={onConnected} />
+        )}
+
+        {kind === 'forget' && (
+          <>
+            <Steps
+              list={[
+                ['Trazer as execuções que ainda não estão no diário', ''],
+                ...(mine.length
+                  ? [['Remover os agents de lá: ' + mine.map((y) => y.name).join(', '), place.address]]
+                  : []),
+                ['Tirar ' + place.name + ' da lista de lugares', ''],
+              ]}
+            />
+            <p className="pd-note">
+              A pasta do executor fica no servidor. Para apagar também: <code>rm -rf {place.home}</code>
+            </p>
+            <div className="pd-foot">
+              <button className="secondary-button" onClick={onClose} disabled={busy}>
+                Cancelar
+              </button>
+              <button
+                className="primary-button danger"
+                disabled={busy}
+                onClick={() => confirm('placeForget', {}, place.name + ' esquecida', (r) => onForgotten(r))}
+              >
+                {busy ? 'Esquecendo…' : 'Esquecer'}
               </button>
             </div>
           </>

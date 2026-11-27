@@ -1,15 +1,16 @@
-// vesta-agent: runs VeSTA's agents with VeSTA closed (this PC now, a VPS later). Only Node built-ins and three sibling
+// vesta-agent: runs VeSTA's agents with VeSTA closed (this PC, or a VPS reached by SSH: places/remote.cjs). Only Node built-ins and three sibling
 // files, because VeSTA copies this folder into the agents folder (runner/files.cjs) and the system scheduler starts it
 // from there. Inside the app the siblings come from their own places (shared/, app/).
 //
 // The agents folder (VESTA_AGENTS_HOME, else %LOCALAPPDATA%\VeSTA\agents or ~/.vesta-agents):
 //   runner/            this program (version.json says which VeSTA wrote it), vesta-agent.cmd to use it by hand
-//   config.json        { ais: { claude: { exe, args? } ... }, launcher: { exe, args }, scheduler, timeoutMin }
+//   config.json        { ais: { claude: { exe, args? } ... }, launcher: { exe, args }, scheduler, timeoutMin, path? }
+//                      path: the PATH the AIs run with (a VPS's login PATH: a systemd timer starts with a bare one)
 //   agents/<slug>/     agent.json (what VeSTA sent), skills/<name>.md, work/ (folder for agents without a project),
 //                      runs/<time>-<id>.json (one per run), running.json (while one runs)
 //
-// Commands (always JSON on stdout): status | list | install <pacote.json> | remove <slug> | run <slug> [--trigger t]
-// | runs <slug> [--n 10]; all take --home <pasta>.
+// Commands (always JSON on stdout): status | list | install <pacote.json | -> | config <patch.json | -> | remove <slug>
+// | run <slug> [--trigger t] | runs <slug> [--n 10]; all take --home <pasta>; "-" reads the JSON from stdin.
 const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
@@ -290,6 +291,7 @@ function createRunner({ home = defaultHome(), scheduler = null, now = Date.now }
     scheduler ||
     createScheduler({
       kind: process.env.VESTA_AGENT_SCHEDULER || config().scheduler || undefined,
+      dir: config().unitDir || undefined,
       folder: config().taskFolder || 'VeSTA',
     });
   const readAgent = (slug) => readJson(path.join(dirOf(slug), 'agent.json'));
@@ -417,6 +419,7 @@ function createRunner({ home = defaultHome(), scheduler = null, now = Date.now }
     const at = now();
     const id = randomUUID();
     writeJson(lockFile(slug), { pid: process.pid, at, runId: id });
+    if (config().path) process.env.PATH = config().path;
     const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-agent-'));
     let r;
     try {
@@ -479,6 +482,14 @@ function createRunner({ home = defaultHome(), scheduler = null, now = Date.now }
 }
 
 // ---- Command line --------------------------------------------------------------------------------------------------
+const input = (arg) => {
+  if (arg !== '-') return readJson(arg);
+  try {
+    return JSON.parse(fs.readFileSync(0, 'utf8'));
+  } catch {
+    return null;
+  }
+};
 function parseArgs(argv) {
   const pos = [],
     opt = {};
@@ -497,14 +508,17 @@ async function main(argv, { out = (s) => process.stdout.write(s + '\n') } = {}) 
     let result;
     if (cmd === 'status') result = runner.status();
     else if (cmd === 'list') result = runner.list();
-    else if (cmd === 'install') result = await runner.install(readJson(arg) || {});
-    else if (cmd === 'remove') result = await runner.remove(arg);
+    else if (cmd === 'install') result = await runner.install(input(arg) || {});
+    else if (cmd === 'config') {
+      runner.setConfig(input(arg) || {});
+      result = runner.status();
+    } else if (cmd === 'remove') result = await runner.remove(arg);
     else if (cmd === 'run')
       result = await runner.run(arg, { trigger: typeof opt.trigger === 'string' ? opt.trigger : 'schedule' });
     else if (cmd === 'runs') result = runner.runs(arg, { n: Number(opt.n) || 30 });
     else {
       out(
-        'Uso: vesta-agent status | list | install <pacote.json> | remove <agent> | run <agent> | runs <agent> [--home pasta]'
+        'Uso: vesta-agent status | list | install <pacote.json> | config <json> | remove <agent> | run <agent> | runs <agent> [--home pasta]'
       );
       return cmd ? 2 : 0;
     }

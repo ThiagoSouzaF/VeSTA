@@ -38,6 +38,8 @@ const defaults = () => ({
   agents: [],
   // Equipes (see shared/teams.cjs): agents that work together on a project, with a board and messages.
   teams: [],
+  // Onde rodam (see places/engine.cjs): the VPS reached by SSH where agents run with VeSTA closed (this PC is implicit).
+  places: [],
   // Consolidation of the shared memory by an AI the person picks (memory/consolidator.cjs): the AI, the schedule,
   // the last runs, and the closed conversation stretches waiting for it.
   consolidation: null,
