@@ -566,8 +566,10 @@ async function startServer(extra = {}) {
   hub.start();
   const calls = [],
     logs = [];
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-static-'));
-  fs.mkdirSync(path.join(root, 'assets'));
+  // O segredo fica ao lado da raiz estática; ambos dentro de uma pasta temporária apagada ao final.
+  const pai = fs.mkdtempSync(path.join(os.tmpdir(), 'vesta-static-')),
+    root = path.join(pai, 'raiz');
+  fs.mkdirSync(path.join(root, 'assets'), { recursive: true });
   fs.writeFileSync(path.join(root, 'index.html'), '<!doctype html><title>m</title>' + 'x'.repeat(2000));
   fs.writeFileSync(path.join(root, 'assets', 'a.js'), 'console.log(1)');
   fs.writeFileSync(path.join(path.dirname(root), 'vesta-secret.txt'), 'segredo');

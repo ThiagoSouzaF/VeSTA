@@ -9,7 +9,7 @@
     "dev": "vite --host 127.0.0.1",
     "start": "electron .",
     "build": "vite build && vite build --config vite.mobile.config.mjs",
-    "test": "node --test test/*.test.cjs",
+    "test": "node --test --require ./test/limpa-tmp.cjs test/*.test.cjs",
     "dist": "npm run build && electron-builder --win portable --x64",
     "installer": "npm run build && electron-builder --win nsis --x64",
     "release": "node scripts/release.cjs",
